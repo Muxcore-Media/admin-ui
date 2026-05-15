@@ -1,0 +1,11 @@
+{
+  "name": "Admin UI",
+  "description": "HTMX + Tailwind CSS admin dashboard for MuxCore. Provides module overview, system status, and marketplace browser.",
+  "version": "1.0.0",
+  "icon": "",
+  "author": "MuxCore",
+  "kind": "ui",
+  "capabilities": ["web.admin", "web.dashboard"],
+  "dependencies": ["api-rest"],
+  "homepage": "https://github.com/Muxcore-Media/admin-ui"
+}
