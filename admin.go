@@ -11,6 +11,12 @@ import (
 	"github.com/Muxcore-Media/core/pkg/contracts"
 )
 
+func init() {
+	contracts.Register(func(deps contracts.ModuleDeps) contracts.Module {
+		return NewModule(deps.Registry, deps.Routes)
+	})
+}
+
 //go:embed templates
 var templatesFS embed.FS
 
