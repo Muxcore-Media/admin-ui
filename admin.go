@@ -53,7 +53,7 @@ func (m *Module) Info() contracts.ModuleInfo {
 		ID:           "admin-ui",
 		Name:         "Admin UI",
 		Version:      "1.0.0",
-		Kind:         contracts.ModuleKindUI,
+		Kinds:        []contracts.ModuleKind{contracts.ModuleKindUI},
 		Description:  "HTMX + Tailwind CSS admin dashboard",
 		Author:       "MuxCore",
 		Capabilities: []string{"web.admin", "web.dashboard"},
