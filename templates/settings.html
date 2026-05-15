@@ -1,0 +1,88 @@
+{{template "base" .}}
+
+{{define "title"}}Settings - MuxCore{{end}}
+
+{{define "content"}}
+<div class="p-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-semibold">Settings</h1>
+        <span class="text-sm text-gray-400">Environment-based configuration</span>
+    </div>
+
+    {{if .Groups}}
+    <div class="space-y-6">
+        {{range .Groups}}
+        <div class="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+            <div class="px-5 py-3 border-b border-gray-800 flex items-center justify-between">
+                <h2 class="font-medium">{{.Label}}</h2>
+                <span class="text-xs text-gray-500">{{.Prefix}}</span>
+            </div>
+            <div class="divide-y divide-gray-800/50">
+                {{range .Vars}}
+                <div class="px-5 py-3 flex items-center justify-between hover:bg-gray-800/30 transition-colors">
+                    <div class="flex-1 min-w-0 mr-4">
+                        <div class="flex items-center gap-2">
+                            <code class="text-sm font-mono text-brand-300">{{.Name}}</code>
+                            {{if .IsSecret}}
+                            <span class="text-xs bg-yellow-900/50 text-yellow-400 px-1.5 py-0.5 rounded">secret</span>
+                            {{end}}
+                        </div>
+                        {{if .Description}}
+                        <p class="text-xs text-gray-500 mt-0.5">{{.Description}}</p>
+                        {{end}}
+                    </div>
+                    <div class="flex items-center gap-3">
+                        {{if .IsSet}}
+                            {{if .IsSecret}}
+                            <span class="text-sm text-green-400 font-mono">••••••••</span>
+                            {{else}}
+                            <span class="text-sm text-green-400 font-mono">{{.Value}}</span>
+                            {{end}}
+                            <span class="text-xs bg-green-900/50 text-green-400 px-1.5 py-0.5 rounded">set</span>
+                        {{else}}
+                            <span class="text-sm text-gray-500 font-mono">{{.Default}}</span>
+                            <span class="text-xs bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded">default</span>
+                        {{end}}
+                    </div>
+                </div>
+                {{end}}
+            </div>
+        </div>
+        {{end}}
+    </div>
+    {{else}}
+    <div class="bg-gray-900 rounded-xl border border-gray-800 p-12 text-center text-gray-500">
+        <p class="text-lg">No MUXCORE_* environment variables found.</p>
+        <p class="text-sm mt-2">Configure modules by setting environment variables in your deployment.</p>
+    </div>
+    {{end}}
+
+    <div class="mt-8 bg-gray-900 rounded-xl border border-gray-800 p-5">
+        <h2 class="font-medium mb-2">Configuration Guide</h2>
+        <p class="text-sm text-gray-400">
+            Settings are configured via environment variables with the <code class="text-brand-300">MUXCORE_</code> prefix.
+            Set these in your <code class="text-brand-300">docker-compose.yml</code> or <code class="text-brand-300">.env</code> file,
+            then restart MuxCore for changes to take effect.
+        </p>
+        <div class="mt-3 text-sm text-gray-400">
+            <p>Example <code class="text-brand-300">.env</code>:</p>
+            <pre class="mt-2 bg-gray-950 rounded-lg p-3 text-xs font-mono text-gray-300 overflow-x-auto">
+# Core
+MUXCORE_STORAGE_PATH=/data/media
+
+# qBittorrent
+MUXCORE_QBITTORRENT_ADDR=http://localhost:8080
+MUXCORE_QBITTORRENT_USER=admin
+MUXCORE_QBITTORRENT_PASS=yourpassword
+
+# Jackett
+MUXCORE_JACKETT_ADDR=http://localhost:9117
+MUXCORE_JACKETT_APIKEY=yourapikey
+
+# Jellyfin
+MUXCORE_JELLYFIN_URL=http://localhost:8096
+MUXCORE_JELLYFIN_APIKEY=yourapikey</pre>
+        </div>
+    </div>
+</div>
+{{end}}
