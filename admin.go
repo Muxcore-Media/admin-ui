@@ -3,10 +3,13 @@ package adminui
 import (
 	"context"
 	"embed"
+	"encoding/json"
 	"html/template"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,12 +28,13 @@ func init() {
 var templatesFS embed.FS
 
 type Module struct {
-	reg       contracts.ServiceRegistry
-	routes    contracts.RouteRegistrar
-	dashboard *template.Template
-	modules   *template.Template
-	settings  *template.Template
-	setup     *template.Template
+	reg         contracts.ServiceRegistry
+	routes      contracts.RouteRegistrar
+	dashboard   *template.Template
+	modulesTmpl *template.Template
+	settings    *template.Template
+	setup       *template.Template
+	marketplace *template.Template
 
 	mu        sync.Mutex
 	setupVals map[string]string
@@ -74,9 +78,15 @@ func (m *Module) Init(ctx context.Context) error {
 		return err
 	}
 	m.dashboard = dashboard
-	m.modules = modules
+	m.modulesTmpl = modules
 	m.settings = settings
 	m.setup = setup
+
+	marketplaceTmpl, err := template.ParseFS(templatesFS, "templates/base.html", "templates/marketplace.html")
+	if err != nil {
+		return err
+	}
+	m.marketplace = marketplaceTmpl
 	return nil
 }
 
@@ -103,6 +113,10 @@ func (m *Module) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		m.setupPage(w, r)
 	case path == "setup/next":
 		m.setupNext(w, r)
+	case path == "marketplace":
+		m.marketplacePage(w, r)
+	case path == "marketplace/install":
+		m.marketplaceInstall(w, r)
 	default:
 		http.NotFound(w, r)
 	}
@@ -125,7 +139,7 @@ func (m *Module) modulesPage(w http.ResponseWriter) {
 	data := map[string]any{
 		"Modules": all,
 	}
-	if err := m.modules.ExecuteTemplate(w, "base.html", data); err != nil {
+	if err := m.modulesTmpl.ExecuteTemplate(w, "base.html", data); err != nil {
 		slog.Error("template error", "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
@@ -330,4 +344,163 @@ func strDefault(val, def string) string {
 		return def
 	}
 	return val
+}
+
+// -- Marketplace browser --
+
+type catalogInfo struct {
+	Name     string
+	Official bool
+	Modules  []string
+}
+
+type catalogModule struct {
+	Name         string
+	Description  string
+	Version      string
+	Author       string
+	Kind         string
+	Homepage     string
+	RepoURL      string
+	Capabilities []string
+	Official     bool
+	Installed    bool
+}
+
+type muxcoreJSON struct {
+	Name         string   `json:"name"`
+	Description  string   `json:"description"`
+	Version      string   `json:"version"`
+	Author       string   `json:"author"`
+	Kind         string   `json:"kind"`
+	Capabilities []string `json:"capabilities"`
+	Homepage     string   `json:"homepage"`
+}
+
+type catalogJSON struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Modules     []string `json:"modules"`
+}
+
+func (m *Module) marketplacePage(w http.ResponseWriter, r *http.Request) {
+	installed := make(map[string]bool)
+	for _, entry := range m.reg.ListAll() {
+		installed[entry.Info.ID] = true
+	}
+
+	var catalogs []catalogInfo
+	var allModules []catalogModule
+
+	catalogPath := filepath.Join("modules", "marketplace-catalog", "catalog.json")
+	if data, err := os.ReadFile(catalogPath); err == nil {
+		var cat catalogJSON
+		if json.Unmarshal(data, &cat) == nil {
+			isOfficial := strings.Contains(cat.Name, "Official")
+			catalogs = append(catalogs, catalogInfo{
+				Name:     cat.Name,
+				Official: isOfficial,
+				Modules:  cat.Modules,
+			})
+			for _, repoURL := range cat.Modules {
+				cm := catalogModule{
+					RepoURL:  repoURL,
+					Name:     moduleNameFromURL(repoURL),
+					Official: isOfficial || strings.Contains(repoURL, "Muxcore-Media"),
+				}
+				if cm.Name != "" {
+					cm.Installed = installed[cm.Name]
+				}
+
+				// Try to load metadata from local checkout if installed
+				localPath := filepath.Join("modules", cm.Name, "muxcore.json")
+				if meta, err := os.ReadFile(localPath); err == nil {
+					var mj muxcoreJSON
+					if json.Unmarshal(meta, &mj) == nil {
+						cm.Name = mj.Name
+						cm.Description = mj.Description
+						cm.Version = mj.Version
+						cm.Author = mj.Author
+						cm.Kind = mj.Kind
+						cm.Capabilities = mj.Capabilities
+						cm.Homepage = mj.Homepage
+					}
+				}
+				if cm.Description == "" {
+					cm.Description = repoURL
+				}
+				if cm.Version == "" {
+					cm.Version = "—"
+				}
+				if cm.Kind == "" {
+					cm.Kind = "unknown"
+				}
+				if cm.Homepage == "" {
+					cm.Homepage = repoURL
+				}
+
+				allModules = append(allModules, cm)
+			}
+		}
+	}
+
+	sort.Slice(allModules, func(i, j int) bool { return allModules[i].Name < allModules[j].Name })
+
+	data := map[string]any{
+		"Catalogs":       catalogs,
+		"CatalogModules": allModules,
+	}
+	if err := m.marketplace.ExecuteTemplate(w, "base.html", data); err != nil {
+		slog.Error("template error", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	}
+}
+
+func (m *Module) marketplaceInstall(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	repoURL := r.FormValue("repo")
+	if repoURL == "" {
+		http.Error(w, "missing repo URL", http.StatusBadRequest)
+		return
+	}
+
+	modName := moduleNameFromURL(repoURL)
+	if modName == "" {
+		http.Error(w, "could not parse module name from URL", http.StatusBadRequest)
+		return
+	}
+
+	targetDir := filepath.Join("modules", modName)
+	if _, err := os.Stat(targetDir); err == nil {
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(`<span class="text-xs text-yellow-400">Already installed</span>`))
+		return
+	}
+
+	cmd := exec.Command("git", "clone", repoURL, targetDir)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		slog.Error("marketplace clone failed", "repo", repoURL, "output", string(output), "error", err)
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(`<span class="text-xs text-red-400">Clone failed: ` + template.HTMLEscapeString(err.Error()) + `</span>`))
+		return
+	}
+
+	slog.Info("marketplace module cloned", "module", modName, "repo", repoURL)
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Write([]byte(`<span class="text-xs text-green-400">Installed — rebuild required</span>`))
+}
+
+func moduleNameFromURL(url string) string {
+	url = strings.TrimRight(url, "/")
+	url = strings.TrimSuffix(url, ".git")
+	parts := strings.Split(url, "/")
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	return ""
 }

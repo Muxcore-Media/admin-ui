@@ -1,0 +1,106 @@
+{{template "base" .}}
+
+{{define "title"}}Marketplace - MuxCore{{end}}
+
+{{define "content"}}
+<div class="p-6">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-semibold">Marketplace</h1>
+            <p class="text-sm text-gray-400 mt-1">{{len .CatalogModules}} modules available from configured catalogs</p>
+        </div>
+    </div>
+
+    {{if .Catalogs}}
+    <div class="mb-6">
+        <h2 class="text-sm font-medium text-gray-400 uppercase tracking-wide mb-2">Configured Catalogs</h2>
+        <div class="space-y-2">
+            {{range .Catalogs}}
+            <div class="bg-gray-900 rounded-lg border border-gray-800 px-4 py-3 flex items-center justify-between">
+                <div>
+                    <span class="font-medium">{{.Name}}</span>
+                    <span class="text-xs text-gray-500 ml-2">{{len .Modules}} modules</span>
+                </div>
+                <span class="text-xs {{if .Official}}bg-brand-900/50 text-brand-300{{else}}bg-gray-800 text-gray-400{{end}} px-2 py-0.5 rounded-full">
+                    {{if .Official}}Official{{else}}Third-party{{end}}
+                </span>
+            </div>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+
+    {{if .CatalogModules}}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {{range .CatalogModules}}
+        <div class="bg-gray-900 rounded-xl border border-gray-800 p-5 hover:border-gray-700 transition-colors">
+            <div class="flex justify-between items-start">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h3 class="font-medium">{{.Name}}</h3>
+                        {{if .Official}}
+                        <span class="text-xs bg-brand-900/50 text-brand-300 px-1.5 py-0.5 rounded-full font-medium">Official</span>
+                        {{end}}
+                        {{if .Installed}}
+                        <span class="text-xs bg-green-900/50 text-green-400 px-1.5 py-0.5 rounded-full font-medium">Installed</span>
+                        {{end}}
+                    </div>
+                    <p class="text-sm text-gray-400 mt-1">{{.Description}}</p>
+                </div>
+            </div>
+            <div class="flex gap-2 mt-3 text-xs text-gray-500">
+                <span class="bg-gray-800 px-2 py-0.5 rounded-full">{{.Kind}}</span>
+                <span>v{{.Version}}</span>
+                <span>by {{.Author}}</span>
+            </div>
+            {{if .Capabilities}}
+            <div class="flex gap-1.5 mt-2 flex-wrap">
+                {{range .Capabilities}}
+                <span class="text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full">{{.}}</span>
+                {{end}}
+            </div>
+            {{end}}
+            <div class="flex justify-between items-center mt-3 pt-3 border-t border-gray-800/50">
+                <a href="{{.Homepage}}" target="_blank" class="text-xs text-gray-500 hover:text-gray-300 transition-colors truncate max-w-[200px]">
+                    {{.RepoURL}}
+                </a>
+                {{if .Installed}}
+                <span class="text-xs text-green-400">✓ Installed</span>
+                {{else}}
+                <button class="text-xs px-3 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition-colors"
+                        hx-post="/marketplace/install" hx-vals='{"repo":"{{.RepoURL}}"}'
+                        hx-target="closest div" hx-swap="outerHTML">
+                    Install
+                </button>
+                {{end}}
+            </div>
+        </div>
+        {{end}}
+    </div>
+    {{else}}
+    <div class="bg-gray-900 rounded-xl border border-gray-800 p-12 text-center text-gray-500">
+        <p class="text-lg">No marketplace catalogs configured.</p>
+        <p class="text-sm mt-2">Add a marketplace catalog URL in Settings to browse available modules.</p>
+    </div>
+    {{end}}
+
+    <div class="mt-8 bg-gray-900 rounded-xl border border-gray-800 p-5">
+        <h2 class="font-medium mb-2">Manual Installation</h2>
+        <p class="text-sm text-gray-400">
+            Modules can also be installed manually by cloning the repo into <code class="text-brand-300">modules/</code> and
+            adding a replace directive to <code class="text-brand-300">core/go.mod</code>:
+        </p>
+        <pre class="mt-3 bg-gray-950 rounded-lg p-3 text-xs font-mono text-gray-300 overflow-x-auto">
+# Clone the module
+git clone https://github.com/Muxcore-Media/jellyfin modules/jellyfin
+
+# Add to go.mod
+cd core
+go mod edit -require github.com/Muxcore-Media/jellyfin@v0.0.0
+go mod edit -replace github.com/Muxcore-Media/jellyfin=../modules/jellyfin
+
+# Rebuild
+go build -tags default ./cmd/muxcored</pre>
+    </div>
+</div>
+{{end}}
