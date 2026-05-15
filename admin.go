@@ -392,7 +392,7 @@ func (m *Module) marketplacePage(w http.ResponseWriter, r *http.Request) {
 	var catalogs []catalogInfo
 	var allModules []catalogModule
 
-	catalogPath := filepath.Join("modules", "marketplace-catalog", "catalog.json")
+	catalogPath := resolvePath("modules", "marketplace-catalog", "catalog.json")
 	if data, err := os.ReadFile(catalogPath); err == nil {
 		var cat catalogJSON
 		if json.Unmarshal(data, &cat) == nil {
@@ -413,7 +413,7 @@ func (m *Module) marketplacePage(w http.ResponseWriter, r *http.Request) {
 				}
 
 				// Try to load metadata from local checkout if installed
-				localPath := filepath.Join("modules", cm.Name, "muxcore.json")
+				localPath := resolvePath("modules", cm.Name, "muxcore.json")
 				if meta, err := os.ReadFile(localPath); err == nil {
 					var mj muxcoreJSON
 					if json.Unmarshal(meta, &mj) == nil {
@@ -493,6 +493,19 @@ func (m *Module) marketplaceInstall(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html")
 	w.Write([]byte(`<span class="text-xs text-green-400">Installed — rebuild required</span>`))
+}
+
+func resolvePath(parts ...string) string {
+	// Try relative to CWD first, then relative to parent (project root)
+	p := filepath.Join(parts...)
+	if _, err := os.Stat(p); err == nil {
+		return p
+	}
+	p = filepath.Join("..", filepath.Join(parts...))
+	if _, err := os.Stat(p); err == nil {
+		return p
+	}
+	return filepath.Join(parts...) // return best-effort
 }
 
 func moduleNameFromURL(url string) string {
