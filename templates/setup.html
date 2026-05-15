@@ -1,0 +1,211 @@
+{{template "base" .}}
+
+{{define "title"}}Setup Wizard - MuxCore{{end}}
+
+{{define "content"}}
+<div class="p-6 max-w-2xl mx-auto">
+    <!-- Step indicator -->
+    <div class="flex items-center justify-center mb-8">
+        {{$step := .Step}}
+        {{$last := .LastIndex}}
+        {{range $i, $label := .Steps}}
+        <div class="flex items-center">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
+                {{if lt $i $step}}bg-green-600 text-white
+                {{else if eq $i $step}}bg-brand-600 text-white ring-2 ring-brand-400 ring-offset-2 ring-offset-gray-950
+                {{else}}bg-gray-800 text-gray-500{{end}}">
+                {{if lt $i $step}}✓{{else}}{{$i}}{{end}}
+            </div>
+            <span class="ml-2 text-xs {{if le $i $step}}text-gray-300{{else}}text-gray-600{{end}} hidden sm:inline">{{$label}}</span>
+            {{if lt $i $last}}
+            <div class="w-8 sm:w-12 h-0.5 mx-1 {{if lt $i $step}}bg-green-600{{else}}bg-gray-800{{end}}"></div>
+            {{end}}
+        </div>
+        {{end}}
+    </div>
+
+    <!-- Step content -->
+    {{template "wizard-content" .}}
+</div>
+{{end}}
+
+{{define "wizard-content"}}
+<div id="wizard-content">
+    {{if eq .Step 0}}{{template "step-welcome" .}}
+    {{else if eq .Step 1}}{{template "step-storage" .}}
+    {{else if eq .Step 2}}{{template "step-indexers" .}}
+    {{else if eq .Step 3}}{{template "step-downloaders" .}}
+    {{else if eq .Step 4}}{{template "step-playback" .}}
+    {{else}}{{template "step-done" .}}
+    {{end}}
+</div>
+{{end}}
+
+{{define "step-welcome"}}
+<div class="bg-gray-900 rounded-xl border border-gray-800 p-8 text-center">
+    <div class="text-5xl mb-4">⚙️</div>
+    <h1 class="text-2xl font-bold mb-2">Welcome to MuxCore</h1>
+    <p class="text-gray-400 mb-6 max-w-md mx-auto">
+        Distributed event-driven media orchestration platform.
+        Let's get you set up in a few steps.
+    </p>
+    <div class="text-sm text-gray-500 mb-6 space-y-1">
+        <p>You'll configure:</p>
+        <p>Storage → Indexers → Downloaders → Playback</p>
+    </div>
+    <form hx-post="/setup/next" hx-target="#wizard-content" hx-swap="outerHTML">
+        <input type="hidden" name="step" value="0">
+        <button type="submit" class="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium transition-colors">
+            Get Started
+        </button>
+    </form>
+</div>
+{{end}}
+
+{{define "step-storage"}}
+<div class="bg-gray-900 rounded-xl border border-gray-800 p-6">
+    <h2 class="text-lg font-semibold mb-4">Storage Configuration</h2>
+    <p class="text-sm text-gray-400 mb-6">Where should MuxCore store media files?</p>
+    <form hx-post="/setup/next" hx-target="#wizard-content" hx-swap="outerHTML" class="space-y-4">
+        <input type="hidden" name="step" value="1">
+        <div>
+            <label class="block text-sm font-medium mb-1.5">Media Storage Path</label>
+            <input type="text" name="storage_path" value="{{.StoragePath}}"
+                class="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+                placeholder="/data/media">
+            <p class="text-xs text-gray-500 mt-1">Root directory for all media libraries.</p>
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1.5">Downloads Path</label>
+            <input type="text" name="downloads_path" value="{{.DownloadsPath}}"
+                class="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+                placeholder="/data/downloads">
+            <p class="text-xs text-gray-500 mt-1">Temporary download location before import.</p>
+        </div>
+        <div class="flex justify-between pt-4">
+            <a href="/setup?step=0" class="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">Back</a>
+            <button type="submit" class="px-6 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium transition-colors">
+                Continue
+            </button>
+        </div>
+    </form>
+</div>
+{{end}}
+
+{{define "step-indexers"}}
+<div class="bg-gray-900 rounded-xl border border-gray-800 p-6">
+    <h2 class="text-lg font-semibold mb-4">Indexer Configuration</h2>
+    <p class="text-sm text-gray-400 mb-6">Connect to Jackett or Prowlarr for searching.</p>
+    <form hx-post="/setup/next" hx-target="#wizard-content" hx-swap="outerHTML" class="space-y-4">
+        <input type="hidden" name="step" value="2">
+        <div>
+            <label class="block text-sm font-medium mb-1.5">Jackett/Prowlarr URL</label>
+            <input type="text" name="jackett_addr" value="{{.JackettAddr}}"
+                class="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+                placeholder="http://localhost:9117">
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1.5">API Key</label>
+            <input type="password" name="jackett_apikey" value="{{.JackettApiKey}}"
+                class="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+                placeholder="Your Jackett API key">
+            <p class="text-xs text-gray-500 mt-1">Found in Jackett UI → API Key (top right).</p>
+        </div>
+        <div class="flex justify-between pt-4">
+            <a href="/setup?step=1" class="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">Back</a>
+            <button type="submit" class="px-6 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium transition-colors">
+                Continue
+            </button>
+        </div>
+    </form>
+</div>
+{{end}}
+
+{{define "step-downloaders"}}
+<div class="bg-gray-900 rounded-xl border border-gray-800 p-6">
+    <h2 class="text-lg font-semibold mb-4">Download Client</h2>
+    <p class="text-sm text-gray-400 mb-6">Connect to qBittorrent for downloading.</p>
+    <form hx-post="/setup/next" hx-target="#wizard-content" hx-swap="outerHTML" class="space-y-4">
+        <input type="hidden" name="step" value="3">
+        <div>
+            <label class="block text-sm font-medium mb-1.5">qBittorrent URL</label>
+            <input type="text" name="qbittorrent_addr" value="{{.QbitAddr}}"
+                class="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+                placeholder="http://localhost:8080">
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium mb-1.5">Username</label>
+                <input type="text" name="qbittorrent_user" value="{{.QbitUser}}"
+                    class="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+                    placeholder="admin">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1.5">Password</label>
+                <input type="password" name="qbittorrent_pass" value="{{.QbitPass}}"
+                    class="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+                    placeholder="Password">
+            </div>
+        </div>
+        <div class="flex justify-between pt-4">
+            <a href="/setup?step=2" class="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">Back</a>
+            <button type="submit" class="px-6 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium transition-colors">
+                Continue
+            </button>
+        </div>
+    </form>
+</div>
+{{end}}
+
+{{define "step-playback"}}
+<div class="bg-gray-900 rounded-xl border border-gray-800 p-6">
+    <h2 class="text-lg font-semibold mb-4">Playback Server</h2>
+    <p class="text-sm text-gray-400 mb-6">Connect to Jellyfin for media playback.</p>
+    <form hx-post="/setup/next" hx-target="#wizard-content" hx-swap="outerHTML" class="space-y-4">
+        <input type="hidden" name="step" value="4">
+        <div>
+            <label class="block text-sm font-medium mb-1.5">Jellyfin URL</label>
+            <input type="text" name="jellyfin_url" value="{{.JellyfinURL}}"
+                class="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+                placeholder="http://localhost:8096">
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1.5">API Key</label>
+            <input type="password" name="jellyfin_apikey" value="{{.JellyfinApiKey}}"
+                class="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+                placeholder="Jellyfin API key from Dashboard → API Keys">
+        </div>
+        <div class="flex justify-between pt-4">
+            <a href="/setup?step=3" class="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">Back</a>
+            <button type="submit" class="px-6 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium transition-colors">
+                Continue
+            </button>
+        </div>
+    </form>
+</div>
+{{end}}
+
+{{define "step-done"}}
+<div class="bg-gray-900 rounded-xl border border-gray-800 p-8 text-center">
+    <div class="text-5xl mb-4">🎉</div>
+    <h2 class="text-xl font-bold mb-2">Setup Complete</h2>
+    <p class="text-gray-400 mb-6">MuxCore is ready. Here's what was configured:</p>
+
+    <div class="text-left bg-gray-950 rounded-lg p-4 mb-6 space-y-2 text-sm">
+        {{range .Summary}}
+        <div class="flex justify-between">
+            <span class="text-gray-400">{{.Key}}</span>
+            <span class="text-gray-200 font-mono">{{.Value}}</span>
+        </div>
+        {{end}}
+    </div>
+
+    <p class="text-sm text-gray-500 mb-6">
+        Save these as environment variables or write them to your <code class="text-brand-300">.env</code> file.
+    </p>
+
+    <a href="/" class="inline-block px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
+        Go to Dashboard
+    </a>
+</div>
+{{end}}

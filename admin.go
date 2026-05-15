@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/Muxcore-Media/core/pkg/contracts"
 )
@@ -28,10 +30,18 @@ type Module struct {
 	dashboard *template.Template
 	modules   *template.Template
 	settings  *template.Template
+	setup     *template.Template
+
+	mu        sync.Mutex
+	setupVals map[string]string
 }
 
 func NewModule(reg contracts.ServiceRegistry, routes contracts.RouteRegistrar) *Module {
-	return &Module{reg: reg, routes: routes}
+	return &Module{
+		reg:       reg,
+		routes:    routes,
+		setupVals: make(map[string]string),
+	}
 }
 
 func (m *Module) Info() contracts.ModuleInfo {
@@ -59,9 +69,14 @@ func (m *Module) Init(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	setup, err := template.ParseFS(templatesFS, "templates/base.html", "templates/setup.html")
+	if err != nil {
+		return err
+	}
 	m.dashboard = dashboard
 	m.modules = modules
 	m.settings = settings
+	m.setup = setup
 	return nil
 }
 
@@ -84,6 +99,10 @@ func (m *Module) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		m.modulesPage(w)
 	case path == "settings":
 		m.settingsPage(w)
+	case path == "setup":
+		m.setupPage(w, r)
+	case path == "setup/next":
+		m.setupNext(w, r)
 	default:
 		http.NotFound(w, r)
 	}
@@ -130,17 +149,17 @@ type settingsGroup struct {
 }
 
 var knownVars = map[string]settingsVar{
-	"MUXCORE_STORAGE_PATH":       {Description: "Root path for media storage", Default: "/data/media"},
-	"MUXCORE_QBITTORRENT_ADDR":   {Description: "qBittorrent Web UI address", Default: "http://localhost:8080"},
-	"MUXCORE_QBITTORRENT_USER":   {Description: "qBittorrent username", Default: "admin"},
-	"MUXCORE_QBITTORRENT_PASS":   {Description: "qBittorrent password", Default: "(required)", IsSecret: true},
-	"MUXCORE_JACKETT_ADDR":       {Description: "Jackett/Prowlarr server address", Default: "http://localhost:9117"},
-	"MUXCORE_JACKETT_APIKEY":     {Description: "Jackett API key", Default: "(required)", IsSecret: true},
-	"MUXCORE_JELLYFIN_URL":       {Description: "Jellyfin server address", Default: "http://localhost:8096"},
-	"MUXCORE_JELLYFIN_APIKEY":    {Description: "Jellyfin API key", Default: "(required)", IsSecret: true},
-	"MUXCORE_NATS_URL":           {Description: "NATS server URL", Default: "nats://localhost:4222"},
-	"MUXCORE_NATS_CREDS":         {Description: "NATS credentials file", Default: "(none)", IsSecret: true},
-	"MUXCORE_DISCORD_WEBHOOK":    {Description: "Discord webhook URL for notifications", Default: "(required)", IsSecret: true},
+	"MUXCORE_STORAGE_PATH":     {Description: "Root path for media storage", Default: "/data/media"},
+	"MUXCORE_QBITTORRENT_ADDR": {Description: "qBittorrent Web UI address", Default: "http://localhost:8080"},
+	"MUXCORE_QBITTORRENT_USER": {Description: "qBittorrent username", Default: "admin"},
+	"MUXCORE_QBITTORRENT_PASS": {Description: "qBittorrent password", Default: "(required)", IsSecret: true},
+	"MUXCORE_JACKETT_ADDR":     {Description: "Jackett/Prowlarr server address", Default: "http://localhost:9117"},
+	"MUXCORE_JACKETT_APIKEY":   {Description: "Jackett API key", Default: "(required)", IsSecret: true},
+	"MUXCORE_JELLYFIN_URL":     {Description: "Jellyfin server address", Default: "http://localhost:8096"},
+	"MUXCORE_JELLYFIN_APIKEY":  {Description: "Jellyfin API key", Default: "(required)", IsSecret: true},
+	"MUXCORE_NATS_URL":         {Description: "NATS server URL", Default: "nats://localhost:4222"},
+	"MUXCORE_NATS_CREDS":       {Description: "NATS credentials file", Default: "(none)", IsSecret: true},
+	"MUXCORE_DISCORD_WEBHOOK":  {Description: "Discord webhook URL for notifications", Default: "(required)", IsSecret: true},
 }
 
 var groupLabels = map[string]string{
@@ -183,7 +202,6 @@ func (m *Module) settingsPage(w http.ResponseWriter) {
 		groups[prefix].Vars = append(groups[prefix].Vars, v)
 	}
 
-	// Sort groups by label
 	sorted := make([]settingsGroup, 0, len(groups))
 	for _, g := range groups {
 		sort.Slice(g.Vars, func(i, j int) bool { return g.Vars[i].Name < g.Vars[j].Name })
@@ -207,4 +225,109 @@ func modulePrefix(envVar string) string {
 		return strings.ToLower(parts[1])
 	}
 	return "core"
+}
+
+// -- Setup wizard --
+
+var setupSteps = []string{"Welcome", "Storage", "Indexers", "Downloader", "Playback", "Done"}
+
+type setupData struct {
+	Step           int
+	Steps          []string
+	LastIndex      int
+	StoragePath    string
+	DownloadsPath  string
+	JackettAddr    string
+	JackettApiKey  string
+	QbitAddr       string
+	QbitUser       string
+	QbitPass       string
+	JellyfinURL    string
+	JellyfinApiKey string
+	Summary        []summaryItem
+}
+
+type summaryItem struct {
+	Key   string
+	Value string
+}
+
+func (m *Module) setupPage(w http.ResponseWriter, r *http.Request) {
+	step, _ := strconv.Atoi(r.URL.Query().Get("step"))
+	m.mu.Lock()
+	vals := make(map[string]string, len(m.setupVals))
+	for k, v := range m.setupVals {
+		vals[k] = v
+	}
+	m.mu.Unlock()
+
+	data := m.buildSetupData(step, vals)
+	if err := m.setup.ExecuteTemplate(w, "base.html", data); err != nil {
+		slog.Error("template error", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	}
+}
+
+func (m *Module) setupNext(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	step, _ := strconv.Atoi(r.FormValue("step"))
+
+	m.mu.Lock()
+	for key, vals := range r.Form {
+		if key != "step" && len(vals) > 0 {
+			m.setupVals[key] = vals[0]
+		}
+	}
+	vals := make(map[string]string, len(m.setupVals))
+	for k, v := range m.setupVals {
+		vals[k] = v
+	}
+	m.mu.Unlock()
+
+	nextStep := step + 1
+	data := m.buildSetupData(nextStep, vals)
+	if err := m.setup.ExecuteTemplate(w, "wizard-content", data); err != nil {
+		slog.Error("template error", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	}
+}
+
+func (m *Module) buildSetupData(step int, vals map[string]string) setupData {
+	data := setupData{
+		Step:           step,
+		Steps:          setupSteps,
+		LastIndex:      len(setupSteps) - 1,
+		StoragePath:    vals["storage_path"],
+		DownloadsPath:  vals["downloads_path"],
+		JackettAddr:    vals["jackett_addr"],
+		JackettApiKey:  vals["jackett_apikey"],
+		QbitAddr:       vals["qbittorrent_addr"],
+		QbitUser:       vals["qbittorrent_user"],
+		QbitPass:       vals["qbittorrent_pass"],
+		JellyfinURL:    vals["jellyfin_url"],
+		JellyfinApiKey: vals["jellyfin_apikey"],
+	}
+
+	if step >= len(setupSteps) {
+		data.Summary = []summaryItem{
+			{Key: "Storage Path", Value: strDefault(data.StoragePath, "/data/media")},
+			{Key: "Downloads Path", Value: strDefault(data.DownloadsPath, "/data/downloads")},
+			{Key: "Jackett URL", Value: strDefault(data.JackettAddr, "http://localhost:9117")},
+			{Key: "qBittorrent URL", Value: strDefault(data.QbitAddr, "http://localhost:8080")},
+			{Key: "Jellyfin URL", Value: strDefault(data.JellyfinURL, "http://localhost:8096")},
+		}
+	}
+
+	return data
+}
+
+func strDefault(val, def string) string {
+	if val == "" {
+		return def
+	}
+	return val
 }
