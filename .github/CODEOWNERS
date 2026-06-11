@@ -1,0 +1,8 @@
+# Default owner
+* @TheMinecraftGuyGuru
+
+# Security-sensitive files
+/SECURITY.md @TheMinecraftGuyGuru
+
+# CI/CD
+/.github/ @TheMinecraftGuyGuru
