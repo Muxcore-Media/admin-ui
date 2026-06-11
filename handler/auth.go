@@ -116,6 +116,10 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) authenticate(ctx context.Context, username, password string) (*authSession, error) {
+	if h.Core == nil {
+		return nil, fmt.Errorf("core not connected")
+	}
+
 	mod, err := h.findFirstModule(ctx, capAuth)
 	if err != nil {
 		return nil, fmt.Errorf("auth provider unavailable: %w", err)
@@ -144,6 +148,10 @@ func (h *Handler) authenticate(ctx context.Context, username, password string) (
 }
 
 func (h *Handler) findFirstModule(ctx context.Context, capability string) (*discoveryv1.ModuleInfoProto, error) {
+	if h.Core == nil {
+		return nil, fmt.Errorf("core not connected")
+	}
+
 	modules, err := h.Core.Discovery.FindByCapability(ctx, capability)
 	if err != nil {
 		return nil, fmt.Errorf("discovery error: %w", err)
@@ -152,6 +160,18 @@ func (h *Handler) findFirstModule(ctx context.Context, capability string) (*disc
 		return nil, fmt.Errorf("no module with capability %q", capability)
 	}
 	return modules[0], nil
+}
+
+func (h *Handler) AuthStatus(w http.ResponseWriter, r *http.Request) {
+	status := AuthStatus{Available: false}
+	if h.Core != nil {
+		if mod, err := h.findFirstModule(r.Context(), capAuth); err == nil {
+			status.Available = true
+			status.ModuleID = mod.GetId()
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(status)
 }
 
 type authSession struct {

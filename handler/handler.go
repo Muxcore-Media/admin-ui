@@ -21,22 +21,24 @@ type LoginMetrics interface {
 }
 
 type Handler struct {
-	Core        *client.Client
-	Sessions    *session.Store
-	secure      bool
-	events      *eventRing
-	version     string
-	loginMetrics LoginMetrics
+	Core          *client.Client
+	Sessions      *session.Store
+	secure        bool
+	events        *eventRing
+	version       string
+	loginMetrics  LoginMetrics
+	coreConnected bool
 }
 
-func New(core *client.Client, store *session.Store, secure bool, version string, lm LoginMetrics) *Handler {
+func New(core *client.Client, store *session.Store, secure bool, version string, lm LoginMetrics, connected bool) *Handler {
 	h := &Handler{
-		Core:         core,
-		Sessions:    store,
-		secure:      secure,
-		events:      newEventRing(100),
-		version:     version,
-		loginMetrics: lm,
+		Core:          core,
+		Sessions:      store,
+		secure:        secure,
+		events:        newEventRing(100),
+		version:       version,
+		loginMetrics:  lm,
+		coreConnected: connected,
 	}
 	h.startEventSubscription(context.Background())
 	return h
@@ -74,6 +76,14 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 func (h *Handler) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !h.coreConnected {
+			nav := templates.Nav(navLinks, r.URL.Path)
+			content := templates.DashboardPage(0, "", true)
+			component := templates.Layout("Disconnected", nav, content)
+			component.Render(r.Context(), w)
+			return
+		}
+
 		cookie, err := r.Cookie("session")
 		if err != nil {
 			redirectToLogin(w, r)
@@ -100,6 +110,14 @@ func (h *Handler) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 
 func (h *Handler) requireNoAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !h.coreConnected {
+			nav := templates.Nav(navLinks, r.URL.Path)
+			content := templates.DashboardPage(0, "", true)
+			component := templates.Layout("Disconnected", nav, content)
+			component.Render(r.Context(), w)
+			return
+		}
+
 		if cookie, err := r.Cookie("session"); err == nil {
 			if _, ok := h.Sessions.Get(cookie.Value); ok {
 				http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -111,6 +129,10 @@ func (h *Handler) requireNoAuth(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func (h *Handler) checkAuthorized(ctx context.Context, sess *session.Session) error {
+	if h.Core == nil {
+		return nil
+	}
+
 	mod, err := h.findFirstModule(ctx, capAuthorizer)
 	if err != nil {
 		return nil

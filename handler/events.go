@@ -52,11 +52,11 @@ func (h *Handler) startEventSubscription(ctx context.Context) {
 
 			ch, cancel, err := h.Core.Events.Subscribe(ctx, "*")
 			if err != nil {
-				slog.Warn("event subscription failed, retrying in 5s", "error", err)
+				slog.Warn("event subscription failed, retrying in 10s", "error", err)
 				select {
 				case <-ctx.Done():
 					return
-				case <-time.After(5 * time.Second):
+				case <-time.After(10 * time.Second):
 				}
 				continue
 			}

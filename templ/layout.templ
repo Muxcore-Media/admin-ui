@@ -9,13 +9,15 @@ templ Layout(title string, nav templ.Component, content templ.Component) {
 			<title>{ title } - MuxCore Admin</title>
 			<link rel="stylesheet" href="/static/dist/styles.css"/>
 			<script src="/static/htmx.min.js"></script>
+			<script src="/static/csrf.js"></script>
 		</head>
-		<body class="h-full text-gray-100 font-sans antialiased" hx-boost="true">
+		<body class="h-full text-gray-100 font-sans antialiased" hx-boost="true" hx-indicator="#loading-bar">
+			<div id="loading-bar" class="fixed top-0 left-0 w-full h-0.5 bg-indigo-600 z-50 htmx-indicator"></div>
 			<div class="flex h-full">
 				<nav class="w-64 shrink-0 border-r border-gray-800 bg-gray-900">
 					@nav
 				</nav>
-				<main id="main-content" class="flex-1 overflow-y-auto p-6">
+				<main id="main-content" class="flex-1 overflow-y-auto p-6 htmx-settling:hidden">
 					@content
 				</main>
 			</div>
@@ -31,6 +33,7 @@ templ ErrorLayout(title string, content templ.Component) {
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>{ title } - MuxCore Admin</title>
 			<link rel="stylesheet" href="/static/dist/styles.css"/>
+			<script src="/static/csrf.js"></script>
 		</head>
 		<body class="h-full text-gray-100 font-sans antialiased">
 			@content

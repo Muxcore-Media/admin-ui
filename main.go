@@ -4,14 +4,15 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/hex"
 	"embed"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 	"time"
 
@@ -22,7 +23,7 @@ import (
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
-//go:embed assets/dist/* assets/htmx.min.js assets/sse.js
+//go:embed assets/dist/* assets/htmx.min.js assets/sse.js assets/csrf.js
 var staticAssets embed.FS
 
 var version = "0.0.0-dev"
@@ -35,6 +36,7 @@ type Config struct {
 	TLSKey      string
 	SessionTTL  time.Duration
 	LogLevel    string
+	LogFormat   string
 }
 
 func loadConfig() Config {
@@ -47,6 +49,7 @@ func loadConfig() Config {
 		TLSKey:     env("ADMIN_UI_TLS_KEY", ""),
 		SessionTTL: ttl,
 		LogLevel:   env("ADMIN_UI_LOG_LEVEL", "info"),
+		LogFormat:  env("ADMIN_UI_LOG_FORMAT", "text"),
 	}
 }
 
@@ -60,46 +63,67 @@ func env(key, def string) string {
 func main() {
 	cfg := loadConfig()
 
+	var logLevel slog.Level
 	switch cfg.LogLevel {
 	case "debug":
-		slog.SetLogLoggerLevel(slog.LevelDebug)
+		logLevel = slog.LevelDebug
 	case "warn":
-		slog.SetLogLoggerLevel(slog.LevelWarn)
+		logLevel = slog.LevelWarn
 	case "error":
-		slog.SetLogLoggerLevel(slog.LevelError)
+		logLevel = slog.LevelError
 	default:
-		slog.SetLogLoggerLevel(slog.LevelInfo)
+		logLevel = slog.LevelInfo
 	}
+
+	var logHandler slog.Handler
+	opts := &slog.HandlerOptions{Level: logLevel}
+	if cfg.LogFormat == "json" {
+		logHandler = slog.NewJSONHandler(os.Stderr, opts)
+	} else {
+		logHandler = slog.NewTextHandler(os.Stderr, opts)
+	}
+	slog.SetDefault(slog.New(logHandler))
 
 	slog.Info("starting admin-ui", "version", version, "addr", cfg.Addr, "core", cfg.CoreAddr)
 
-	var opts []client.Option
+	var coreClient *client.Client
+	var coreConnected bool
+
+	var opts2 []client.Option
 	if cfg.Insecure {
-		opts = append(opts, client.WithInsecure())
+		opts2 = append(opts2, client.WithInsecure())
 	}
 
-	c, err := client.Dial(cfg.CoreAddr, opts...)
+	c, err := client.Dial(cfg.CoreAddr, opts2...)
 	if err != nil {
-		slog.Error("failed to dial core", "error", err)
-		os.Exit(1)
+		slog.Warn("core connection failed, starting in degraded mode", "error", err)
+	} else {
+		coreClient = c
+		coreConnected = true
+		slog.Info("connected to core", "addr", cfg.CoreAddr)
 	}
-	defer c.Close()
-	slog.Info("connected to core", "addr", cfg.CoreAddr)
 
 	ss := session.NewStore(cfg.SessionTTL)
 	loginRL := newRateLimiter()
 	met := newMetrics()
 	csrfKey := generateCSRFKey()
 
-	h := handler.New(c, ss, cfg.TLSCert != "" || !cfg.Insecure, version, met)
+	h := handler.New(coreClient, ss, cfg.TLSCert != "" || !cfg.Insecure, version, met, coreConnected)
 
 	mux := http.NewServeMux()
 
 	mux.Handle("GET /static/", http.FileServer(http.FS(staticAssets)))
 
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		status := "ok"
+		code := http.StatusOK
+		if !coreConnected {
+			status = "degraded"
+			code = http.StatusServiceUnavailable
+		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"status":"ok"}`))
+		w.WriteHeader(code)
+		fmt.Fprintf(w, `{"status":"%s","version":"%s"}`, status, version)
 	})
 
 	mux.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) {
@@ -107,7 +131,7 @@ func main() {
 		fmt.Fprintf(w, `{"version":"%s"}`, version)
 	})
 
-	mux.Handle("GET /metrics", met.handler(http.HandlerFunc(met.serve)))
+	mux.Handle("GET /metrics", http.HandlerFunc(met.serve))
 
 	h.RegisterRoutes(mux)
 
@@ -116,7 +140,6 @@ func main() {
 		component.Render(r.Context(), w)
 	})
 
-	// Track active sessions for metrics
 	go func() {
 		for range time.NewTicker(30 * time.Second).C {
 			met.activeSess.Store(int64(ss.Count()))
@@ -127,24 +150,24 @@ func main() {
 
 	srv := &http.Server{
 		Addr:         cfg.Addr,
-		Handler:      withMiddleware(met.handler(mux), csrfKey, loginRL),
+		Handler:      withMiddleware(mux, csrfKey, loginRL),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  120 * time.Second,
+		ErrorLog:     slog.NewLogLogger(slog.Default().Handler(), slog.LevelError),
 	}
 
 	go func() {
 		slog.Info("listening", "addr", cfg.Addr)
+		var err error
 		if cfg.TLSCert != "" && cfg.TLSKey != "" {
-			if err := srv.ListenAndServeTLS(cfg.TLSCert, cfg.TLSKey); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				slog.Error("server error", "error", err)
-				os.Exit(1)
-			}
+			err = srv.ListenAndServeTLS(cfg.TLSCert, cfg.TLSKey)
 		} else {
-			if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				slog.Error("server error", "error", err)
-				os.Exit(1)
-			}
+			err = srv.ListenAndServe()
+		}
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("server error", "error", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -155,15 +178,21 @@ func main() {
 	slog.Info("shutting down...")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
 	if err := srv.Shutdown(ctx); err != nil {
-		slog.Error("shutdown error", "error", err)
+		slog.Error("http shutdown error", "error", err)
+	}
+
+	if coreClient != nil {
+		coreClient.Close()
 	}
 }
 
 func generateCSRFKey() string {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
-		panic(fmt.Sprintf("csrf key generation: %v", err))
+		slog.Error("csrf key generation failed", "error", err)
+		return hex.EncodeToString([]byte("fallback-key-do-not-use-in-production"))
 	}
 	return hex.EncodeToString(b)
 }
@@ -173,46 +202,115 @@ func csrfToken(key string) string {
 	return hex.EncodeToString(h[:16])
 }
 
-func withMiddleware(next http.Handler, csrfKey string, loginRL *rateLimiter) http.Handler {
+func csrfTokenFromCookie(key, cookieValue string) bool {
+	expected := sha256.Sum256([]byte(key + ":" + time.Now().Format("20060102")))
+	expectedStr := hex.EncodeToString(expected[:16])
+
+	// Also check previous day's token to handle time boundaries
+	if cookieValue == expectedStr {
+		return true
+	}
+	yesterday := sha256.Sum256([]byte(key + ":" + time.Now().Add(-24*time.Hour).Format("20060102")))
+	yesterdayStr := hex.EncodeToString(yesterday[:16])
+	return cookieValue == yesterdayStr
+}
+
+func recoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'")
+		defer func() {
+			if rec := recover(); rec != nil {
+				slog.Error("panic recovered",
+					"path", r.URL.Path,
+					"method", r.Method,
+					"error", rec,
+					"stack", string(debug.Stack()),
+				)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+
+func requestLoggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		lrw := &loggingResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+		next.ServeHTTP(lrw, r)
+		slog.Info("request",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"status", lrw.statusCode,
+			"duration", time.Since(start).String(),
+		)
+	})
+}
+
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (w *loggingResponseWriter) WriteHeader(code int) {
+	w.statusCode = code
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func withMiddleware(next http.Handler, csrfKey string, loginRL *rateLimiter) http.Handler {
+	var inner http.Handler = next
+
+	inner = recoveryMiddleware(inner)
+	inner = requestLoggingMiddleware(inner)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/metrics" || r.URL.Path == "/health" {
+			inner.ServeHTTP(w, r)
+			return
+		}
+
+		w.Header().Set("Content-Security-Policy",
+			"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; object-src 'none'")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 
-		// CSRF: set token cookie on all responses
-		if r.Method == http.MethodGet {
+		// CSRF token cookie on all responses
+		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			token := csrfToken(csrfKey)
 			http.SetCookie(w, &http.Cookie{
 				Name:     "csrf-token",
 				Value:    token,
 				Path:     "/",
-				HttpOnly: false, // JS needs to read it for header
+				HttpOnly: false,
 				Secure:   r.TLS != nil,
 				SameSite: http.SameSiteLaxMode,
 			})
 		}
 
-		// CSRF: check double-submit cookie on mutating requests
-		if r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodDelete || r.Method == http.MethodPatch {
+		// CSRF double-submit check on mutating requests
+		if r.Method == http.MethodPost || r.Method == http.MethodPut ||
+			r.Method == http.MethodDelete || r.Method == http.MethodPatch {
 			cookie, err := r.Cookie("csrf-token")
 			if err != nil {
-				http.Error(w, "Forbidden: missing csrf token", http.StatusForbidden)
+				slog.Warn("csrf: missing cookie", "path", r.URL.Path, "method", r.Method)
+				http.Error(w, "Forbidden", http.StatusForbidden)
 				return
 			}
-			header := r.Header.Get("X-CSRF-Token")
-			if header == "" {
-				http.Error(w, "Forbidden: missing X-CSRF-Token header", http.StatusForbidden)
+			headerVal := r.Header.Get("X-CSRF-Token")
+			if headerVal == "" {
+				slog.Warn("csrf: missing header", "path", r.URL.Path, "method", r.Method)
+				http.Error(w, "Forbidden", http.StatusForbidden)
 				return
 			}
-			if cookie.Value != header {
-				http.Error(w, "Forbidden: csrf token mismatch", http.StatusForbidden)
+			if cookie.Value != headerVal {
+				slog.Warn("csrf: token mismatch", "path", r.URL.Path, "method", r.Method)
+				http.Error(w, "Forbidden", http.StatusForbidden)
 				return
 			}
 		}
 
-		// Rate limit login endpoint
+		// Rate limit login
 		if r.URL.Path == "/login" && r.Method == http.MethodPost {
 			ip := extractIP(r)
 			if !loginRL.Allow(ip) {
@@ -222,6 +320,6 @@ func withMiddleware(next http.Handler, csrfKey string, loginRL *rateLimiter) htt
 			}
 		}
 
-		next.ServeHTTP(w, r)
+		inner.ServeHTTP(w, r)
 	})
 }

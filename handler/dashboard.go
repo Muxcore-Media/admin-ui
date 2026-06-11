@@ -8,21 +8,25 @@ import (
 )
 
 func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
-	nodeCount := 0
-	leaderID := ""
-	connected := h.Core != nil
-
-	if connected {
-		members, leader, err := h.Core.Discovery.Members(r.Context())
-		if err != nil {
-			slog.Warn("dashboard: Members call failed", "error", err)
-		} else {
-			nodeCount = len(members)
-			leaderID = leader
-		}
+	if !h.coreConnected {
+		nav := templates.Nav(navLinks, "/")
+		content := templates.DashboardPage(0, "", true)
+		component := templates.Layout("Dashboard", nav, content)
+		component.Render(r.Context(), w)
+		return
 	}
 
-	content := templates.DashboardPage(nodeCount, leaderID, !connected)
+	members, leader, err := h.Core.Discovery.Members(r.Context())
+	if err != nil {
+		slog.Warn("dashboard: Members call failed", "error", err)
+		nav := templates.Nav(navLinks, "/")
+		content := templates.DashboardPage(0, "", true)
+		component := templates.Layout("Dashboard", nav, content)
+		component.Render(r.Context(), w)
+		return
+	}
+
+	content := templates.DashboardPage(len(members), leader, false)
 	nav := templates.Nav(navLinks, "/")
 	component := templates.Layout("Dashboard", nav, content)
 	component.Render(r.Context(), w)
@@ -32,10 +36,15 @@ func (h *Handler) HealthGrid(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.Header().Set("Cache-Control", "no-cache")
 
+	if h.Core == nil {
+		w.Write([]byte(`<div class="col-span-full text-sm text-red-400">Core disconnected</div>`))
+		return
+	}
+
 	members, _, err := h.Core.Discovery.Members(r.Context())
 	if err != nil {
 		slog.Warn("health: Members call failed", "error", err)
-		w.Write([]byte(`<div class="text-sm text-red-400">Failed to load health data</div>`))
+		w.Write([]byte(`<div class="col-span-full text-sm text-red-400">Failed to load health data</div>`))
 		return
 	}
 
@@ -48,24 +57,17 @@ func (h *Handler) HealthGrid(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			seen[modID] = true
-
 			healthErr := node.GetModuleHealth()[modID]
-			item := templates.ModuleHealthItem{
+			items = append(items, templates.ModuleHealthItem{
 				ID:      modID,
 				Name:    modID,
 				State:   "running",
 				Healthy: healthErr == "",
 				Error:   healthErr,
-			}
-			items = append(items, item)
+			})
 		}
 	}
 
 	component := templates.HealthGrid(items)
 	component.Render(r.Context(), w)
-}
-
-func (h *Handler) AuthStatus(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"available":true}`))
 }

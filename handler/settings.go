@@ -117,7 +117,7 @@ func (h *Handler) SettingsUpdate(w http.ResponseWriter, r *http.Request) {
 	_, err = h.Core.Mesh.Call(r.Context(), moduleID, methodUpdate, payload)
 	if err != nil {
 		slog.Warn("settings: update failed", "module", moduleID, "key", key, "error", err)
-		w.Write([]byte(fmt.Sprintf(`<div class="text-xs text-red-400">update failed: %s</div>`, err)))
+		w.Write([]byte(`<div class="text-xs text-red-400">update failed</div>`))
 		return
 	}
 
@@ -133,7 +133,8 @@ func (h *Handler) SettingsModuleSettings(w http.ResponseWriter, r *http.Request)
 
 	raw, err := h.Core.Mesh.Call(r.Context(), moduleID, methodGet, nil)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		slog.Warn("settings: query failed", "module", moduleID, "error", err)
+		http.Error(w, "settings unavailable", http.StatusBadGateway)
 		return
 	}
 

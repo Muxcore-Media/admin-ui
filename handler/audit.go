@@ -49,9 +49,7 @@ func (h *Handler) AuditPage(w http.ResponseWriter, r *http.Request) {
 	if err != nil || len(mod) == 0 {
 		slog.Warn("audit: no audit module found")
 		nav := templates.Nav(navLinks, "/audit")
-		content := templates.AuditPage(templates.AuditPageData{
-			Filter: filter,
-		})
+		content := templates.AuditNoModule()
 		component := templates.Layout("Audit Log", nav, content)
 		component.Render(r.Context(), w)
 		return

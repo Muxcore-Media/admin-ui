@@ -29,12 +29,16 @@ Acknowledgment within **72 hours**. Target patch: **7 days** critical, **30 days
 - **Security headers**: X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy
 - **TLS**: Optional HTTPS listener via `ADMIN_UI_TLS_CERT` / `ADMIN_UI_TLS_KEY`
 
+### Implemented
+
+- **Rate limiting**: Per-IP token bucket on login endpoint with exponential backoff (6 failures triggers 1-minute block)
+- **CSRF double-submit cookie**: Random per-session CSRF token set on GET responses, validated as `X-CSRF-Token` header on all POST/PUT/DELETE/PATCH requests
+- **Prometheus metrics**: `/metrics` endpoint exposing request counts, active sessions, login stats, Go runtime metrics
+- **Content Security Policy**: `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'; object-src 'none'`
+
 ### Not yet implemented
 
-- Rate limiting on login endpoint (planned Phase 5)
-- CSRF double-submit cookie pattern (planned Phase 5)
 - Audit logging of admin actions (planned Phase 5)
-- Prometheus metrics endpoint (planned Phase 5)
 
 ## Security Model
 
