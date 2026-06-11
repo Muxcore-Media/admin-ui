@@ -1,6 +1,7 @@
 package session
 
 import (
+	"net/http"
 	"sync"
 	"time"
 
@@ -8,10 +9,12 @@ import (
 )
 
 type Session struct {
-	UserID    string
-	Username  string
-	CreatedAt time.Time
-	ExpiresAt time.Time
+	UserID      string
+	Username    string
+	Roles       []string
+	Permissions []string
+	CreatedAt   time.Time
+	ExpiresAt   time.Time
 }
 
 type Store struct {
@@ -29,13 +32,19 @@ func NewStore(ttl time.Duration) *Store {
 	return s
 }
 
-func (s *Store) Create(userID, username string) (string, error) {
+func (s *Store) TTL() time.Duration {
+	return s.ttl
+}
+
+func (s *Store) Create(userID, username string, roles, permissions []string) (string, error) {
 	now := time.Now()
 	sess := &Session{
-		UserID:    userID,
-		Username:  username,
-		CreatedAt: now,
-		ExpiresAt: now.Add(s.ttl),
+		UserID:      userID,
+		Username:    username,
+		Roles:       roles,
+		Permissions: permissions,
+		CreatedAt:   now,
+		ExpiresAt:   now.Add(s.ttl),
 	}
 	token := uuid.New().String()
 
@@ -69,6 +78,14 @@ func (s *Store) Revoke(token string) {
 	s.mu.Lock()
 	delete(s.sessions, token)
 	s.mu.Unlock()
+}
+
+func (s *Store) GetFromRequest(r *http.Request) (*Session, bool) {
+	cookie, err := r.Cookie("session")
+	if err != nil {
+		return nil, false
+	}
+	return s.Get(cookie.Value)
 }
 
 func (s *Store) cleanupLoop() {

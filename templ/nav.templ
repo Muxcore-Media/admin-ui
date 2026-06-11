@@ -1,0 +1,32 @@
+package templates
+
+type NavLink struct {
+	Label string
+	Path  string
+	Icon  string
+}
+
+templ Nav(links []NavLink, activePath string) {
+	<div class="p-4">
+		<a href="/" class="flex items-center gap-2 mb-6">
+			<div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-sm font-bold">M</div>
+			<span class="text-lg font-bold">MuxCore</span>
+		</a>
+		<ul class="space-y-1">
+			for _, link := range links {
+				<li>
+					<a
+						href={ link.Path }
+						class={ "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
+							templ.KV("bg-gray-800 text-white", activePath == link.Path),
+							templ.KV("text-gray-400 hover:text-white hover:bg-gray-800", activePath != link.Path),
+						}
+					>
+						<span class="w-5 h-5 flex items-center justify-center">{ link.Icon }</span>
+						{ link.Label }
+					</a>
+				</li>
+			}
+		</ul>
+	</div>
+}

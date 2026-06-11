@@ -13,6 +13,10 @@ import (
 	"time"
 
 	"github.com/Muxcore-Media/core/sdk/go/client"
+
+	"github.com/Muxcore-Media/admin-ui/handler"
+	"github.com/Muxcore-Media/admin-ui/session"
+	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
 //go:embed assets/dist/* assets/htmx.min.js
@@ -77,6 +81,10 @@ func main() {
 		os.Exit(1)
 	}
 	defer c.Close()
+	slog.Info("connected to core", "addr", cfg.CoreAddr)
+
+	ss := session.NewStore(cfg.SessionTTL)
+	h := handler.New(c, ss, cfg.TLSCert != "" || !cfg.Insecure)
 
 	mux := http.NewServeMux()
 
@@ -92,38 +100,14 @@ func main() {
 		fmt.Fprintf(w, `{"version":"%s"}`, version)
 	})
 
-	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html")
-		w.Write([]byte(`
-			<!DOCTYPE html>
-			<html lang="en" class="h-full bg-gray-950">
-			<head>
-				<meta charset="UTF-8"/>
-				<meta name="viewport" content="width=device-width, initial-scale=1"/>
-				<title>MuxCore Admin</title>
-				<link rel="stylesheet" href="/static/dist/styles.css"/>
-				<script src="/static/htmx.min.js"></script>
-			</head>
-			<body class="h-full text-gray-100 font-sans" hx-boost="true">
-				<div class="flex h-full">
-					<nav class="w-64 shrink-0 border-r border-gray-800 p-4">
-						<div class="text-lg font-bold mb-6">MuxCore</div>
-						<ul class="space-y-2">
-							<li><a href="/" class="text-gray-300 hover:text-white">Dashboard</a></li>
-							<li><a href="/modules" class="text-gray-300 hover:text-white">Modules</a></li>
-							<li><a href="/cluster" class="text-gray-300 hover:text-white">Cluster</a></li>
-							<li><a href="/events" class="text-gray-300 hover:text-white">Events</a></li>
-						</ul>
-					</nav>
-					<main class="flex-1 overflow-y-auto p-6">
-						<h1 class="text-2xl font-bold">Dashboard</h1>
-						<p class="text-gray-400 mt-2">Admin UI connected to core. Build in progress.</p>
-					</main>
-				</div>
-			</body>
-			</html>
-		`))
+	h.RegisterRoutes(mux)
+
+	mux.HandleFunc("GET /no-auth", func(w http.ResponseWriter, r *http.Request) {
+		component := templates.ErrorLayout("No Auth Provider", templates.NoAuthPage())
+		component.Render(r.Context(), w)
 	})
+
+	mux.HandleFunc("/", h.NotAuthHandler)
 
 	srv := &http.Server{
 		Addr:         cfg.Addr,
@@ -168,13 +152,16 @@ func withMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 
-		// CSRF: block non-GET/HEAD/OPTIONS requests with untrusted Origin
 		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions {
 			if origin := r.Header.Get("Origin"); origin != "" {
-				// In production, validate against trusted origins
-				if r.Header.Get("Host") != "" && origin != "" {
-					// Same-origin check — allow if origin matches host
-					// For now, accept same-origin only
+				scheme := "http"
+				if r.TLS != nil {
+					scheme = "https"
+				}
+				expected := scheme + "://" + r.Host
+				if origin != expected {
+					http.Error(w, "Forbidden", http.StatusForbidden)
+					return
 				}
 			}
 		}
