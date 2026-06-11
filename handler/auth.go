@@ -57,6 +57,9 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	sess, err := h.authenticate(r.Context(), username, password)
 	if err != nil {
 		slog.Warn("login failed", "username", username, "error", err)
+		if h.loginMetrics != nil {
+			h.loginMetrics.IncFailure()
+		}
 		component := templates.LoginForm("invalid username or password")
 		component.Render(r.Context(), w)
 		return
@@ -68,6 +71,10 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		component := templates.LoginForm("internal error")
 		component.Render(r.Context(), w)
 		return
+	}
+
+	if h.loginMetrics != nil {
+		h.loginMetrics.IncSuccess()
 	}
 
 	http.SetCookie(w, &http.Cookie{

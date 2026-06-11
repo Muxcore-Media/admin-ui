@@ -88,6 +88,12 @@ func (s *Store) GetFromRequest(r *http.Request) (*Session, bool) {
 	return s.Get(cookie.Value)
 }
 
+func (s *Store) Count() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.sessions)
+}
+
 func (s *Store) cleanupLoop() {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()

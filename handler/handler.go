@@ -15,21 +15,28 @@ import (
 
 const capAuthorizer = "authorizer"
 
-type Handler struct {
-	Core     *client.Client
-	Sessions *session.Store
-	secure   bool
-	events   *eventRing
-	version  string
+type LoginMetrics interface {
+	IncSuccess()
+	IncFailure()
 }
 
-func New(core *client.Client, store *session.Store, secure bool, version string) *Handler {
+type Handler struct {
+	Core        *client.Client
+	Sessions    *session.Store
+	secure      bool
+	events      *eventRing
+	version     string
+	loginMetrics LoginMetrics
+}
+
+func New(core *client.Client, store *session.Store, secure bool, version string, lm LoginMetrics) *Handler {
 	h := &Handler{
-		Core:     core,
-		Sessions: store,
-		secure:   secure,
-		events:   newEventRing(100),
-		version:  version,
+		Core:         core,
+		Sessions:    store,
+		secure:      secure,
+		events:      newEventRing(100),
+		version:     version,
+		loginMetrics: lm,
 	}
 	h.startEventSubscription(context.Background())
 	return h
