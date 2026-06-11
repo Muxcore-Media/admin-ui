@@ -1,0 +1,127 @@
+package templates
+
+import "fmt"
+
+type ModuleDetail struct {
+	ID             string
+	Name           string
+	Version        string
+	State          string
+	Healthy        bool
+	HealthError    string
+	Description    string
+	Author         string
+	Roles          []string
+	Capabilities   []string
+	DependsOn      []string
+	HTTPAddr       string
+	MinCoreVersion string
+}
+
+templ ModuleDetailPage(m ModuleDetail) {
+	<div class="max-w-3xl space-y-6">
+		<div>
+			<a href="/modules" class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Back to modules</a>
+		</div>
+
+		<div class="flex items-start justify-between">
+			<div>
+				<div class="flex items-center gap-3">
+					<h1 class="text-2xl font-bold">{ m.Name }</h1>
+					@StateBadge(m.State)
+					@HealthDot(m.Healthy)
+				</div>
+				<p class="text-sm text-gray-500 font-mono mt-1">{ m.ID }</p>
+			</div>
+		</div>
+
+		@ModuleMetaFields(m)
+
+		if m.Description != "" {
+			<div>
+				<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Description</h2>
+				<p class="text-sm text-gray-300">{ m.Description }</p>
+			</div>
+		}
+
+		@ModuleRolesBlock(m.Roles)
+		@ModuleCapabilitiesBlock(m.Capabilities)
+		@ModuleDependenciesBlock(m.DependsOn)
+
+		if m.HealthError != "" {
+			<div class="rounded-xl border border-red-800/50 bg-red-900/20 p-4">
+				<h2 class="text-sm font-semibold text-red-400 uppercase tracking-wider mb-1">Health Error</h2>
+				<p class="text-sm text-red-300">{ m.HealthError }</p>
+			</div>
+		}
+	</div>
+}
+
+templ ModuleMetaFields(m ModuleDetail) {
+	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+		@DetailField("Version", m.Version)
+		@DetailField("Author", m.Author)
+		if m.HTTPAddr != "" {
+			@DetailField("HTTP Address", m.HTTPAddr)
+		}
+		if m.MinCoreVersion != "" {
+			@DetailField("Min Core Version", m.MinCoreVersion)
+		}
+	</div>
+}
+
+templ ModuleRolesBlock(roles []string) {
+	<div>
+		<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Roles</h2>
+		if len(roles) > 0 {
+			<div class="flex flex-wrap gap-1.5">
+				for _, r := range roles {
+					@RoleTag(r)
+				}
+			</div>
+		} else {
+			<p class="text-sm text-gray-600">None</p>
+		}
+	</div>
+}
+
+templ ModuleCapabilitiesBlock(caps []string) {
+	<div>
+		<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Capabilities</h2>
+		if len(caps) > 0 {
+			<div class="flex flex-wrap gap-1.5">
+				for _, c := range caps {
+					@CapabilityTag(c)
+				}
+			</div>
+		} else {
+			<p class="text-sm text-gray-600">None</p>
+		}
+	</div>
+}
+
+templ ModuleDependenciesBlock(deps []string) {
+	<div>
+		<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">
+			{ fmt.Sprintf("Dependencies (%d)", len(deps)) }
+		</h2>
+		if len(deps) > 0 {
+			<ul class="space-y-1">
+				for _, dep := range deps {
+					<li>
+						<a href={ templ.SafeURL("/modules/" + dep) } class="text-sm text-indigo-400 hover:text-indigo-300 font-mono">{ dep }</a>
+					</li>
+				}
+			</ul>
+		} else {
+			<p class="text-sm text-gray-600">No dependencies</p>
+		}
+	</div>
+}
+
+templ DetailField(label string, value string) {
+	<div class="rounded-lg border border-gray-800 bg-gray-900/30 px-4 py-3">
+		<div class="text-xs font-medium text-gray-500 uppercase tracking-wider">{ label }</div>
+		<div class="text-sm text-gray-200 mt-0.5">{ value }</div>
+	</div>
+}

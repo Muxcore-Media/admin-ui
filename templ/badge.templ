@@ -1,0 +1,83 @@
+package templates
+
+type BadgeColor string
+
+const (
+	BadgeGreen  BadgeColor = "green"
+	BadgeYellow BadgeColor = "yellow"
+	BadgeRed    BadgeColor = "red"
+	BadgeGray   BadgeColor = "gray"
+	BadgeBlue   BadgeColor = "blue"
+	BadgePurple BadgeColor = "purple"
+)
+
+func stateBadgeClass(state string) (string, BadgeColor) {
+	switch state {
+	case "running":
+		return "bg-green-900/30 text-green-400 border-green-800/50", BadgeGreen
+	case "starting", "registered":
+		return "bg-blue-900/30 text-blue-400 border-blue-800/50", BadgeBlue
+	case "degraded":
+		return "bg-yellow-900/30 text-yellow-400 border-yellow-800/50", BadgeYellow
+	case "stopping", "stopped":
+		return "bg-gray-900/30 text-gray-400 border-gray-800/50", BadgeGray
+	default:
+		return "bg-gray-900/30 text-gray-400 border-gray-800/50", BadgeGray
+	}
+}
+
+templ StateBadge(state string) {
+	@DotBadge(healthColor(state)) {
+		{ state }
+	}
+}
+
+func healthColor(state string) string {
+	switch state {
+	case "running":
+		return "green"
+	case "degraded", "starting", "registered":
+		return "yellow"
+	case "stopping", "stopped":
+		return "gray"
+	default:
+		return "gray"
+	}
+}
+
+templ DotBadge(color string, children ...templ.Component) {
+	<span class={ "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium",
+		templ.KV("bg-green-900/30 text-green-400 border-green-800/50", color == "green"),
+		templ.KV("bg-yellow-900/30 text-yellow-400 border-yellow-800/50", color == "yellow"),
+		templ.KV("bg-red-900/30 text-red-400 border-red-800/50", color == "red"),
+		templ.KV("bg-gray-900/30 text-gray-400 border-gray-800/50", color == "gray"),
+		templ.KV("bg-blue-900/30 text-blue-400 border-blue-800/50", color == "blue"),
+		templ.KV("bg-purple-900/30 text-purple-400 border-purple-800/50", color == "purple"),
+	}>
+		<span class={ "w-1.5 h-1.5 rounded-full",
+			templ.KV("bg-green-400", color == "green"),
+			templ.KV("bg-yellow-400", color == "yellow"),
+			templ.KV("bg-red-400", color == "red"),
+			templ.KV("bg-gray-400", color == "gray"),
+			templ.KV("bg-blue-400", color == "blue"),
+			templ.KV("bg-purple-400", color == "purple"),
+		}></span>
+		{ children... }
+	</span>
+}
+
+templ HealthDot(healthy bool) {
+	if healthy {
+		<span class="w-2 h-2 rounded-full bg-green-400" title="Healthy"></span>
+	} else {
+		<span class="w-2 h-2 rounded-full bg-red-400" title="Unhealthy"></span>
+	}
+}
+
+templ CapabilityTag(cap string) {
+	<span class="inline-flex items-center rounded-md bg-indigo-900/30 px-1.5 py-0.5 text-xs font-medium text-indigo-400 border border-indigo-800/50">{ cap }</span>
+}
+
+templ RoleTag(role string) {
+	<span class="inline-flex items-center rounded-md bg-purple-900/30 px-1.5 py-0.5 text-xs font-medium text-purple-400 border border-purple-800/50">{ role }</span>
+}

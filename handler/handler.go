@@ -37,6 +37,9 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /", h.requireAuth(h.Dashboard))
 	mux.HandleFunc("GET /dashboard/health", h.requireAuth(h.HealthGrid))
 
+	mux.HandleFunc("GET /modules", h.requireAuth(h.ModuleList))
+	mux.HandleFunc("GET /modules/{id}", h.requireAuth(h.ModuleDetail))
+
 	mux.HandleFunc("GET /auth/status", h.AuthStatus)
 }
 
@@ -81,7 +84,6 @@ func (h *Handler) requireNoAuth(next http.HandlerFunc) http.HandlerFunc {
 func (h *Handler) checkAuthorized(ctx context.Context, sess *session.Session) error {
 	mod, err := h.findFirstModule(ctx, capAuthorizer)
 	if err != nil {
-		// No authorizer module — allow access (permissive default)
 		return nil
 	}
 
@@ -139,7 +141,6 @@ func redirectToLogin(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) NotAuthHandler(w http.ResponseWriter, r *http.Request) {
 	if _, ok := h.Sessions.GetFromRequest(r); ok {
-		// Has valid session — show 404 page
 		nav := templates.Nav(navLinks, r.URL.Path)
 		content := templates.NotFound()
 		component := templates.Layout("Not Found", nav, content)

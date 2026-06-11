@@ -1,0 +1,88 @@
+package templates
+
+import "fmt"
+
+type ModuleListItem struct {
+	ID           string
+	Name         string
+	Version      string
+	State        string
+	Roles        []string
+	Capabilities []string
+	Healthy      bool
+}
+
+templ ModuleListPage(modules []ModuleListItem) {
+	<div class="space-y-6">
+		<div>
+			<h1 class="text-2xl font-bold">Modules</h1>
+			<p class="text-gray-400 text-sm mt-1">{ fmt.Sprintf("%d modules registered", len(modules)) }</p>
+		</div>
+		<div
+			id="module-list"
+			hx-get="/modules"
+			hx-trigger="load"
+			hx-target="this"
+			hx-swap="outerHTML"
+		>
+			@ModuleTable(modules)
+		</div>
+	</div>
+}
+
+templ ModuleTable(modules []ModuleListItem) {
+	if len(modules) == 0 {
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">
+			No modules found.
+		</div>
+	} else {
+		<div class="overflow-x-auto rounded-xl border border-gray-800">
+			<table class="min-w-full divide-y divide-gray-800 text-sm">
+				<thead class="bg-gray-900/50">
+					<tr>
+						<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">State</th>
+						<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+						<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+						<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Version</th>
+						<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roles</th>
+						<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Capabilities</th>
+					</tr>
+				</thead>
+				<tbody class="divide-y divide-gray-800">
+					for _, m := range modules {
+						<tr class="hover:bg-gray-800/30 transition-colors">
+							<td class="px-4 py-3 whitespace-nowrap">
+								@StateBadge(m.State)
+							</td>
+							<td class="px-4 py-3 whitespace-nowrap">
+								<a href={ templ.SafeURL("/modules/" + m.ID) } class="text-indigo-400 hover:text-indigo-300 font-medium">{ m.Name }</a>
+							</td>
+							<td class="px-4 py-3 whitespace-nowrap text-gray-400 font-mono text-xs">{ m.ID }</td>
+							<td class="px-4 py-3 whitespace-nowrap text-gray-400">{ m.Version }</td>
+							<td class="px-4 py-3">
+								<div class="flex flex-wrap gap-1">
+									for _, r := range m.Roles {
+										@RoleTag(r)
+									}
+									if len(m.Roles) == 0 {
+										<span class="text-gray-600">—</span>
+									}
+								</div>
+							</td>
+							<td class="px-4 py-3">
+								<div class="flex flex-wrap gap-1 max-w-xs">
+									for _, c := range m.Capabilities {
+										@CapabilityTag(c)
+									}
+									if len(m.Capabilities) == 0 {
+										<span class="text-gray-600">—</span>
+									}
+								</div>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}

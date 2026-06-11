@@ -108,27 +108,6 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
-func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
-	connected := h.Core != nil
-	content := templates.DashboardPage(connected)
-	nav := templates.Nav(navLinks, "/")
-	component := templates.Layout("Dashboard", nav, content)
-	component.Render(r.Context(), w)
-}
-
-func (h *Handler) HealthGrid(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html")
-
-	// Placeholder — Phase 1 will implement real health data
-	w.Write([]byte(`<div class="text-sm text-gray-400">Health data loading...</div>`))
-}
-
-func (h *Handler) AuthStatus(w http.ResponseWriter, r *http.Request) {
-	status := h.checkAuthProviders(r.Context())
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
-}
-
 func (h *Handler) authenticate(ctx context.Context, username, password string) (*authSession, error) {
 	mod, err := h.findFirstModule(ctx, capAuth)
 	if err != nil {
@@ -155,17 +134,6 @@ func (h *Handler) authenticate(ctx context.Context, username, password string) (
 	}
 
 	return &sess, nil
-}
-
-func (h *Handler) checkAuthProviders(ctx context.Context) AuthStatus {
-	mod, err := h.findFirstModule(ctx, capAuth)
-	if err != nil {
-		return AuthStatus{Available: false}
-	}
-	return AuthStatus{
-		Available: true,
-		ModuleID:  mod.GetId(),
-	}
 }
 
 func (h *Handler) findFirstModule(ctx context.Context, capability string) (*discoveryv1.ModuleInfoProto, error) {

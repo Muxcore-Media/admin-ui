@@ -1,5 +1,7 @@
 package templates
 
+import "fmt"
+
 templ NoAuthPage() {
 	<div class="flex min-h-full items-center justify-center">
 		<div class="text-center max-w-md">
@@ -16,8 +18,8 @@ templ NoAuthPage() {
 	</div>
 }
 
-templ DashboardPage(connected bool) {
-	if !connected {
+templ DashboardPage(nodeCount int, leaderID string, disconnected bool) {
+	if disconnected {
 		<div class="flex min-h-full items-center justify-center">
 			<div class="text-center max-w-md">
 				<div class="mx-auto w-12 h-12 rounded-xl bg-red-600/20 border border-red-700/50 flex items-center justify-center text-xl mb-4">!</div>
@@ -31,37 +33,68 @@ templ DashboardPage(connected bool) {
 				<h1 class="text-2xl font-bold">Dashboard</h1>
 				<p class="text-gray-400 text-sm mt-1">System overview</p>
 			</div>
-			<div
-				id="health-grid"
-				class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-				hx-get="/dashboard/health"
-				hx-trigger="load, every 5s"
-				hx-target="this"
-				hx-swap="innerHTML"
-			>
-				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 col-span-full">
-					<div class="flex items-center gap-2 text-gray-400">
-						<div class="w-4 h-4 rounded-full border-2 border-gray-600 animate-spin border-t-transparent"></div>
-						<span class="text-sm">Loading health data...</span>
-					</div>
+
+			<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+				@ClusterStatCard("Nodes", fmt.Sprintf("%d", nodeCount), "Total cluster members")
+				@ClusterStatCard("Leader", leaderID, "Current cluster leader")
+				@ClusterStatCard("Version", "v0.1.0", "Core version")
+			</div>
+
+			<div>
+				<h2 class="text-lg font-semibold mb-3">Module Health</h2>
+				<div
+					id="health-grid"
+					class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+					hx-get="/dashboard/health"
+					hx-trigger="load, every 5s"
+					hx-target="this"
+					hx-swap="innerHTML"
+				>
+					@LoadingCard()
 				</div>
 			</div>
 		</div>
 	}
 }
 
-templ HealthWidget(title string, status string, detail string) {
+templ ClusterStatCard(label string, value string, desc string) {
 	<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
-		<div class="flex items-center justify-between mb-2">
-			<h3 class="text-sm font-medium text-gray-300">{ title }</h3>
-			if status == "ok" {
-				<span class="w-2 h-2 rounded-full bg-green-400"></span>
-			} else if status == "error" {
-				<span class="w-2 h-2 rounded-full bg-red-400"></span>
-			} else {
-				<span class="w-2 h-2 rounded-full bg-yellow-400"></span>
+		<div class="text-xs font-medium text-gray-500 uppercase tracking-wider">{ label }</div>
+		<div class="text-xl font-bold text-white mt-1 truncate">{ value }</div>
+		<div class="text-xs text-gray-500 mt-1">{ desc }</div>
+	</div>
+}
+
+templ HealthGrid(modules []ModuleHealthItem) {
+	if len(modules) == 0 {
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-500">No modules registered.</div>
+	} else {
+		for _, m := range modules {
+			@HealthCard(m)
+		}
+	}
+}
+
+type ModuleHealthItem struct {
+	ID      string
+	Name    string
+	State   string
+	Healthy bool
+	Error   string
+}
+
+templ HealthCard(m ModuleHealthItem) {
+	<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+		<div class="flex items-center justify-between mb-1">
+			<div class="text-sm font-medium text-gray-200 truncate">{ m.Name }</div>
+			@HealthDot(m.Healthy)
+		</div>
+		<div class="text-xs text-gray-500 mb-2 truncate">{ m.ID }</div>
+		<div class="flex items-center gap-2">
+			@StateBadge(m.State)
+			if m.Error != "" {
+				<span class="text-xs text-red-400 truncate" title={ m.Error }>{ m.Error }</span>
 			}
 		</div>
-		<p class="text-xs text-gray-500">{ detail }</p>
 	</div>
 }
