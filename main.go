@@ -84,7 +84,7 @@ func main() {
 	slog.Info("connected to core", "addr", cfg.CoreAddr)
 
 	ss := session.NewStore(cfg.SessionTTL)
-	h := handler.New(c, ss, cfg.TLSCert != "" || !cfg.Insecure)
+	h := handler.New(c, ss, cfg.TLSCert != "" || !cfg.Insecure, version)
 
 	mux := http.NewServeMux()
 

@@ -1,0 +1,64 @@
+package templates
+
+type ConfigEntry struct {
+	Key      string
+	Value    string
+	Redacted bool
+}
+
+type ConfigPageData struct {
+	Version     string
+	CoreVersion string
+	Entries     []ConfigEntry
+}
+
+templ ConfigPage(data ConfigPageData) {
+	<div class="space-y-6 max-w-3xl">
+		<div>
+			<h1 class="text-2xl font-bold">Configuration</h1>
+			<p class="text-gray-400 text-sm mt-1">Running configuration</p>
+		</div>
+
+		@ConfigVersionCard(data)
+
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50">
+			<div class="px-5 py-4 border-b border-gray-800">
+				<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Environment</h2>
+			</div>
+			<div class="divide-y divide-gray-800">
+				for _, e := range data.Entries {
+					@ConfigRow(e)
+				}
+				if len(data.Entries) == 0 {
+					<div class="px-5 py-6 text-center text-sm text-gray-500">
+						No configuration data available.
+					</div>
+				}
+			</div>
+		</div>
+	</div>
+}
+
+templ ConfigVersionCard(data ConfigPageData) {
+	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+			<div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Admin UI Version</div>
+			<div class="text-lg font-bold text-white mt-1">{ data.Version }</div>
+		</div>
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+			<div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Core Version</div>
+			<div class="text-lg font-bold text-white mt-1">{ data.CoreVersion }</div>
+		</div>
+	</div>
+}
+
+templ ConfigRow(e ConfigEntry) {
+	<div class="px-5 py-3 flex items-start justify-between gap-4">
+		<div class="font-mono text-xs text-gray-300 break-all min-w-0">{ e.Key }</div>
+		if e.Redacted {
+			<div class="font-mono text-xs text-gray-600 shrink-0">••••••••</div>
+		} else {
+			<div class="font-mono text-xs text-gray-400 break-all min-w-0 text-right">{ e.Value }</div>
+		}
+	</div>
+}

@@ -20,14 +20,16 @@ type Handler struct {
 	Sessions *session.Store
 	secure   bool
 	events   *eventRing
+	version  string
 }
 
-func New(core *client.Client, store *session.Store, secure bool) *Handler {
+func New(core *client.Client, store *session.Store, secure bool, version string) *Handler {
 	h := &Handler{
 		Core:     core,
 		Sessions: store,
 		secure:   secure,
 		events:   newEventRing(100),
+		version:  version,
 	}
 	h.startEventSubscription(context.Background())
 	return h
@@ -55,6 +57,10 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /settings", h.requireAuth(h.SettingsPage))
 	mux.HandleFunc("POST /settings/{moduleID}/{key}", h.requireAuth(h.SettingsUpdate))
+
+	mux.HandleFunc("GET /audit", h.requireAuth(h.AuditPage))
+
+	mux.HandleFunc("GET /config", h.requireAuth(h.ConfigPage))
 
 	mux.HandleFunc("GET /auth/status", h.AuthStatus)
 }

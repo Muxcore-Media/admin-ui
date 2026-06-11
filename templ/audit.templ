@@ -1,0 +1,188 @@
+package templates
+
+import (
+	"net/http"
+	"time"
+)
+
+type AuditFilterState struct {
+	Actor    string
+	Action   string
+	Resource string
+	TraceID  string
+	From     string
+	To       string
+}
+
+type AuditEntryItem struct {
+	ID         string
+	Timestamp  time.Time
+	Actor      string
+	Action     string
+	Resource   string
+	ResourceID string
+	TraceID    string
+	NodeID     string
+}
+
+type AuditPageData struct {
+	Entries    []AuditEntryItem
+	Filter     AuditFilterState
+	Page       int
+	TotalPages int
+}
+
+templ AuditPage(data AuditPageData) {
+	<div class="space-y-6">
+		<div>
+			<h1 class="text-2xl font-bold">Audit Log</h1>
+			<p class="text-gray-400 text-sm mt-1">Browse and filter audit entries</p>
+		</div>
+
+		<div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
+			<div class="xl:col-span-3 space-y-4">
+				@AuditTable(data)
+				if data.TotalPages > 1 {
+					@Pagination(data.Page, data.TotalPages, "/audit")
+				}
+			</div>
+
+			<div>
+				@AuditFilterPanel(data.Filter)
+			</div>
+		</div>
+	</div>
+}
+
+templ AuditFilterPanel(filter AuditFilterState) {
+	<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+		<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Filters</h2>
+
+		<form
+			class="space-y-3"
+			hx-get="/audit"
+			hx-target="main"
+			hx-push-url="true"
+			hx-trigger="submit"
+		>
+			<div>
+				<label class="block text-xs font-medium text-gray-500 mb-1">Actor</label>
+				<input
+					type="text" name="actor" value={ filter.Actor }
+					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+					placeholder="user ID or name"
+				/>
+			</div>
+
+			<div>
+				<label class="block text-xs font-medium text-gray-500 mb-1">Action</label>
+				<input
+					type="text" name="action" value={ filter.Action }
+					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+					placeholder="e.g. http.request"
+				/>
+			</div>
+
+			<div>
+				<label class="block text-xs font-medium text-gray-500 mb-1">Resource</label>
+				<input
+					type="text" name="resource" value={ filter.Resource }
+					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+					placeholder="path or type"
+				/>
+			</div>
+
+			<div>
+				<label class="block text-xs font-medium text-gray-500 mb-1">Trace ID</label>
+				<input
+					type="text" name="trace_id" value={ filter.TraceID }
+					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono text-xs"
+					placeholder="uuid"
+				/>
+			</div>
+
+			<div>
+				<label class="block text-xs font-medium text-gray-500 mb-1">From</label>
+				<input
+					type="datetime-local" name="from" value={ filter.From }
+					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+				/>
+			</div>
+
+			<div>
+				<label class="block text-xs font-medium text-gray-500 mb-1">To</label>
+				<input
+					type="datetime-local" name="to" value={ filter.To }
+					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+				/>
+			</div>
+
+			<div class="flex gap-2 pt-2">
+				<button
+					type="submit"
+					class="flex-1 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition-colors"
+				>Apply</button>
+				<a
+					href="/audit"
+					class="rounded-lg border border-gray-700 px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 transition-colors"
+				>Clear</a>
+			</div>
+		</form>
+	</div>
+}
+
+templ AuditTable(data AuditPageData) {
+	if len(data.Entries) == 0 {
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">
+			No audit entries found.
+		</div>
+	} else {
+		<div class="overflow-x-auto rounded-xl border border-gray-800">
+			<table class="min-w-full divide-y divide-gray-800 text-sm">
+				<thead class="bg-gray-900/50">
+					<tr>
+						<th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+						<th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actor</th>
+						<th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+						<th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resource</th>
+						<th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trace ID</th>
+					</tr>
+				</thead>
+				<tbody class="divide-y divide-gray-800 font-mono text-xs">
+					for _, e := range data.Entries {
+						<tr class="hover:bg-gray-800/30 transition-colors">
+							<td class="px-3 py-2.5 whitespace-nowrap text-gray-400">{ e.Timestamp.Format("2006-01-02 15:04:05") }</td>
+							<td class="px-3 py-2.5 whitespace-nowrap text-gray-200">{ e.Actor }</td>
+							<td class="px-3 py-2.5 whitespace-nowrap">
+								<span class="rounded-md bg-indigo-900/30 px-1.5 py-0.5 text-xs font-medium text-indigo-400 border border-indigo-800/50">{ e.Action }</span>
+							</td>
+							<td class="px-3 py-2.5 whitespace-nowrap text-gray-300 max-w-[200px] truncate" title={ e.Resource }>{ e.Resource }</td>
+							<td class="px-3 py-2.5 whitespace-nowrap text-gray-500">{ e.TraceID }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
+
+templ AuditNoModule() {
+	<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">
+		<div class="text-gray-400 mb-2">No audit module available</div>
+		<p class="text-xs text-gray-600">
+			Query audit entries requires an audit logger module. Deploy a module
+			implementing <code class="text-gray-500 bg-gray-800 px-1 rounded">AuditLogger</code> and it will appear here.
+		</p>
+	</div>
+}
+
+func ParseAuditFilters(r *http.Request) AuditFilterState {
+	return AuditFilterState{
+		Actor:    r.URL.Query().Get("actor"),
+		Action:   r.URL.Query().Get("action"),
+		Resource: r.URL.Query().Get("resource"),
+		TraceID:  r.URL.Query().Get("trace_id"),
+		From:     r.URL.Query().Get("from"),
+		To:       r.URL.Query().Get("to"),
+	}
+}
