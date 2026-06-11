@@ -23,6 +23,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dynamic settings UI for `SettingsProvider` modules
 - Audit log browser with filters and pagination
 - Config viewer with secret redaction
-- CSP hardening, security headers, error handling
-- Production hardening: rate limiting, session expiry, CSRF, graceful shutdown
-- CI pipeline: lint, build, test
+- Modal and pagination components
+- Per-IP rate limiting on login endpoint (exponential backoff after 6 failures)
+- CSRF double-submit cookie protection on all mutating routes
+- Prometheus-format `/metrics` endpoint (requests, sessions, login stats, Go runtime)
+- `golangci-lint` configuration and CI pipeline (5 jobs: lint, css, build, test, vet)
+- Session store unit tests (7 tests)
+
+### Security
+
+- Rate limiting: login brute-force protection with 1-minute block after 6 failures
+- CSRF: double-submit cookie pattern with per-session tokens via X-CSRF-Token header
+- Metrics endpoint: exposes runtime stats without sensitive data
+- CSP: restrictive policy (default-src 'self'; script-src 'self'; style-src 'self')
