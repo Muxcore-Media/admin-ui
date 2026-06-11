@@ -51,6 +51,11 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /events/stream", h.requireAuth(h.EventsStream))
 	mux.HandleFunc("GET /events/stats", h.requireAuth(h.EventStatsPanel))
 
+	mux.HandleFunc("GET /storage", h.requireAuth(h.StoragePage))
+
+	mux.HandleFunc("GET /settings", h.requireAuth(h.SettingsPage))
+	mux.HandleFunc("POST /settings/{moduleID}/{key}", h.requireAuth(h.SettingsUpdate))
+
 	mux.HandleFunc("GET /auth/status", h.AuthStatus)
 }
 

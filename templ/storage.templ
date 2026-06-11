@@ -1,0 +1,65 @@
+package templates
+
+import "fmt"
+
+type StorageProviderCard struct {
+	Name         string
+	ID           string
+	Capabilities []string
+	Healthy      bool
+}
+
+templ StoragePage(providers []StorageProviderCard) {
+	<div class="space-y-6">
+		<div>
+			<h1 class="text-2xl font-bold">Storage</h1>
+			<p class="text-gray-400 text-sm mt-1">{ fmt.Sprintf("%d storage provider(s)", len(providers)) }</p>
+		</div>
+
+		@StorageGrid(providers)
+	</div>
+}
+
+templ StorageGrid(providers []StorageProviderCard) {
+	if len(providers) == 0 {
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">
+			No storage providers registered.
+		</div>
+	} else {
+		<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+			for _, p := range providers {
+				@StorageCard(p)
+			}
+		</div>
+	}
+}
+
+templ StorageCard(p StorageProviderCard) {
+	<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+		<div class="flex items-center justify-between mb-3">
+			<div class="flex items-center gap-2 min-w-0">
+				<div class="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-800/50 flex items-center justify-center text-xs font-bold text-blue-400 shrink-0">
+					S
+				</div>
+				<div class="min-w-0">
+					<div class="text-sm font-medium text-gray-200 truncate">{ p.Name }</div>
+					<div class="text-xs text-gray-500 font-mono truncate">{ p.ID }</div>
+				</div>
+			</div>
+			@HealthDot(p.Healthy)
+		</div>
+
+		<div>
+			<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Capabilities</div>
+			if len(p.Capabilities) > 0 {
+				<div class="flex flex-wrap gap-1.5">
+					for _, c := range p.Capabilities {
+						@CapabilityTag(c)
+					}
+				</div>
+			} else {
+				<p class="text-xs text-gray-600">None reported</p>
+			}
+		</div>
+	</div>
+}

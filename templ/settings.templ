@@ -1,0 +1,182 @@
+package templates
+
+import "fmt"
+
+type SettingField struct {
+	ModuleID    string
+	Key         string
+	Label       string
+	Type        string
+	Default     string
+	Description string
+	Required    bool
+	Options     []string
+	Group       string
+	Value       string
+}
+
+type SettingsModuleGroup struct {
+	ModuleID   string
+	ModuleName string
+	Groups     map[string][]SettingField
+}
+
+templ SettingsPage(groups []SettingsModuleGroup) {
+	<div class="space-y-6 max-w-3xl">
+		<div>
+			<h1 class="text-2xl font-bold">Settings</h1>
+			<p class="text-gray-400 text-sm mt-1">Module configuration</p>
+		</div>
+
+		for _, mg := range groups {
+			@SettingsModuleCard(mg)
+		}
+
+		if len(groups) == 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">
+				No modules expose settings. Register a module implementing <code class="text-gray-400 bg-gray-800 px-1 rounded">SettingsProvider</code>.
+			</div>
+		}
+	</div>
+}
+
+templ SettingsModuleCard(mg SettingsModuleGroup) {
+	<div class="rounded-xl border border-gray-800 bg-gray-900/50">
+		<div class="px-5 py-4 border-b border-gray-800">
+			<h2 class="text-lg font-semibold">{ mg.ModuleName }</h2>
+			<p class="text-xs text-gray-500 font-mono mt-0.5">{ mg.ModuleID }</p>
+		</div>
+
+		<div class="p-5 space-y-6">
+			for groupName, fields := range mg.Groups {
+				@SettingsGroup(groupName, fields, mg.ModuleID)
+			}
+		</div>
+	</div>
+}
+
+templ SettingsGroup(groupName string, fields []SettingField, moduleID string) {
+	<div>
+		if groupName != "" {
+			<h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">{ groupName }</h3>
+		}
+		<div class="space-y-4">
+			for _, f := range fields {
+				@SettingFieldForm(f, moduleID)
+			}
+		</div>
+	</div>
+}
+
+templ SettingFieldForm(f SettingField, moduleID string) {
+	<div class="rounded-lg border border-gray-800 bg-gray-900/30 p-4">
+		<form
+			hx-post={ templ.SafeURL(fmt.Sprintf("/settings/%s/%s", moduleID, f.Key)) }
+			hx-target={ templ.SafeURL(fmt.Sprintf("#msg-%s", f.Key)) }
+			hx-swap="innerHTML"
+			class="space-y-3"
+		>
+			<input type="hidden" name="key" value={ f.Key }/>
+
+			<div class="flex items-start justify-between">
+				<div>
+					<label for={ templ.SafeURL(f.Key) } class="text-sm font-medium text-gray-200">
+						{ f.Label }
+						if f.Required {
+							<span class="text-red-400 ml-0.5">*</span>
+						}
+					</label>
+					if f.Description != "" {
+						<p class="text-xs text-gray-500 mt-0.5">{ f.Description }</p>
+					}
+				</div>
+			</div>
+
+			@SettingInput(f)
+
+			<div id={ templ.SafeURL(fmt.Sprintf("msg-%s", f.Key)) }></div>
+		</form>
+	</div>
+}
+
+templ SettingInput(f SettingField) {
+	switch f.Type {
+	case "bool":
+		<div class="flex items-center gap-3">
+			<label class="relative inline-flex cursor-pointer items-center">
+				<input
+					type="checkbox"
+					name="value"
+					class="peer sr-only"
+					if f.Value == "true" || f.Default == "true" {
+						checked
+					}
+					onchange="this.closest('form').requestSubmit()"
+				/>
+				<div class="h-5 w-9 rounded-full bg-gray-700 after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-indigo-600 peer-checked:after:translate-x-full"></div>
+			</label>
+			<span class="text-xs text-gray-400">{ boolLabel(f.Value == "true" || f.Default == "true") }</span>
+		</div>
+
+	case "select":
+		<select
+			name="value"
+			class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+		>
+			for _, opt := range f.Options {
+				<option
+					value={ opt }
+					if f.Value == opt || (f.Value == "" && f.Default == opt) {
+						selected
+					}
+				>{ opt }</option>
+			}
+		</select>
+
+	case "secret":
+		<div class="relative">
+			<input
+				type="password"
+				id={ templ.SafeURL(f.Key) }
+				name="value"
+				value={ f.Value }
+				class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 pr-12 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+				placeholder={ "Enter " + f.Label }
+			/>
+			<button
+				type="button"
+				class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-gray-300"
+				onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password'"
+			>
+				Show
+			</button>
+		</div>
+
+	case "int":
+		<input
+			type="number"
+			id={ templ.SafeURL(f.Key) }
+			name="value"
+			value={ f.Value }
+			class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+			placeholder={ f.Default }
+		/>
+
+	default:
+		<input
+			type="text"
+			id={ templ.SafeURL(f.Key) }
+			name="value"
+			value={ f.Value }
+			class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+			placeholder={ f.Default }
+		/>
+	}
+}
+
+func boolLabel(v bool) string {
+	if v {
+		return "Enabled"
+	}
+	return "Disabled"
+}
