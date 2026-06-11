@@ -19,7 +19,7 @@ import (
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
-//go:embed assets/dist/* assets/htmx.min.js
+//go:embed assets/dist/* assets/htmx.min.js assets/sse.js
 var staticAssets embed.FS
 
 var version = "0.0.0-dev"

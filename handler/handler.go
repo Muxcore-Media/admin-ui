@@ -19,14 +19,18 @@ type Handler struct {
 	Core     *client.Client
 	Sessions *session.Store
 	secure   bool
+	events   *eventRing
 }
 
 func New(core *client.Client, store *session.Store, secure bool) *Handler {
-	return &Handler{
+	h := &Handler{
 		Core:     core,
 		Sessions: store,
 		secure:   secure,
+		events:   newEventRing(100),
 	}
+	h.startEventSubscription(context.Background())
+	return h
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
@@ -39,6 +43,13 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /modules", h.requireAuth(h.ModuleList))
 	mux.HandleFunc("GET /modules/{id}", h.requireAuth(h.ModuleDetail))
+
+	mux.HandleFunc("GET /cluster", h.requireAuth(h.ClusterPage))
+	mux.HandleFunc("GET /cluster/nodes", h.requireAuth(h.ClusterNodes))
+
+	mux.HandleFunc("GET /events", h.requireAuth(h.EventsPage))
+	mux.HandleFunc("GET /events/stream", h.requireAuth(h.EventsStream))
+	mux.HandleFunc("GET /events/stats", h.requireAuth(h.EventStatsPanel))
 
 	mux.HandleFunc("GET /auth/status", h.AuthStatus)
 }
