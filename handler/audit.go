@@ -51,7 +51,7 @@ func (h *Handler) AuditPage(w http.ResponseWriter, r *http.Request) {
 		nav := templates.Nav(navLinks, "/audit")
 		content := templates.AuditNoModule()
 		component := templates.Layout("Audit Log", nav, content)
-		component.Render(r.Context(), w)
+		h.render(w, r, component)
 		return
 	}
 
@@ -131,5 +131,5 @@ func (h *Handler) AuditPage(w http.ResponseWriter, r *http.Request) {
 	nav := templates.Nav(navLinks, "/audit")
 	content := templates.AuditPage(data)
 	component := templates.Layout("Audit Log", nav, content)
-	component.Render(r.Context(), w)
+	h.render(w, r, component)
 }

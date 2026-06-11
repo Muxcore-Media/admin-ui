@@ -35,13 +35,13 @@ type AuthStatus struct {
 
 func (h *Handler) LoginPage(w http.ResponseWriter, r *http.Request) {
 	component := templates.LoginPage("")
-	component.Render(r.Context(), w)
+	h.render(w, r, component)
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		component := templates.LoginForm("invalid form data")
-		component.Render(r.Context(), w)
+		h.render(w, r, component)
 		return
 	}
 
@@ -50,7 +50,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	if username == "" || password == "" {
 		component := templates.LoginForm("username and password are required")
-		component.Render(r.Context(), w)
+		h.render(w, r, component)
 		return
 	}
 
@@ -61,7 +61,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 			h.loginMetrics.IncFailure()
 		}
 		component := templates.LoginForm("invalid username or password")
-		component.Render(r.Context(), w)
+		h.render(w, r, component)
 		return
 	}
 
@@ -69,7 +69,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("session create failed", "error", err)
 		component := templates.LoginForm("internal error")
-		component.Render(r.Context(), w)
+		h.render(w, r, component)
 		return
 	}
 

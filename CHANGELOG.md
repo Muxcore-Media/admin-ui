@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Auth middleware delegating to `AuthProvider` / `Authorizer` via core mesh
 - Dashboard with live HTMX-polling health grid
 - Module list and detail pages
-- Cluster map with SSE-powered live updates
+- Cluster map with HTMX-polled live node cards
 - Event stream viewer with subscription stats
 - Storage provider status page
 - Dynamic settings UI for `SettingsProvider` modules

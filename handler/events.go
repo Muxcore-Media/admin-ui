@@ -97,7 +97,7 @@ func (h *Handler) EventsPage(w http.ResponseWriter, r *http.Request) {
 	content := templates.EventsPage(events, stats)
 	nav := templates.Nav(navLinks, "/events")
 	component := templates.Layout("Events", nav, content)
-	component.Render(r.Context(), w)
+	h.render(w, r, component)
 }
 
 func (h *Handler) EventsStream(w http.ResponseWriter, r *http.Request) {
@@ -110,7 +110,7 @@ func (h *Handler) EventsStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	component := templates.EventTable(events)
-	component.Render(r.Context(), w)
+	h.render(w, r, component)
 }
 
 func (h *Handler) EventStatsPanel(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +119,7 @@ func (h *Handler) EventStatsPanel(w http.ResponseWriter, r *http.Request) {
 
 	stats := h.collectSubscriptionStats()
 	component := templates.SubscriptionStatsPanel(stats)
-	component.Render(r.Context(), w)
+	h.render(w, r, component)
 }
 
 func (h *Handler) collectSubscriptionStats() []templates.EventSubscriptionStat {

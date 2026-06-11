@@ -39,5 +39,5 @@ func (h *Handler) ConfigPage(w http.ResponseWriter, r *http.Request) {
 	content := templates.ConfigPage(data)
 	nav := templates.Nav(navLinks, "/config")
 	component := templates.Layout("Configuration", nav, content)
-	component.Render(r.Context(), w)
+	h.render(w, r, component)
 }

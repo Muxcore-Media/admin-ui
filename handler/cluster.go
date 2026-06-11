@@ -14,7 +14,7 @@ func (h *Handler) ClusterPage(w http.ResponseWriter, r *http.Request) {
 		nav := templates.Nav(navLinks, "/cluster")
 		content := templates.ClusterPage(templates.ClusterPageData{})
 		component := templates.Layout("Cluster", nav, content)
-		component.Render(r.Context(), w)
+		h.render(w, r, component)
 		return
 	}
 
@@ -43,7 +43,7 @@ func (h *Handler) ClusterPage(w http.ResponseWriter, r *http.Request) {
 	content := templates.ClusterPage(data)
 	nav := templates.Nav(navLinks, "/cluster")
 	component := templates.Layout("Cluster", nav, content)
-	component.Render(r.Context(), w)
+	h.render(w, r, component)
 }
 
 func (h *Handler) ClusterNodes(w http.ResponseWriter, r *http.Request) {
@@ -75,6 +75,6 @@ func (h *Handler) ClusterNodes(w http.ResponseWriter, r *http.Request) {
 			ModuleCount: len(modules),
 			Modules:     modules,
 		})
-		card.Render(r.Context(), w)
+		h.render(w, r, card)
 	}
 }

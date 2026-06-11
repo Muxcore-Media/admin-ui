@@ -10,6 +10,8 @@ import (
 	"github.com/Muxcore-Media/core/sdk/go/client"
 
 	"github.com/Muxcore-Media/admin-ui/session"
+	"github.com/a-h/templ"
+
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
@@ -80,7 +82,7 @@ func (h *Handler) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 			nav := templates.Nav(navLinks, r.URL.Path)
 			content := templates.DashboardPage(0, "", true)
 			component := templates.Layout("Disconnected", nav, content)
-			component.Render(r.Context(), w)
+			h.render(w, r, component)
 			return
 		}
 
@@ -99,7 +101,7 @@ func (h *Handler) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 		if err := h.checkAuthorized(r.Context(), sess); err != nil {
 			slog.Warn("authorization denied", "user", sess.Username, "path", r.URL.Path, "error", err)
 			component := templates.Forbidden()
-			component.Render(r.Context(), w)
+			h.render(w, r, component)
 			return
 		}
 
@@ -114,7 +116,7 @@ func (h *Handler) requireNoAuth(next http.HandlerFunc) http.HandlerFunc {
 			nav := templates.Nav(navLinks, r.URL.Path)
 			content := templates.DashboardPage(0, "", true)
 			component := templates.Layout("Disconnected", nav, content)
-			component.Render(r.Context(), w)
+			h.render(w, r, component)
 			return
 		}
 
@@ -192,13 +194,22 @@ func redirectToLogin(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) NotAuthHandler(w http.ResponseWriter, r *http.Request) {
 	if _, ok := h.Sessions.GetFromRequest(r); ok {
+		w.WriteHeader(http.StatusNotFound)
 		nav := templates.Nav(navLinks, r.URL.Path)
 		content := templates.NotFound()
 		component := templates.Layout("Not Found", nav, content)
-		component.Render(r.Context(), w)
+		if err := component.Render(r.Context(), w); err != nil {
+			slog.Error("render 404", "error", err)
+		}
 		return
 	}
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+func (h *Handler) render(w http.ResponseWriter, r *http.Request, component templ.Component) {
+	if err := component.Render(r.Context(), w); err != nil {
+		slog.Error("template render failed", "path", r.URL.Path, "error", err)
+	}
 }
 
 type contextKey string

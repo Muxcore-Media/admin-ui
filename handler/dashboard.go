@@ -12,7 +12,7 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		nav := templates.Nav(navLinks, "/")
 		content := templates.DashboardPage(0, "", true)
 		component := templates.Layout("Dashboard", nav, content)
-		component.Render(r.Context(), w)
+		h.render(w, r, component)
 		return
 	}
 
@@ -22,14 +22,14 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		nav := templates.Nav(navLinks, "/")
 		content := templates.DashboardPage(0, "", true)
 		component := templates.Layout("Dashboard", nav, content)
-		component.Render(r.Context(), w)
+		h.render(w, r, component)
 		return
 	}
 
 	content := templates.DashboardPage(len(members), leader, false)
 	nav := templates.Nav(navLinks, "/")
 	component := templates.Layout("Dashboard", nav, content)
-	component.Render(r.Context(), w)
+	h.render(w, r, component)
 }
 
 func (h *Handler) HealthGrid(w http.ResponseWriter, r *http.Request) {
@@ -69,5 +69,5 @@ func (h *Handler) HealthGrid(w http.ResponseWriter, r *http.Request) {
 	}
 
 	component := templates.HealthGrid(items)
-	component.Render(r.Context(), w)
+	h.render(w, r, component)
 }

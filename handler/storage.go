@@ -33,5 +33,5 @@ func (h *Handler) StoragePage(w http.ResponseWriter, r *http.Request) {
 	content := templates.StoragePage(providers)
 	nav := templates.Nav(navLinks, "/storage")
 	component := templates.Layout("Storage", nav, content)
-	component.Render(r.Context(), w)
+	h.render(w, r, component)
 }

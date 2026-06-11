@@ -27,7 +27,7 @@ func newRateLimiter() *rateLimiter {
 	return rl
 }
 
-func (rl *rateLimiter) Allow(ip string) bool {
+func (rl *rateLimiter) Allow(ip, path, method, userAgent string) bool {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
@@ -52,7 +52,7 @@ func (rl *rateLimiter) Allow(ip string) bool {
 	if rec.count >= 6 {
 		rec.blockedUntil = now.Add(1 * time.Minute)
 		rec.count = 0
-		slog.Warn("rate limit triggered", "ip", ip)
+		slog.Warn("rate limit triggered", "ip", ip, "path", path, "method", method, "user_agent", userAgent)
 		return false
 	}
 

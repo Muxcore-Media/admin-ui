@@ -15,7 +15,7 @@ func (h *Handler) ModuleList(w http.ResponseWriter, r *http.Request) {
 		content := templates.ModuleListPage(nil)
 		nav := templates.Nav(navLinks, "/modules")
 		component := templates.Layout("Modules", nav, content)
-		component.Render(r.Context(), w)
+		h.render(w, r, component)
 		return
 	}
 
@@ -60,7 +60,7 @@ func (h *Handler) ModuleList(w http.ResponseWriter, r *http.Request) {
 	content := templates.ModuleListPage(modules)
 	nav := templates.Nav(navLinks, "/modules")
 	component := templates.Layout("Modules", nav, content)
-	component.Render(r.Context(), w)
+	h.render(w, r, component)
 }
 
 func (h *Handler) ModuleDetail(w http.ResponseWriter, r *http.Request) {
@@ -77,7 +77,7 @@ func (h *Handler) ModuleDetail(w http.ResponseWriter, r *http.Request) {
 		nav := templates.Nav(navLinks, "/modules")
 		content := templates.NotFound()
 		component := templates.Layout(title, nav, content)
-		component.Render(r.Context(), w)
+		h.render(w, r, component)
 		return
 	}
 	if info == nil {
@@ -85,7 +85,7 @@ func (h *Handler) ModuleDetail(w http.ResponseWriter, r *http.Request) {
 		nav := templates.Nav(navLinks, "/modules")
 		content := templates.NotFound()
 		component := templates.Layout(title, nav, content)
-		component.Render(r.Context(), w)
+		h.render(w, r, component)
 		return
 	}
 
@@ -107,5 +107,5 @@ func (h *Handler) ModuleDetail(w http.ResponseWriter, r *http.Request) {
 	content := templates.ModuleDetailPage(detail)
 	nav := templates.Nav(navLinks, "/modules")
 	component := templates.Layout(info.GetName(), nav, content)
-	component.Render(r.Context(), w)
+	h.render(w, r, component)
 }

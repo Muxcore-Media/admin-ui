@@ -84,7 +84,7 @@ func (h *Handler) SettingsPage(w http.ResponseWriter, r *http.Request) {
 	content := templates.SettingsPage(groups)
 	nav := templates.Nav(navLinks, "/settings")
 	component := templates.Layout("Settings", nav, content)
-	component.Render(r.Context(), w)
+	h.render(w, r, component)
 }
 
 func (h *Handler) SettingsUpdate(w http.ResponseWriter, r *http.Request) {

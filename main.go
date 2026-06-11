@@ -313,7 +313,7 @@ func withMiddleware(next http.Handler, csrfKey string, loginRL *rateLimiter) htt
 		// Rate limit login
 		if r.URL.Path == "/login" && r.Method == http.MethodPost {
 			ip := extractIP(r)
-			if !loginRL.Allow(ip) {
+			if !loginRL.Allow(ip, r.URL.Path, r.Method, r.UserAgent()) {
 				w.Header().Set("Retry-After", "60")
 				http.Error(w, "too many login attempts", http.StatusTooManyRequests)
 				return

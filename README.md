@@ -16,7 +16,7 @@ A sidecar module that connects to a running `muxcored` instance via gRPC and ser
 # Build the binary
 make build
 
-# Run against a local muxcored
+# Run against a local muxcored (dev mode, no TLS)
 export ADMIN_UI_CORE_ADDR=localhost:9090
 export ADMIN_UI_INSECURE=true
 ./admin-ui
@@ -49,18 +49,57 @@ All configuration is via environment variables:
 | `ADMIN_UI_TLS_KEY` | — | TLS key file path |
 | `ADMIN_UI_SESSION_TTL` | `30m` | Session lifetime |
 | `ADMIN_UI_LOG_LEVEL` | `info` | Log level (debug, info, warn, error) |
+| `ADMIN_UI_LOG_FORMAT` | `text` | Log format: `text` or `json` |
 
 ---
 
-## Development
+## Production deployment
+
+### Docker
 
 ```bash
-make dev    # Build CSS + run with dev defaults
-make css    # Compile Tailwind CSS
-make build  # Build production binary
-make test   # Run tests
-make lint   # golangci-lint + go vet
+docker build -t admin-ui .
+docker run -d --restart=unless-stopped \
+  -p 8080:8080 \
+  -e ADMIN_UI_CORE_ADDR=core:9090 \
+  -e ADMIN_UI_LOG_FORMAT=json \
+  admin-ui
 ```
+
+The Docker image uses a multi-stage build: Tailwind CSS is compiled in the first stage, the Go binary is built in the second, and the final runtime is `alpine:3.21` (non-root user, ~10MB image).
+
+### TLS (HTTPS for the admin UI)
+
+```bash
+export ADMIN_UI_TLS_CERT=/etc/ssl/cert.pem
+export ADMIN_UI_TLS_KEY=/etc/ssl/key.pem
+./admin-ui
+```
+
+When TLS is enabled, the session and CSRF cookies are marked `Secure`. The HTTP server uses TLS 1.2+ with secure cipher suites.
+
+### JSON logging (production)
+
+```bash
+export ADMIN_UI_LOG_FORMAT=json
+export ADMIN_UI_LOG_LEVEL=info
+```
+
+Produces structured JSON log lines for ingestion by log aggregators (Loki, Datadog, Splunk).
+
+### Health checks
+
+| Endpoint | Purpose | Response |
+|----------|---------|----------|
+| `/health` | Liveness + readiness | `{"status":"ok"}` or `{"status":"degraded"}` (503) when core is down |
+| `/metrics` | Prometheus scraping | Plain text Prometheus metrics |
+
+### Reverse proxy
+
+When placing behind nginx or Caddy, ensure these headers are forwarded:
+
+- `X-Forwarded-For` — for client IP in rate limiting and logs
+- `Host` — for CSRF origin validation
 
 ---
 
@@ -71,14 +110,32 @@ Browser ──HTTP──→ admin-ui ──gRPC──→ muxcored
                   (Templ + HTMX)     (Discovery, Events, Storage, Mesh, Health)
 ```
 
-The admin module is a standalone Go binary that:
+**Auth flow:**
+1. Browser → `POST /login` → admin-ui calls `AuthProvider.Authenticate()` via core mesh
+2. On success, server-side session created (cookie-based, in-memory store)
+3. Every subsequent request validates session cookie + optionally checks `Authorizer.Can("admin.access")`
+4. CSRF protection via double-submit cookie pattern
 
-1. Dials core's gRPC endpoint using the Go SDK client
-2. Serves an HTTP interface with Templ-rendered HTML and HTMX-driven interactivity
-3. Embeds all static assets (Tailwind CSS, HTMX JS) via `//go:embed`
-4. Delegates auth to core's `AuthProvider` and `Authorizer` modules via mesh calls
+**Live updates:**
+- Dashboard health grid: HTMX polling every 5s
+- Cluster nodes: HTMX polling every 10s
+- Events: HTMX polling every 3s
+- All static assets embedded in binary (zero disk I/O at runtime)
 
-No changes to core are required. All data is accessed through existing gRPC services.
+---
+
+## Development
+
+```bash
+make dev        # Build CSS + run with dev defaults
+make css        # Compile Tailwind CSS
+make css-watch  # Watch mode for Tailwind
+make build      # Build production binary
+make test       # Run tests
+make lint       # golangci-lint + go vet
+make clean      # Remove build artifacts
+make fmt        # Format Go + Templ files
+```
 
 ---
 

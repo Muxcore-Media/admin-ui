@@ -1,0 +1,119 @@
+package handler
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/Muxcore-Media/admin-ui/session"
+)
+
+func mustRequest(method, path string) *http.Request {
+	r, err := http.NewRequest(method, path, nil)
+	if err != nil {
+		panic(err)
+	}
+	r.RemoteAddr = "127.0.0.1:12345"
+	return r
+}
+
+func TestNewHandler(t *testing.T) {
+	ss := session.NewStore(0)
+	h := New(nil, ss, false, "test-version", nil, false)
+	if h == nil {
+		t.Fatal("expected non-nil handler")
+	}
+	if h.version != "test-version" {
+		t.Fatalf("expected test-version, got %s", h.version)
+	}
+}
+
+func TestHandlerDisconnectedMode(t *testing.T) {
+	ss := session.NewStore(0)
+	h := New(nil, ss, false, "test", nil, false)
+
+	// requireAuth should show disconnected page instead of crashing
+	handler := h.requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("should not reach authenticated handler")
+	})
+
+	r := mustRequest("GET", "/")
+	w := httptest.NewRecorder()
+	handler(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 (disconnected page), got %d", w.Code)
+	}
+}
+
+func TestNavLinks(t *testing.T) {
+	if len(navLinks) == 0 {
+		t.Fatal("expected non-empty navLinks")
+	}
+	found := false
+	for _, l := range navLinks {
+		if l.Path == "/" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected Dashboard link in nav")
+	}
+}
+
+func TestAuthStatus(t *testing.T) {
+	ss := session.NewStore(0)
+	h := New(nil, ss, false, "test", nil, false)
+
+	r := mustRequest("GET", "/auth/status")
+	w := httptest.NewRecorder()
+	h.AuthStatus(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	if strings.TrimSpace(w.Body.String()) != `{"available":false}` {
+		t.Fatalf("expected available=false without core, got %q", w.Body.String())
+	}
+}
+
+func TestLoginMetricsInterface(t *testing.T) {
+	lm := &mockLoginMetrics{}
+	ss := session.NewStore(0)
+	h := New(nil, ss, false, "test", lm, false)
+
+	// Verify the handler stores the metrics
+	if h.loginMetrics != lm {
+		t.Fatal("expected loginMetrics to be stored")
+	}
+}
+
+type mockLoginMetrics struct {
+	success int64
+	failure int64
+}
+
+func (m *mockLoginMetrics) IncSuccess() { m.success++ }
+func (m *mockLoginMetrics) IncFailure() { m.failure++ }
+
+func TestForbiddenOnAuthorizedRoutes(t *testing.T) {
+	ss := session.NewStore(0)
+	token, _ := ss.Create("user1", "testuser", []string{"admin"}, []string{"admin.access"})
+	h := New(nil, ss, false, "test", nil, false)
+
+	handler := h.requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
+	r := mustRequest("GET", "/")
+	r.AddCookie(&http.Cookie{Name: "session", Value: token})
+	w := httptest.NewRecorder()
+	handler(w, r)
+	// Without core, authorizer check is skipped, so this should pass
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 without authorizer, got %d", w.Code)
+	}
+}

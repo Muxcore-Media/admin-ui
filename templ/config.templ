@@ -7,9 +7,8 @@ type ConfigEntry struct {
 }
 
 type ConfigPageData struct {
-	Version     string
-	CoreVersion string
-	Entries     []ConfigEntry
+	Version string
+	Entries []ConfigEntry
 }
 
 templ ConfigPage(data ConfigPageData) {
@@ -19,7 +18,10 @@ templ ConfigPage(data ConfigPageData) {
 			<p class="text-gray-400 text-sm mt-1">Running configuration</p>
 		</div>
 
-		@ConfigVersionCard(data)
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+			<div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Admin UI Version</div>
+			<div class="text-lg font-bold text-white mt-1">{ data.Version }</div>
+		</div>
 
 		<div class="rounded-xl border border-gray-800 bg-gray-900/50">
 			<div class="px-5 py-4 border-b border-gray-800">
@@ -35,19 +37,6 @@ templ ConfigPage(data ConfigPageData) {
 					</div>
 				}
 			</div>
-		</div>
-	</div>
-}
-
-templ ConfigVersionCard(data ConfigPageData) {
-	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
-			<div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Admin UI Version</div>
-			<div class="text-lg font-bold text-white mt-1">{ data.Version }</div>
-		</div>
-		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
-			<div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Core Version</div>
-			<div class="text-lg font-bold text-white mt-1">{ data.CoreVersion }</div>
 		</div>
 	</div>
 }
