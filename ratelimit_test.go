@@ -2,17 +2,18 @@ package main
 
 import (
 	"testing"
+	"time"
 )
 
 func TestRateLimiterAllow(t *testing.T) {
-	rl := newRateLimiter()
+	rl := newRateLimiter(6, time.Minute)
 	if !rl.Allow("192.168.1.1", "/login", "POST", "test-agent") {
 		t.Fatal("expected first request to be allowed")
 	}
 }
 
 func TestRateLimiterBlocksAfterThreshold(t *testing.T) {
-	rl := newRateLimiter()
+	rl := newRateLimiter(6, time.Minute)
 	ip := "10.0.0.1"
 
 	// 5 allowed requests
@@ -34,7 +35,7 @@ func TestRateLimiterBlocksAfterThreshold(t *testing.T) {
 }
 
 func TestRateLimiterReset(t *testing.T) {
-	rl := newRateLimiter()
+	rl := newRateLimiter(6, time.Minute)
 	ip := "10.0.0.2"
 
 	for i := 0; i < 6; i++ {
@@ -53,7 +54,7 @@ func TestRateLimiterReset(t *testing.T) {
 }
 
 func TestRateLimiterSeparateIPs(t *testing.T) {
-	rl := newRateLimiter()
+	rl := newRateLimiter(6, time.Minute)
 
 	// Exhaust one IP
 	for i := 0; i < 6; i++ {

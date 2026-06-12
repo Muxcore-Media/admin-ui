@@ -107,7 +107,8 @@ func main() {
 	}
 
 	ss := session.NewStore(cfg.SessionTTL)
-	loginRL := newRateLimiter()
+	loginRL := newRateLimiter(6, 1*time.Minute)
+	mutationRL := newRateLimiter(30, 30*time.Second) // 30 mutations per 30s window
 	met := newMetrics()
 	csrfKey := generateCSRFKey()
 
@@ -158,7 +159,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:         cfg.Addr,
-		Handler:      withMiddleware(mux, csrfKey, loginRL),
+		Handler:      withMiddleware(mux, csrfKey, loginRL, mutationRL),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -251,7 +252,7 @@ func (w *loggingResponseWriter) WriteHeader(code int) {
 	w.ResponseWriter.WriteHeader(code)
 }
 
-func withMiddleware(next http.Handler, csrfKey string, loginRL *rateLimiter) http.Handler {
+func withMiddleware(next http.Handler, csrfKey string, loginRL *rateLimiter, mutationRL *rateLimiter) http.Handler {
 	var inner http.Handler = next
 
 	inner = recoveryMiddleware(inner)
@@ -315,6 +316,42 @@ func withMiddleware(next http.Handler, csrfKey string, loginRL *rateLimiter) htt
 			}
 		}
 
+		// Rate limit mutating endpoints
+		if isMutatingEndpoint(r.URL.Path) && (r.Method == http.MethodPost || r.Method == http.MethodPut ||
+			r.Method == http.MethodDelete || r.Method == http.MethodPatch) {
+			ip := extractIP(r)
+			if !mutationRL.Allow(ip, r.URL.Path, r.Method, r.UserAgent()) {
+				w.Header().Set("Retry-After", "30")
+				http.Error(w, "too many requests", http.StatusTooManyRequests)
+				return
+			}
+		}
+
 		inner.ServeHTTP(w, r)
 	})
+}
+
+// isMutatingEndpoint returns true for paths that perform data mutations.
+// These endpoints get rate-limited separately from login.
+func isMutatingEndpoint(path string) bool {
+	switch {
+	case path == "/auth/callback":
+		return true
+	case path == "/logout":
+		return true
+	case hasPrefix(path, "/settings/"):
+		return true
+	case hasPrefix(path, "/users"):
+		return true
+	case hasPrefix(path, "/media/"):
+		return true
+	case hasPrefix(path, "/api/"):
+		return true
+	default:
+		return false
+	}
+}
+
+func hasPrefix(s, prefix string) bool {
+	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }

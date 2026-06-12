@@ -87,6 +87,7 @@ func (h *Handler) SettingsPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) SettingsUpdate(w http.ResponseWriter, r *http.Request) {
+	limitBody(w, r)
 	moduleID := r.PathValue("moduleID")
 	key := r.PathValue("key")
 

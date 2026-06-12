@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
 
@@ -27,8 +26,8 @@ func (h *Handler) mediaModuleAddr(ctx context.Context, moduleID string) (string,
 	return addr, nil
 }
 
-func (h *Handler) dialMediaModule(addr string) (*grpc.ClientConn, mediaadminv1.MediaAdminServiceClient, error) {
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+func (h *Handler) dialMediaModule(ctx context.Context, addr string) (*grpc.ClientConn, mediaadminv1.MediaAdminServiceClient, error) {
+	conn, err := h.cachedConn(ctx, addr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("dial %s: %w", addr, err)
 	}
@@ -49,7 +48,7 @@ func (h *Handler) MediaLibraryList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conn, client, err := h.dialMediaModule(addr)
+	_, client, err := h.dialMediaModule(ctx, addr)
 	if err != nil {
 		slog.Warn("media: dial failed", "module", moduleID, "error", err)
 		content := templates.MediaListPage("Error", nil, 0, 0, 0, moduleID)
@@ -58,7 +57,6 @@ func (h *Handler) MediaLibraryList(w http.ResponseWriter, r *http.Request) {
 		h.render(w, r, component)
 		return
 	}
-	defer conn.Close()
 
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	if page < 1 {
@@ -105,13 +103,12 @@ func (h *Handler) MediaLibraryItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conn, client, err := h.dialMediaModule(addr)
+	_, client, err := h.dialMediaModule(ctx, addr)
 	if err != nil {
 		slog.Warn("media: dial failed", "module", moduleID, "error", err)
 		http.Redirect(w, r, "/media/"+moduleID, http.StatusSeeOther)
 		return
 	}
-	defer conn.Close()
 
 	info, _ := client.GetMediaTypeInfo(ctx, &mediaadminv1.GetMediaTypeInfoRequest{})
 	displayName := moduleID
@@ -133,6 +130,7 @@ func (h *Handler) MediaLibraryItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) MediaLibraryUpdate(w http.ResponseWriter, r *http.Request) {
+	limitBody(w, r)
 	moduleID := r.PathValue("moduleID")
 	itemID := r.PathValue("id")
 	ctx := r.Context()
@@ -148,12 +146,11 @@ func (h *Handler) MediaLibraryUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conn, client, err := h.dialMediaModule(addr)
+	_, client, err := h.dialMediaModule(ctx, addr)
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">connection failed</div>`))
 		return
 	}
-	defer conn.Close()
 
 	metadata := make(map[string]string)
 	for k := range r.Form {
@@ -188,12 +185,11 @@ func (h *Handler) MediaLibraryArtwork(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conn, client, err := h.dialMediaModule(addr)
+	_, client, err := h.dialMediaModule(ctx, addr)
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">connection failed</div>`))
 		return
 	}
-	defer conn.Close()
 
 	resp, err := client.ListArtwork(ctx, &mediaadminv1.ListArtworkRequest{Id: itemID})
 	if err != nil {

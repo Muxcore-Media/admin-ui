@@ -19,12 +19,11 @@ func (h *Handler) UsersDetail(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
 	ctx := r.Context()
 
-	client, conn, err := h.authClient(ctx)
+	client, _, err := h.authClient(ctx)
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
 
 	resp, err := client.ListUsers(ctx, &authv1.ListUsersRequest{})
 	if err != nil {
@@ -45,12 +44,11 @@ func (h *Handler) UsersDetail(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) UsersTOTPStatus(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
-	client, conn, err := h.authClient(r.Context())
+	client, _, err := h.authClient(r.Context())
 	if err != nil {
 		w.Write([]byte(`<span class="text-xs text-red-400">auth unavailable</span>`))
 		return
 	}
-	defer conn.Close()
 
 	status, err := client.TOTPStatus(r.Context(), &authv1.TOTPStatusRequest{UserId: userID})
 	if err != nil {
@@ -65,7 +63,7 @@ func (h *Handler) UsersTOTPStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UsersPage(w http.ResponseWriter, r *http.Request) {
-	client, conn, err := h.authClient(r.Context())
+	client, _, err := h.authClient(r.Context())
 	if err != nil {
 		slog.Warn("users: auth client failed", "error", err)
 		content := templates.UsersPage(nil, "")
@@ -74,7 +72,6 @@ func (h *Handler) UsersPage(w http.ResponseWriter, r *http.Request) {
 		h.render(w, r, component)
 		return
 	}
-	defer conn.Close()
 
 	resp, err := client.ListUsers(r.Context(), &authv1.ListUsersRequest{})
 	if err != nil {
@@ -93,17 +90,17 @@ func (h *Handler) UsersPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UsersCreate(w http.ResponseWriter, r *http.Request) {
+	limitBody(w, r)
 	if err := r.ParseForm(); err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">invalid form data</div>`))
 		return
 	}
 
-	client, conn, err := h.authClient(r.Context())
+	client, _, err := h.authClient(r.Context())
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
 
 	username := r.FormValue("username")
 	password := r.FormValue("password")
@@ -139,12 +136,11 @@ func (h *Handler) UsersCreate(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UsersDelete(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
 
-	client, conn, err := h.authClient(r.Context())
+	client, _, err := h.authClient(r.Context())
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
 
 	resp, err := client.DeleteUser(r.Context(), &authv1.DeleteUserRequest{UserId: userID})
 	if err != nil {
@@ -166,18 +162,18 @@ func (h *Handler) UsersDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UsersSetPassword(w http.ResponseWriter, r *http.Request) {
+	limitBody(w, r)
 	userID := r.PathValue("id")
 	if err := r.ParseForm(); err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">invalid form data</div>`))
 		return
 	}
 
-	client, conn, err := h.authClient(r.Context())
+	client, _, err := h.authClient(r.Context())
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
 
 	password := r.FormValue("password")
 	if password == "" {
@@ -208,18 +204,18 @@ func (h *Handler) UsersSetPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UsersSetRoles(w http.ResponseWriter, r *http.Request) {
+	limitBody(w, r)
 	userID := r.PathValue("id")
 	if err := r.ParseForm(); err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">invalid form data</div>`))
 		return
 	}
 
-	client, conn, err := h.authClient(r.Context())
+	client, _, err := h.authClient(r.Context())
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
 
 	roles := r.Form["roles"]
 
@@ -249,12 +245,11 @@ func (h *Handler) UsersSetRoles(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UsersTOTP(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
 
-	client, conn, err := h.authClient(r.Context())
+	client, _, err := h.authClient(r.Context())
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
 
 	status, err := client.TOTPStatus(r.Context(), &authv1.TOTPStatusRequest{UserId: userID})
 	if err != nil {
@@ -297,12 +292,11 @@ func (h *Handler) UsersTOTP(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UsersTokens(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
 
-	client, conn, err := h.authClient(r.Context())
+	client, _, err := h.authClient(r.Context())
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
 
 	switch r.Method {
 	case http.MethodGet:
@@ -315,6 +309,7 @@ func (h *Handler) UsersTokens(w http.ResponseWriter, r *http.Request) {
 		h.render(w, r, content)
 
 	case http.MethodPost:
+		limitBody(w, r)
 		if err := r.ParseForm(); err != nil {
 			w.Write([]byte(`<div class="text-xs text-red-400">invalid form data</div>`))
 			return

@@ -24,7 +24,12 @@ import (
 const (
 	capAuthorizer   = "authorizer"
 	capMediaLibrary = "media.library"
+	maxRequestBody  = 1 << 20 // 1 MB
 )
+
+func limitBody(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBody)
+}
 
 type LoginMetrics interface {
 	IncSuccess()
@@ -48,6 +53,9 @@ type Handler struct {
 
 	mediaRefreshCh chan struct{}
 	mediaSubCancel func()
+
+	connCache   map[string]*grpc.ClientConn
+	connCacheMu sync.Mutex
 }
 
 func New(core *client.Client, store *session.Store, secure bool, version string, lm LoginMetrics, connected bool, authAddr string, resetLoginRate func(ip string)) *Handler {
@@ -62,6 +70,7 @@ func New(core *client.Client, store *session.Store, secure bool, version string,
 		AuthAddr:       authAddr,
 		ResetLoginRate: resetLoginRate,
 		mediaRefreshCh: make(chan struct{}, 1),
+		connCache:      make(map[string]*grpc.ClientConn),
 	}
 	if connected && core != nil {
 		h.refreshMediaNavLinks(context.Background())
@@ -276,11 +285,10 @@ func (h *Handler) checkAuthorized(ctx context.Context, sess *session.Session) er
 		return fmt.Errorf("authorizer has no gRPC address")
 	}
 
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := h.cachedConn(ctx, addr)
 	if err != nil {
 		return fmt.Errorf("dial authorizer %s: %w", addr, err)
 	}
-	defer conn.Close()
 
 	ac := authv1.NewAuthServiceClient(conn)
 	cresp, err := ac.Can(ctx, &authv1.CanRequest{
@@ -334,6 +342,34 @@ const ctxSessionKey contextKey = "session"
 func SessionFromContext(ctx context.Context) *session.Session {
 	s, _ := ctx.Value(ctxSessionKey).(*session.Session)
 	return s
+}
+
+// cachedConn returns a cached gRPC connection for the given address,
+// dialing one if none exists. Callers must not close the returned conn.
+func (h *Handler) cachedConn(ctx context.Context, addr string) (*grpc.ClientConn, error) {
+	h.connCacheMu.Lock()
+	defer h.connCacheMu.Unlock()
+
+	if conn, ok := h.connCache[addr]; ok {
+		return conn, nil
+	}
+
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, fmt.Errorf("dial %s: %w", addr, err)
+	}
+	h.connCache[addr] = conn
+	return conn, nil
+}
+
+// cleanupConnCache closes and removes all cached gRPC connections.
+func (h *Handler) cleanupConnCache() {
+	h.connCacheMu.Lock()
+	defer h.connCacheMu.Unlock()
+	for addr, conn := range h.connCache {
+		conn.Close()
+		delete(h.connCache, addr)
+	}
 }
 
 // auditLog writes an audit entry asynchronously. Errors are logged but not returned

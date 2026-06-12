@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	authv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/auth/v1"
 
@@ -24,7 +23,7 @@ func (h *Handler) authClient(ctx context.Context) (authv1.AuthServiceClient, *gr
 	if addr == "" {
 		return nil, nil, fmt.Errorf("auth module has no gRPC address")
 	}
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := h.cachedConn(ctx, addr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("dial auth module: %w", err)
 	}
@@ -38,12 +37,11 @@ func (h *Handler) PasskeyList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, conn, err := h.authClient(r.Context())
+	client, _, err := h.authClient(r.Context())
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
 
 	resp, err := client.ListWebAuthnCredentials(r.Context(), &authv1.ListWebAuthnCredentialsRequest{
 		UserId: userID,
@@ -66,12 +64,11 @@ func (h *Handler) PasskeyDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, conn, err := h.authClient(r.Context())
+	client, _, err := h.authClient(r.Context())
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
 
 	_, err = client.DeleteWebAuthnCredential(r.Context(), &authv1.DeleteWebAuthnCredentialRequest{
 		UserId:       userID,
@@ -94,12 +91,11 @@ func (h *Handler) PasskeyBeginRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, conn, err := h.authClient(r.Context())
+	client, _, err := h.authClient(r.Context())
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
 
 	resp, err := client.BeginAdminRegistration(r.Context(), &authv1.BeginAdminRegistrationRequest{
 		UserId: userID,
@@ -122,12 +118,12 @@ func (h *Handler) PasskeyCompleteRegister(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	client, conn, err := h.authClient(r.Context())
+	limitBody(w, r)
+	client, _, err := h.authClient(r.Context())
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
 
 	bodyBytes := jsonFromBody(r)
 

@@ -16,13 +16,23 @@ type rateLimitRecord struct {
 }
 
 type rateLimiter struct {
-	mu      sync.Mutex
-	records map[string]*rateLimitRecord
+	mu        sync.Mutex
+	records   map[string]*rateLimitRecord
+	threshold int
+	window    time.Duration
 }
 
-func newRateLimiter() *rateLimiter {
+func newRateLimiter(threshold int, window time.Duration) *rateLimiter {
+	if threshold <= 0 {
+		threshold = 6
+	}
+	if window <= 0 {
+		window = 1 * time.Minute
+	}
 	rl := &rateLimiter{
-		records: make(map[string]*rateLimitRecord),
+		records:   make(map[string]*rateLimitRecord),
+		threshold: threshold,
+		window:    window,
 	}
 	go rl.cleanupLoop()
 	return rl
@@ -50,8 +60,8 @@ func (rl *rateLimiter) Allow(ip, path, method, userAgent string) bool {
 	}
 
 	rec.count++
-	if rec.count >= 6 {
-		rec.blockedUntil = now.Add(1 * time.Minute)
+	if rec.count >= rl.threshold {
+		rec.blockedUntil = now.Add(rl.window)
 		rec.count = 0
 		slog.Warn("rate limit triggered", "ip", ip, "path", path, "method", method, "user_agent", userAgent)
 		return false
