@@ -29,7 +29,7 @@ func LoginPage(errorMsg string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" class=\"h-full bg-gray-950\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Login - MuxCore Admin</title><link rel=\"stylesheet\" href=\"/static/dist/styles.css\"></head><body class=\"h-full text-gray-100 font-sans antialiased\"><div class=\"flex min-h-full items-center justify-center px-4\"><div class=\"w-full max-w-sm\"><div class=\"text-center mb-8\"><div class=\"mx-auto w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-xl font-bold mb-4\">M</div><h1 class=\"text-2xl font-bold\">MuxCore Admin</h1><p class=\"text-gray-400 mt-1 text-sm\">Sign in to manage your cluster</p></div><form class=\"space-y-4\" method=\"POST\" action=\"/login\" hx-post=\"/login\" hx-target=\"this\" hx-swap=\"outerHTML\"><div><label for=\"username\" class=\"block text-sm font-medium text-gray-300 mb-1\">Username</label> <input type=\"text\" id=\"username\" name=\"username\" required autocomplete=\"username\" autofocus class=\"w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500\" placeholder=\"admin\"></div><div><label for=\"password\" class=\"block text-sm font-medium text-gray-300 mb-1\">Password</label> <input type=\"password\" id=\"password\" name=\"password\" required autocomplete=\"current-password\" class=\"w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500\" placeholder=\"password\"></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" class=\"h-full bg-gray-950\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Login - MuxCore Admin</title><link rel=\"stylesheet\" href=\"/static/dist/styles.css\"><script src=\"/static/htmx.min.js\"></script><script src=\"/static/csrf.js\"></script></head><body class=\"h-full text-gray-100 font-sans antialiased\"><div class=\"flex min-h-full items-center justify-center px-4\"><div class=\"w-full max-w-sm\"><div class=\"text-center mb-8\"><div class=\"mx-auto w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-xl font-bold mb-4\">M</div><h1 class=\"text-2xl font-bold\">MuxCore Admin</h1><p class=\"text-gray-400 mt-1 text-sm\">Sign in to manage your cluster</p></div><form class=\"space-y-4\" method=\"POST\" action=\"/login\" hx-post=\"/login\" hx-target=\"this\" hx-swap=\"outerHTML\"><div><label for=\"username\" class=\"block text-sm font-medium text-gray-300 mb-1\">Username</label> <input type=\"text\" id=\"username\" name=\"username\" required autocomplete=\"username\" autofocus class=\"w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500\" placeholder=\"admin\"></div><div><label for=\"password\" class=\"block text-sm font-medium text-gray-300 mb-1\">Password</label> <input type=\"password\" id=\"password\" name=\"password\" required autocomplete=\"current-password\" class=\"w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500\" placeholder=\"password\"></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -41,7 +41,7 @@ func LoginPage(errorMsg string) templ.Component {
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(errorMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/login.templ`, Line: 58, Col: 18}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/login.templ`, Line: 60, Col: 18}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -93,7 +93,7 @@ func LoginForm(errorMsg string) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(errorMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/login.templ`, Line: 113, Col: 14}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/login.templ`, Line: 115, Col: 14}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {

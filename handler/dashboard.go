@@ -9,25 +9,38 @@ import (
 
 func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	if !h.coreConnected {
-		nav := templates.Nav(navLinks, "/")
-		content := templates.DashboardPage(0, "", true)
+		nav := h.nav(r.URL.Path)
+		content := templates.DashboardPage(templates.DashboardData{Disconnected: true})
 		component := templates.Layout("Dashboard", nav, content)
 		h.render(w, r, component)
 		return
 	}
 
-	members, leader, err := h.Core.Discovery.Members(r.Context())
+	members, leaderID, err := h.Core.Discovery.Members(r.Context())
 	if err != nil {
 		slog.Warn("dashboard: Members call failed", "error", err)
-		nav := templates.Nav(navLinks, "/")
-		content := templates.DashboardPage(0, "", true)
+		nav := h.nav(r.URL.Path)
+		content := templates.DashboardPage(templates.DashboardData{Disconnected: true})
 		component := templates.Layout("Dashboard", nav, content)
 		h.render(w, r, component)
 		return
 	}
 
-	content := templates.DashboardPage(len(members), leader, false)
-	nav := templates.Nav(navLinks, "/")
+	data := templates.DashboardData{
+		NodeCount: len(members),
+		LeaderID:  leaderID,
+	}
+
+	for _, m := range members {
+		if m.GetId() == leaderID {
+			data.LeaderHTTPAddr = m.GetHttpAddr()
+			data.LeaderGRPCAddr = m.GetGrpcAddr()
+			data.LeaderModuleCount = len(m.GetModules())
+		}
+	}
+
+	content := templates.DashboardPage(data)
+	nav := h.nav(r.URL.Path)
 	component := templates.Layout("Dashboard", nav, content)
 	h.render(w, r, component)
 }

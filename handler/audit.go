@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	capAudit = "audit"
+	capAudit    = "audit"
 	methodQuery = "Query"
 )
 
@@ -48,7 +48,7 @@ func (h *Handler) AuditPage(w http.ResponseWriter, r *http.Request) {
 	mod, err := h.Core.Discovery.FindByCapability(r.Context(), capAudit)
 	if err != nil || len(mod) == 0 {
 		slog.Warn("audit: no audit module found")
-		nav := templates.Nav(navLinks, "/audit")
+		nav := h.nav(r.URL.Path)
 		content := templates.AuditNoModule()
 		component := templates.Layout("Audit Log", nav, content)
 		h.render(w, r, component)
@@ -128,7 +128,7 @@ func (h *Handler) AuditPage(w http.ResponseWriter, r *http.Request) {
 		TotalPages: totalPages,
 	}
 
-	nav := templates.Nav(navLinks, "/audit")
+	nav := h.nav(r.URL.Path)
 	content := templates.AuditPage(data)
 	component := templates.Layout("Audit Log", nav, content)
 	h.render(w, r, component)

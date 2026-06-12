@@ -52,6 +52,7 @@ func (h *Handler) startEventSubscription(ctx context.Context) {
 
 			ch, cancel, err := h.Core.Events.Subscribe(ctx, "*")
 			if err != nil {
+				h.coreConnected = false
 				slog.Warn("event subscription failed, retrying in 10s", "error", err)
 				select {
 				case <-ctx.Done():
@@ -61,6 +62,7 @@ func (h *Handler) startEventSubscription(ctx context.Context) {
 				continue
 			}
 
+			h.coreConnected = true
 			slog.Info("event subscription established")
 			func() {
 				defer cancel()
@@ -95,7 +97,7 @@ func (h *Handler) EventsPage(w http.ResponseWriter, r *http.Request) {
 	stats := h.collectSubscriptionStats()
 
 	content := templates.EventsPage(events, stats)
-	nav := templates.Nav(navLinks, "/events")
+	nav := h.nav(r.URL.Path)
 	component := templates.Layout("Events", nav, content)
 	h.render(w, r, component)
 }

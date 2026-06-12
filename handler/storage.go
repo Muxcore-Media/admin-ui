@@ -18,8 +18,6 @@ func (h *Handler) StoragePage(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("storage: Capabilities call failed", "error", err)
 	}
 
-	_ = caps // used for storage-level capabilities if needed
-
 	var providers []templates.StorageProviderCard
 	for _, mod := range modules {
 		providers = append(providers, templates.StorageProviderCard{
@@ -30,8 +28,8 @@ func (h *Handler) StoragePage(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	content := templates.StoragePage(providers)
-	nav := templates.Nav(navLinks, "/storage")
+	content := templates.StoragePage(providers, caps)
+	nav := h.nav(r.URL.Path)
 	component := templates.Layout("Storage", nav, content)
 	h.render(w, r, component)
 }

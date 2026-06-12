@@ -4,12 +4,13 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
 
 type rateLimitRecord struct {
-	count       int
+	count        int
 	blockedUntil time.Time
 	lastActivity time.Time
 }
@@ -36,7 +37,7 @@ func (rl *rateLimiter) Allow(ip, path, method, userAgent string) bool {
 
 	if !exists {
 		rl.records[ip] = &rateLimitRecord{
-			count:       1,
+			count:        1,
 			lastActivity: now,
 		}
 		return true
@@ -83,6 +84,12 @@ func (rl *rateLimiter) cleanupLoop() {
 
 func extractIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		// X-Forwarded-For can be a comma-separated list: "client, proxy1, proxy2"
+		// The leftmost address is the original client.
+		if i := strings.IndexByte(xff, ','); i != -1 {
+			xff = xff[:i]
+		}
+		xff = strings.TrimSpace(xff)
 		if ip := net.ParseIP(xff); ip != nil {
 			return ip.String()
 		}

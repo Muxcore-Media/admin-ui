@@ -13,7 +13,7 @@ func (h *Handler) ModuleList(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Warn("modules: Members call failed", "error", err)
 		content := templates.ModuleListPage(nil)
-		nav := templates.Nav(navLinks, "/modules")
+		nav := h.nav(r.URL.Path)
 		component := templates.Layout("Modules", nav, content)
 		h.render(w, r, component)
 		return
@@ -58,7 +58,7 @@ func (h *Handler) ModuleList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	content := templates.ModuleListPage(modules)
-	nav := templates.Nav(navLinks, "/modules")
+	nav := h.nav(r.URL.Path)
 	component := templates.Layout("Modules", nav, content)
 	h.render(w, r, component)
 }
@@ -74,7 +74,7 @@ func (h *Handler) ModuleDetail(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Warn("module detail: Resolve failed", "module", id, "error", err)
 		title := "Module Not Found"
-		nav := templates.Nav(navLinks, "/modules")
+		nav := h.nav(r.URL.Path)
 		content := templates.NotFound()
 		component := templates.Layout(title, nav, content)
 		h.render(w, r, component)
@@ -82,7 +82,7 @@ func (h *Handler) ModuleDetail(w http.ResponseWriter, r *http.Request) {
 	}
 	if info == nil {
 		title := "Module Not Found"
-		nav := templates.Nav(navLinks, "/modules")
+		nav := h.nav(r.URL.Path)
 		content := templates.NotFound()
 		component := templates.Layout(title, nav, content)
 		h.render(w, r, component)
@@ -105,7 +105,7 @@ func (h *Handler) ModuleDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	content := templates.ModuleDetailPage(detail)
-	nav := templates.Nav(navLinks, "/modules")
+	nav := h.nav(r.URL.Path)
 	component := templates.Layout(info.GetName(), nav, content)
 	h.render(w, r, component)
 }

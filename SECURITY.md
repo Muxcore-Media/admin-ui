@@ -25,7 +25,7 @@ Acknowledgment within **72 hours**. Target patch: **7 days** critical, **30 days
 - **Session management**: Server-side session store, random UUID tokens, configurable TTL
 - **Auth delegation**: All auth delegated to core's `AuthProvider` and `Authorizer` modules
 - **CSRF protection**: Origin header validation on all mutating HTTP methods
-- **Content Security Policy**: Strict CSP header on all responses (`default-src 'self'; script-src 'self'; style-src 'self'`)
+- **Content Security Policy**: Strict CSP header on all responses (`default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; object-src 'none'`, no `unsafe-inline`)
 - **Security headers**: X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy
 - **TLS**: Optional HTTPS listener via `ADMIN_UI_TLS_CERT` / `ADMIN_UI_TLS_KEY`
 
@@ -34,7 +34,7 @@ Acknowledgment within **72 hours**. Target patch: **7 days** critical, **30 days
 - **Rate limiting**: Per-IP token bucket on login endpoint with exponential backoff (6 failures triggers 1-minute block)
 - **CSRF double-submit cookie**: Random per-session CSRF token set on GET responses, validated as `X-CSRF-Token` header on all POST/PUT/DELETE/PATCH requests
 - **Prometheus metrics**: `/metrics` endpoint exposing request counts, active sessions, login stats, Go runtime metrics
-- **Content Security Policy**: `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'; object-src 'none'`
+- **Content Security Policy**: `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'; object-src 'none'`
 
 ### Not yet implemented
 

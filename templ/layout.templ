@@ -9,15 +9,22 @@ templ Layout(title string, nav templ.Component, content templ.Component) {
 			<title>{ title } - MuxCore Admin</title>
 			<link rel="stylesheet" href="/static/dist/styles.css"/>
 			<script src="/static/htmx.min.js"></script>
+			<script src="/static/sse.js"></script>
 			<script src="/static/csrf.js"></script>
+			<script src="/static/webauthn.js"></script>
+			<script src="/static/nav.js"></script>
 		</head>
 		<body class="h-full text-gray-100 font-sans antialiased" hx-boost="true" hx-indicator="#loading-bar">
 			<div id="loading-bar" class="fixed top-0 left-0 w-full h-0.5 bg-indigo-600 z-50 htmx-indicator"></div>
+
 			<div class="flex h-full">
-				<nav class="w-64 shrink-0 border-r border-gray-800 bg-gray-900">
+				<nav id="sidebar" class="w-64 shrink-0 border-r border-gray-800 bg-gray-900 -translate-x-full lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 transition-transform duration-200 ease-in-out overflow-y-auto">
 					@nav
 				</nav>
-				<main id="main-content" class="flex-1 overflow-y-auto p-6 htmx-settling:hidden">
+
+				<div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-30 hidden lg:hidden"></div>
+
+				<main id="main-content" class="flex-1 overflow-y-auto p-6 pt-16 lg:pt-6 htmx-settling:hidden">
 					@content
 				</main>
 			</div>

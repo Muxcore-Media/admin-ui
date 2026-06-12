@@ -35,7 +35,7 @@ func Nav(links []NavLink, activePath string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"p-4\"><a href=\"/\" class=\"flex items-center gap-2 mb-6\"><div class=\"w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-sm font-bold\">M</div><span class=\"text-lg font-bold\">MuxCore</span></a><ul class=\"space-y-1\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"p-4\"><div class=\"flex items-center justify-between mb-6\"><a href=\"/\" class=\"flex items-center gap-2\"><div class=\"w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-sm font-bold\">M</div><span class=\"text-lg font-bold\">MuxCore</span></a></div><ul class=\"space-y-1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -59,7 +59,7 @@ func Nav(links []NavLink, activePath string) templ.Component {
 			var templ_7745c5c3_Var3 templ.SafeURL
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(link.Path)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/nav.templ`, Line: 19, Col: 22}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/nav.templ`, Line: 21, Col: 22}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -85,7 +85,7 @@ func Nav(links []NavLink, activePath string) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(link.Icon)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/nav.templ`, Line: 25, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/nav.templ`, Line: 27, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -98,7 +98,7 @@ func Nav(links []NavLink, activePath string) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(link.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/nav.templ`, Line: 26, Col: 18}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/nav.templ`, Line: 28, Col: 18}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {

@@ -1,8 +1,12 @@
 package handler
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
+
+	discoveryv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/discovery/v1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
@@ -11,7 +15,7 @@ func (h *Handler) ClusterPage(w http.ResponseWriter, r *http.Request) {
 	members, leaderID, err := h.Core.Discovery.Members(r.Context())
 	if err != nil {
 		slog.Warn("cluster: Members call failed", "error", err)
-		nav := templates.Nav(navLinks, "/cluster")
+		nav := h.nav(r.URL.Path)
 		content := templates.ClusterPage(templates.ClusterPageData{})
 		component := templates.Layout("Cluster", nav, content)
 		h.render(w, r, component)
@@ -41,7 +45,7 @@ func (h *Handler) ClusterPage(w http.ResponseWriter, r *http.Request) {
 
 	data := templates.ClusterPageData{Nodes: nodes}
 	content := templates.ClusterPage(data)
-	nav := templates.Nav(navLinks, "/cluster")
+	nav := h.nav(r.URL.Path)
 	component := templates.Layout("Cluster", nav, content)
 	h.render(w, r, component)
 }
@@ -76,5 +80,49 @@ func (h *Handler) ClusterNodes(w http.ResponseWriter, r *http.Request) {
 			Modules:     modules,
 		})
 		h.render(w, r, card)
+	}
+}
+
+// ClusterSSE streams cluster membership events via Server-Sent Events.
+// The client uses hx-trigger="sse:cluster-update" to re-fetch /cluster/nodes.
+func (h *Handler) ClusterSSE(w http.ResponseWriter, r *http.Request) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming not supported", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	ctx := r.Context()
+
+	stream, err := h.Core.Discovery.Raw().Watch(ctx, &discoveryv1.MembersRequest{})
+	if err != nil {
+		slog.Warn("cluster sse: Watch failed", "error", err)
+		return
+	}
+
+	// Send an immediate event to trigger the initial render
+	fmt.Fprintf(w, "event: cluster-update\ndata:\n\n")
+	flusher.Flush()
+
+	for {
+		_, err := stream.Recv()
+		if err != nil {
+			slog.Debug("cluster sse: stream ended", "error", err)
+			return
+		}
+
+		// Debounce: wait briefly for more events before signaling
+		select {
+		case <-time.After(100 * time.Millisecond):
+		case <-ctx.Done():
+			return
+		}
+
+		fmt.Fprintf(w, "event: cluster-update\ndata:\n\n")
+		flusher.Flush()
 	}
 }

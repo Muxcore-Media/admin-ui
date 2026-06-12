@@ -2,6 +2,43 @@ package templates
 
 import "fmt"
 
+type DashboardData struct {
+	NodeCount         int
+	LeaderID          string
+	LeaderHTTPAddr    string
+	LeaderGRPCAddr    string
+	LeaderModuleCount int
+	Disconnected      bool
+}
+
+func displayNodeID(id string) string {
+	if len(id) >= 8 && id[:8] == "muxcore-" {
+		id = id[8:]
+	}
+	if len(id) > 0 && id[0] == ':' {
+		return "localhost" + id
+	}
+	return id
+}
+
+func nodeAvatar(id string) string {
+	for _, ch := range id {
+		if ch >= 'a' && ch <= 'z' {
+			return string(ch - 32)
+		}
+		if ch >= 'A' && ch <= 'Z' {
+			return string(ch)
+		}
+		if ch >= '0' && ch <= '9' {
+			return string(ch)
+		}
+	}
+	if len(id) > 0 {
+		return id[:1]
+	}
+	return "N"
+}
+
 templ NoAuthPage() {
 	<div class="flex min-h-full items-center justify-center">
 		<div class="text-center max-w-md">
@@ -18,8 +55,8 @@ templ NoAuthPage() {
 	</div>
 }
 
-templ DashboardPage(nodeCount int, leaderID string, disconnected bool) {
-	if disconnected {
+templ DashboardPage(data DashboardData) {
+	if data.Disconnected {
 		<div class="flex min-h-full items-center justify-center">
 			<div class="text-center max-w-md">
 				<div class="mx-auto w-12 h-12 rounded-xl bg-red-600/20 border border-red-700/50 flex items-center justify-center text-xl mb-4">!</div>
@@ -35,8 +72,8 @@ templ DashboardPage(nodeCount int, leaderID string, disconnected bool) {
 			</div>
 
 			<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-				@ClusterStatCard("Nodes", fmt.Sprintf("%d", nodeCount), "Total cluster members")
-				@ClusterStatCard("Leader", leaderID, "Current cluster leader")
+				@ClusterStatCard("Nodes", fmt.Sprintf("%d", data.NodeCount), "Total cluster members")
+				@LeaderCard(data)
 				@ClusterStatCard("Version", "v0.1.0", "Core version")
 			</div>
 
@@ -55,6 +92,23 @@ templ DashboardPage(nodeCount int, leaderID string, disconnected bool) {
 			</div>
 		</div>
 	}
+}
+
+templ LeaderCard(data DashboardData) {
+	<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+		<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Leader</div>
+		<div class="flex items-center gap-2 mb-1">
+			<span class="w-2 h-2 rounded-full bg-yellow-400 shrink-0"></span>
+			<div class="text-lg font-bold text-white truncate">{ displayNodeID(data.LeaderID) }</div>
+		</div>
+		if data.LeaderGRPCAddr != "" {
+			<div class="text-xs text-gray-400">gRPC: { data.LeaderGRPCAddr }</div>
+		}
+		if data.LeaderHTTPAddr != "" {
+			<div class="text-xs text-gray-400">HTTP: { data.LeaderHTTPAddr }</div>
+		}
+		<div class="text-xs text-gray-500 mt-1">Current cluster leader</div>
+	</div>
 }
 
 templ ClusterStatCard(label string, value string, desc string) {

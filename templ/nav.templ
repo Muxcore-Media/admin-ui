@@ -8,10 +8,12 @@ type NavLink struct {
 
 templ Nav(links []NavLink, activePath string) {
 	<div class="p-4">
-		<a href="/" class="flex items-center gap-2 mb-6">
-			<div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-sm font-bold">M</div>
-			<span class="text-lg font-bold">MuxCore</span>
-		</a>
+		<div class="flex items-center justify-between mb-6">
+			<a href="/" class="flex items-center gap-2">
+				<div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-sm font-bold">M</div>
+				<span class="text-lg font-bold">MuxCore</span>
+			</a>
+		</div>
 		<ul class="space-y-1">
 			for _, link := range links {
 				<li>

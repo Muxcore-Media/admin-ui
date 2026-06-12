@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -23,20 +24,21 @@ import (
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
-//go:embed assets/dist/* assets/htmx.min.js assets/sse.js assets/csrf.js
+//go:embed assets/dist/* assets/htmx.min.js assets/sse.js assets/csrf.js assets/webauthn.js assets/nav.js
 var staticAssets embed.FS
 
 var version = "0.0.0-dev"
 
 type Config struct {
-	Addr        string
-	CoreAddr    string
-	Insecure    bool
-	TLSCert     string
-	TLSKey      string
-	SessionTTL  time.Duration
-	LogLevel    string
-	LogFormat   string
+	Addr       string
+	CoreAddr   string
+	Insecure   bool
+	TLSCert    string
+	TLSKey     string
+	SessionTTL time.Duration
+	LogLevel   string
+	LogFormat  string
+	AuthAddr   string
 }
 
 func loadConfig() Config {
@@ -50,6 +52,7 @@ func loadConfig() Config {
 		SessionTTL: ttl,
 		LogLevel:   env("ADMIN_UI_LOG_LEVEL", "info"),
 		LogFormat:  env("ADMIN_UI_LOG_FORMAT", "text"),
+		AuthAddr:   env("ADMIN_UI_AUTH_ADDR", "http://localhost:9401"),
 	}
 }
 
@@ -108,11 +111,16 @@ func main() {
 	met := newMetrics()
 	csrfKey := generateCSRFKey()
 
-	h := handler.New(coreClient, ss, cfg.TLSCert != "" || !cfg.Insecure, version, met, coreConnected)
+	h := handler.New(coreClient, ss, cfg.TLSCert != "" || !cfg.Insecure, version, met, coreConnected, cfg.AuthAddr, loginRL.Reset)
 
 	mux := http.NewServeMux()
 
-	mux.Handle("GET /static/", http.FileServer(http.FS(staticAssets)))
+	assetsFS, err := fs.Sub(staticAssets, "assets")
+	if err != nil {
+		slog.Error("static assets sub-fs", "error", err)
+		os.Exit(1)
+	}
+	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(assetsFS))))
 
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		status := "ok"
@@ -192,7 +200,7 @@ func generateCSRFKey() string {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		slog.Error("csrf key generation failed", "error", err)
-		return hex.EncodeToString([]byte("fallback-key-do-not-use-in-production"))
+		os.Exit(1)
 	}
 	return hex.EncodeToString(b)
 }
@@ -200,19 +208,6 @@ func generateCSRFKey() string {
 func csrfToken(key string) string {
 	h := sha256.Sum256([]byte(key + ":" + time.Now().Format("20060102")))
 	return hex.EncodeToString(h[:16])
-}
-
-func csrfTokenFromCookie(key, cookieValue string) bool {
-	expected := sha256.Sum256([]byte(key + ":" + time.Now().Format("20060102")))
-	expectedStr := hex.EncodeToString(expected[:16])
-
-	// Also check previous day's token to handle time boundaries
-	if cookieValue == expectedStr {
-		return true
-	}
-	yesterday := sha256.Sum256([]byte(key + ":" + time.Now().Add(-24*time.Hour).Format("20060102")))
-	yesterdayStr := hex.EncodeToString(yesterday[:16])
-	return cookieValue == yesterdayStr
 }
 
 func recoveryMiddleware(next http.Handler) http.Handler {
@@ -269,7 +264,7 @@ func withMiddleware(next http.Handler, csrfKey string, loginRL *rateLimiter) htt
 		}
 
 		w.Header().Set("Content-Security-Policy",
-			"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; object-src 'none'")
+			"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; object-src 'none'")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")

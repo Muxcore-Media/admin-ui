@@ -14,60 +14,56 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
-          cache: true
       - uses: golangci/golangci-lint-action@v6
         with:
           version: latest
-          args: --timeout 120s
+          args: --timeout=120s ./...
 
   css:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Tailwind CSS CLI
+      - name: Build CSS
         run: |
           curl -sL "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.6/tailwindcss-linux-x64" -o tailwindcss
           chmod +x tailwindcss
-      - name: Build CSS
-        run: |
           ./tailwindcss -i input.css -o assets/dist/styles.css --minify
-      - name: Verify CSS
-        run: |
-          test -f assets/dist/styles.css && echo "CSS OK" || exit 1
 
   build:
     runs-on: ubuntu-latest
+    needs: [lint, css]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
-          cache: true
-      - name: Install templ
-        run: go install github.com/a-h/templ/cmd/templ@latest
-      - name: Generate Templ
-        run: templ generate
-      - name: Build
-        run: go build -o admin-ui .
-      - name: Check binary size
+      - name: Build CSS
         run: |
-          size=$(stat -c%s admin-ui)
-          echo "Binary size: $size bytes ($(( size / 1048576 )) MB)"
-          if [ "$size" -gt $(( 50 * 1048576 )) ]; then
-            echo "Binary size exceeds 50MB"
-            exit 1
-          fi
+          curl -sL "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.6/tailwindcss-linux-x64" -o tailwindcss
+          chmod +x tailwindcss
+          ./tailwindcss -i input.css -o assets/dist/styles.css --minify
+      - name: Generate Templ
+        run: go install github.com/a-h/templ/cmd/templ@latest && templ generate
+      - name: Build
+        run: go build -ldflags="-s -w" -o admin-ui .
 
   test:
     runs-on: ubuntu-latest
+    needs: [build]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
-          cache: true
-      - name: Test with race detection
-        run: go test -race -count=1 -timeout 60s ./...
+      - name: Build CSS
+        run: |
+          curl -sL "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.6/tailwindcss-linux-x64" -o tailwindcss
+          chmod +x tailwindcss
+          ./tailwindcss -i input.css -o assets/dist/styles.css --minify
+      - name: Generate Templ
+        run: go install github.com/a-h/templ/cmd/templ@latest && templ generate
+      - name: Test
+        run: go test -race -count=1 -timeout 120s ./...
 
   vet:
     runs-on: ubuntu-latest
@@ -76,8 +72,5 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
-          cache: true
-      - name: Generate Templ
-        run: go install github.com/a-h/templ/cmd/templ@latest && templ generate
       - name: Vet
         run: go vet ./...

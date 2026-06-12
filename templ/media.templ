@@ -1,0 +1,155 @@
+package templates
+
+import (
+	"fmt"
+	"strconv"
+
+	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
+)
+
+templ MediaListPage(displayName string, items []*mediaadminv1.MediaItem, total, page, pageSize int, moduleID string) {
+	<div class="space-y-6">
+		<div>
+			<h1 class="text-2xl font-bold">{ displayName }</h1>
+			if items != nil {
+				<p class="text-gray-400 text-sm mt-1">{ strconv.Itoa(total) } items</p>
+			}
+		</div>
+
+		if items == nil {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
+				<p class="text-gray-400">No media library module found, or the module returned no data.</p>
+			</div>
+		} else if len(items) == 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
+				<p class="text-gray-400">No items found.</p>
+			</div>
+		} else {
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+				for _, item := range items {
+					@MediaItemCard(item, moduleID)
+				}
+			</div>
+			if total > pageSize {
+				<div class="mt-4">
+					<span class="text-sm text-gray-500">Page { strconv.Itoa(page) }</span>
+				</div>
+			}
+		}
+	</div>
+}
+
+templ MediaItemCard(item *mediaadminv1.MediaItem, moduleID string) {
+	<a
+		href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s", moduleID, item.GetId())) }
+		class="block rounded-xl border border-gray-800 bg-gray-900/50 p-4 hover:border-gray-700 transition-colors"
+	>
+		<div class="aspect-[2/3] rounded-lg bg-gray-800 mb-3 flex items-center justify-center text-gray-600 text-4xl">
+			?
+		</div>
+		<h3 class="text-sm font-semibold text-white truncate">{ item.GetTitle() }</h3>
+		if item.GetYear() > 0 {
+			<p class="text-xs text-gray-500 mt-1">{ strconv.FormatInt(item.GetYear(), 10) }</p>
+		}
+		if len(item.GetGenres()) > 0 {
+			<div class="flex flex-wrap gap-1 mt-2">
+				for _, g := range item.GetGenres() {
+					<span class="text-xs px-1.5 py-0.5 rounded bg-gray-800 text-gray-400">{ g }</span>
+				}
+			</div>
+		}
+	</a>
+}
+
+templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string) {
+	<div class="space-y-6">
+		<a href="javascript:history.back()" class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Back</a>
+
+		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+			<div class="lg:col-span-1">
+				<div class="aspect-[2/3] rounded-xl bg-gray-800 flex items-center justify-center text-gray-600 text-6xl">
+					?
+				</div>
+			</div>
+
+			<div class="lg:col-span-2 space-y-4">
+				<div>
+					<h1 class="text-2xl font-bold">{ item.GetTitle() }</h1>
+					if item.GetYear() > 0 {
+						<p class="text-gray-400 text-sm">{ strconv.FormatInt(item.GetYear(), 10) }</p>
+					}
+				</div>
+
+				if item.GetDescription() != "" {
+					<div>
+						<h3 class="text-sm font-semibold text-gray-300 mb-1">Description</h3>
+						<p class="text-sm text-gray-400">{ item.GetDescription() }</p>
+					</div>
+				}
+
+				<div>
+					<h3 class="text-sm font-semibold text-gray-300 mb-1">Metadata</h3>
+					<form
+						hx-post={ templ.SafeURL(fmt.Sprintf("/media/%s/%s/metadata", moduleID, item.GetId())) }
+						hx-target="this"
+						hx-swap="outerHTML"
+						class="space-y-3"
+					>
+						<div>
+							<label class="block text-xs text-gray-500 mb-1">Title</label>
+							<input
+								type="text" name="title" value={ item.GetTitle() }
+								class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+							/>
+						</div>
+						<div>
+							<label class="block text-xs text-gray-500 mb-1">Description</label>
+							<textarea
+								name="description" rows="3"
+								class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+							>{ item.GetDescription() }</textarea>
+						</div>
+						for k, v := range item.GetMetadata() {
+							<div>
+								<label class="block text-xs text-gray-500 mb-1">{ k }</label>
+								<input
+									type="text" name={ k } value={ v }
+									class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+								/>
+							</div>
+						}
+						<button
+							type="submit"
+							class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
+						>Save</button>
+					</form>
+				</div>
+			</div>
+		</div>
+
+		<div id="artwork-section" hx-get={ templ.SafeURL(fmt.Sprintf("/media/%s/%s/artwork", moduleID, item.GetId())) } hx-trigger="load" hx-swap="innerHTML">
+			<div class="text-sm text-gray-500">Loading artwork...</div>
+		</div>
+	</div>
+}
+
+templ ArtworkGrid(artwork []*mediaadminv1.ArtworkInfo) {
+	if len(artwork) > 0 {
+		<div>
+			<h2 class="text-lg font-semibold mb-3">Artwork</h2>
+			<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+				for _, a := range artwork {
+					<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-2">
+						<img
+							src={ templ.SafeURL(a.GetUrl()) }
+							alt={ a.GetType() }
+							class="rounded-lg w-full"
+							loading="lazy"
+						/>
+						<p class="text-xs text-gray-500 mt-1 text-center">{ a.GetType() }</p>
+					</div>
+				}
+			</div>
+		</div>
+	}
+}

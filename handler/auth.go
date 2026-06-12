@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/url"
+	"strings"
 
 	discoveryv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/discovery/v1"
 
@@ -18,12 +21,13 @@ const (
 	methodCan  = "Can"
 )
 
-var navLinks = []templates.NavLink{
+var staticNavLinks = []templates.NavLink{
 	{Label: "Dashboard", Path: "/", Icon: "#"},
 	{Label: "Modules", Path: "/modules", Icon: "#"},
 	{Label: "Cluster", Path: "/cluster", Icon: "#"},
 	{Label: "Events", Path: "/events", Icon: "#"},
 	{Label: "Storage", Path: "/storage", Icon: "#"},
+	{Label: "Users", Path: "/users", Icon: "#"},
 	{Label: "Settings", Path: "/settings", Icon: "#"},
 	{Label: "Audit", Path: "/audit", Icon: "#"},
 }
@@ -34,42 +38,58 @@ type AuthStatus struct {
 }
 
 func (h *Handler) LoginPage(w http.ResponseWriter, r *http.Request) {
-	component := templates.LoginPage("")
-	h.render(w, r, component)
+	// Redirect to the auth module's login page.
+	redirectURL := h.AuthAddr + "/login?redirect=" + url.QueryEscape("http://"+r.Host+"/auth/callback")
+	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		component := templates.LoginForm("invalid form data")
-		h.render(w, r, component)
+	// POST /login is no longer handled by admin UI — redirect to auth-local.
+	h.LoginPage(w, r)
+}
+
+func (h *Handler) AuthCallback(w http.ResponseWriter, r *http.Request) {
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		http.Error(w, "code required", http.StatusBadRequest)
 		return
 	}
 
-	username := r.FormValue("username")
-	password := r.FormValue("password")
-
-	if username == "" || password == "" {
-		component := templates.LoginForm("username and password are required")
-		h.render(w, r, component)
-		return
-	}
-
-	sess, err := h.authenticate(r.Context(), username, password)
+	// Exchange the one-time code for a session token via auth-local's exchange endpoint.
+	body, _ := json.Marshal(map[string]string{"code": code})
+	resp, err := http.Post(h.AuthAddr+"/login/exchange", "application/json", strings.NewReader(string(body)))
 	if err != nil {
-		slog.Warn("login failed", "username", username, "error", err)
-		if h.loginMetrics != nil {
-			h.loginMetrics.IncFailure()
-		}
-		component := templates.LoginForm("invalid username or password")
-		h.render(w, r, component)
+		slog.Warn("auth: callback - exchange request failed", "error", err)
+		http.Error(w, "auth unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		http.Error(w, "code exchange failed", http.StatusUnauthorized)
 		return
 	}
 
-	token, err := h.Sessions.Create(sess.UserID, sess.Username, sess.Roles, sess.Permissions)
+	var result struct {
+		Token    string   `json:"token"`
+		UserID   string   `json:"user_id"`
+		Username string   `json:"username"`
+		Roles    []string `json:"roles"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		http.Error(w, "invalid response", http.StatusInternalServerError)
+		return
+	}
+
+	if h.ResetLoginRate != nil {
+		h.ResetLoginRate(extractRequestIP(r))
+	}
+
+	// Create local session.
+	sessionToken, err := h.Sessions.Create(result.UserID, result.Username, result.Roles, nil)
 	if err != nil {
-		slog.Error("session create failed", "error", err)
-		component := templates.LoginForm("internal error")
-		h.render(w, r, component)
+		slog.Error("auth: callback - session create failed", "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
@@ -77,9 +97,13 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		h.loginMetrics.IncSuccess()
 	}
 
+	h.auditLog(r.Context(), result.UserID, "admin.login", "session", "", map[string]string{
+		"username": result.Username,
+	})
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session",
-		Value:    token,
+		Value:    sessionToken,
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   h.secure,
@@ -87,18 +111,17 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   int(h.Sessions.TTL().Seconds()),
 	})
 
-	if r.Header.Get("HX-Request") == "true" {
-		w.Header().Set("HX-Redirect", "/")
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session")
 	if err == nil {
+		if sess, ok := h.Sessions.Get(cookie.Value); ok {
+			h.auditLog(r.Context(), sess.UserID, "admin.logout", "session", "", map[string]string{
+				"username": sess.Username,
+			})
+		}
 		h.Sessions.Revoke(cookie.Value)
 	}
 
@@ -113,38 +136,6 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	})
 
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
-}
-
-func (h *Handler) authenticate(ctx context.Context, username, password string) (*authSession, error) {
-	if h.Core == nil {
-		return nil, fmt.Errorf("core not connected")
-	}
-
-	mod, err := h.findFirstModule(ctx, capAuth)
-	if err != nil {
-		return nil, fmt.Errorf("auth provider unavailable: %w", err)
-	}
-
-	creds := map[string]any{
-		"Type": "password",
-		"Data": []byte(username + ":" + password),
-	}
-	payload, err := json.Marshal(creds)
-	if err != nil {
-		return nil, fmt.Errorf("marshal credentials: %w", err)
-	}
-
-	resp, err := h.Core.Mesh.Call(ctx, mod.GetId(), methodAuth, payload)
-	if err != nil {
-		return nil, fmt.Errorf("auth call failed: %w", err)
-	}
-
-	var sess authSession
-	if err := json.Unmarshal(resp, &sess); err != nil {
-		return nil, fmt.Errorf("unmarshal auth response: %w", err)
-	}
-
-	return &sess, nil
 }
 
 func (h *Handler) findFirstModule(ctx context.Context, capability string) (*discoveryv1.ModuleInfoProto, error) {
@@ -162,6 +153,14 @@ func (h *Handler) findFirstModule(ctx context.Context, capability string) (*disc
 	return modules[0], nil
 }
 
+func extractRequestIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
+}
+
 func (h *Handler) AuthStatus(w http.ResponseWriter, r *http.Request) {
 	status := AuthStatus{Available: false}
 	if h.Core != nil {
@@ -172,21 +171,4 @@ func (h *Handler) AuthStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(status)
-}
-
-type authSession struct {
-	UserID      string   `json:"UserID"`
-	Username    string   `json:"Username"`
-	Roles       []string `json:"Roles"`
-	Permissions []string `json:"Permissions"`
-	Token       string   `json:"Token"`
-}
-
-func (s *authSession) Safe() authSession {
-	return authSession{
-		UserID:      s.UserID,
-		Username:    s.Username,
-		Roles:       append([]string(nil), s.Roles...),
-		Permissions: append([]string(nil), s.Permissions...),
-	}
 }

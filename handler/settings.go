@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strings"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
@@ -82,7 +81,7 @@ func (h *Handler) SettingsPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	content := templates.SettingsPage(groups)
-	nav := templates.Nav(navLinks, "/settings")
+	nav := h.nav(r.URL.Path)
 	component := templates.Layout("Settings", nav, content)
 	h.render(w, r, component)
 }
@@ -121,23 +120,12 @@ func (h *Handler) SettingsUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.settings.update", "settings", moduleID+"/"+key, map[string]string{
+			"module": moduleID,
+			"key":    key,
+		})
+	}
+
 	w.Write([]byte(fmt.Sprintf(`<div class="text-xs text-green-400">%s updated</div>`, key)))
-}
-
-func (h *Handler) SettingsModuleSettings(w http.ResponseWriter, r *http.Request) {
-	moduleID := strings.TrimPrefix(r.URL.Path, "/api/settings/")
-	if moduleID == "" {
-		http.Error(w, "missing module id", http.StatusBadRequest)
-		return
-	}
-
-	raw, err := h.Core.Mesh.Call(r.Context(), moduleID, methodGet, nil)
-	if err != nil {
-		slog.Warn("settings: query failed", "module", moduleID, "error", err)
-		http.Error(w, "settings unavailable", http.StatusBadGateway)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(raw)
 }

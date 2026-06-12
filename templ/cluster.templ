@@ -32,9 +32,11 @@ templ ClusterPage(data ClusterPageData) {
 			id="cluster-grid"
 			class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
 			hx-get="/cluster/nodes"
-			hx-trigger="load, every 10s"
+			hx-trigger="load, sse:cluster-update"
 			hx-target="this"
 			hx-swap="innerHTML"
+			hx-ext="sse"
+			sse-connect="/cluster/sse"
 		>
 			for _, n := range data.Nodes {
 				@NodeCard(n)
@@ -53,10 +55,10 @@ templ NodeCard(node NodeCardData) {
 		<div class="flex items-center justify-between mb-3">
 			<div class="flex items-center gap-2 min-w-0">
 				<div class="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-800/50 flex items-center justify-center text-xs font-bold text-indigo-400 shrink-0">
-					N
+					{ nodeAvatar(node.ID) }
 				</div>
 				<div class="min-w-0">
-					<div class="text-sm font-medium text-gray-200 truncate">{ node.ID }</div>
+					<div class="text-sm font-medium text-gray-200 truncate">{ displayNodeID(node.ID) }</div>
 					<div class="text-xs text-gray-500">{ node.GRPCAddr }</div>
 				</div>
 			</div>

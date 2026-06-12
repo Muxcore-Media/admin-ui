@@ -58,7 +58,7 @@ func TestLoadConfigEnv(t *testing.T) {
 	}
 }
 
-func TestCSRFTokenValidation(t *testing.T) {
+func TestCSRFTokenGeneration(t *testing.T) {
 	key := generateCSRFKey()
 	if key == "" {
 		t.Fatal("expected non-empty CSRF key")
@@ -69,19 +69,26 @@ func TestCSRFTokenValidation(t *testing.T) {
 		t.Fatal("expected non-empty CSRF token")
 	}
 
-	if !csrfTokenFromCookie(key, token) {
-		t.Fatal("expected token to validate against itself")
+	// Same key + same day produces same token
+	token2 := csrfToken(key)
+	if token != token2 {
+		t.Fatal("expected same token for same key and day")
 	}
 }
 
-func TestCSRFTokenWrongKey(t *testing.T) {
+func TestCSRFKeyUniqueness(t *testing.T) {
 	key1 := generateCSRFKey()
 	key2 := generateCSRFKey()
 
-	token1 := csrfToken(key1)
+	if key1 == key2 {
+		t.Fatal("expected different keys from generateCSRFKey")
+	}
 
-	if csrfTokenFromCookie(key2, token1) {
-		t.Fatal("expected token from key1 to not validate with key2")
+	token1 := csrfToken(key1)
+	token2 := csrfToken(key2)
+
+	if token1 == token2 {
+		t.Fatal("expected different tokens from different keys")
 	}
 }
 
