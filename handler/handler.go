@@ -78,7 +78,8 @@ type Handler struct {
 	version       string
 	loginMetrics  LoginMetrics
 	coreConnected bool
-	AuthAddr      string // external URL of the auth module's login page
+	AuthAddr      string // internal URL for server-to-server exchange calls
+	AuthPublicURL string // public URL for browser redirects (e.g. https://local-auth.digifender.com)
 
 	ResetLoginRate func(ip string)
 
@@ -92,7 +93,7 @@ type Handler struct {
 	connCacheMu sync.Mutex
 }
 
-func New(core *client.Client, store *session.Store, secure bool, version string, lm LoginMetrics, connected bool, authAddr string, resetLoginRate func(ip string)) *Handler {
+func New(core *client.Client, store *session.Store, secure bool, version string, lm LoginMetrics, connected bool, authAddr, authPublicURL string, resetLoginRate func(ip string)) *Handler {
 	h := &Handler{
 		Core:           core,
 		Sessions:       store,
@@ -102,6 +103,7 @@ func New(core *client.Client, store *session.Store, secure bool, version string,
 		loginMetrics:   lm,
 		coreConnected:  connected,
 		AuthAddr:       authAddr,
+		AuthPublicURL:  authPublicURL,
 		ResetLoginRate: resetLoginRate,
 		mediaRefreshCh: make(chan struct{}, 1),
 		connCache:      make(map[string]*grpc.ClientConn),

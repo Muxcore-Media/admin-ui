@@ -39,9 +39,21 @@ type AuthStatus struct {
 	ModuleID  string `json:"module_id,omitempty"`
 }
 
+func requestScheme(r *http.Request) string {
+	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+		return "https"
+	}
+	return "http"
+}
+
 func (h *Handler) LoginPage(w http.ResponseWriter, r *http.Request) {
-	// Redirect to the auth module's login page.
-	redirectURL := h.AuthAddr + "/login?redirect=" + url.QueryEscape("http://"+r.Host+"/auth/callback")
+	// Redirect the browser to the auth module's public login page.
+	authURL := h.AuthPublicURL
+	if authURL == "" {
+		authURL = h.AuthAddr
+	}
+	scheme := requestScheme(r)
+	redirectURL := authURL + "/login?redirect=" + url.QueryEscape(scheme+"://"+r.Host+"/auth/callback")
 	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 }
 

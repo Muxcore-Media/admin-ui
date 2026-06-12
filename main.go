@@ -38,7 +38,8 @@ type Config struct {
 	SessionTTL time.Duration
 	LogLevel   string
 	LogFormat  string
-	AuthAddr   string
+	AuthAddr      string
+	AuthPublicURL string
 }
 
 func loadConfig() Config {
@@ -51,8 +52,9 @@ func loadConfig() Config {
 		TLSKey:     env("ADMIN_UI_TLS_KEY", ""),
 		SessionTTL: ttl,
 		LogLevel:   env("ADMIN_UI_LOG_LEVEL", "info"),
-		LogFormat:  env("ADMIN_UI_LOG_FORMAT", "text"),
-		AuthAddr:   env("ADMIN_UI_AUTH_ADDR", "http://localhost:9401"),
+		LogFormat:     env("ADMIN_UI_LOG_FORMAT", "text"),
+		AuthAddr:      env("ADMIN_UI_AUTH_ADDR", "http://localhost:9401"),
+		AuthPublicURL: env("ADMIN_UI_AUTH_PUBLIC_URL", ""),
 	}
 }
 
@@ -65,6 +67,10 @@ func env(key, def string) string {
 
 func main() {
 	cfg := loadConfig()
+	// Default public URL to the internal addr if not explicitly set.
+	if cfg.AuthPublicURL == "" {
+		cfg.AuthPublicURL = cfg.AuthAddr
+	}
 
 	var logLevel slog.Level
 	switch cfg.LogLevel {
@@ -112,7 +118,7 @@ func main() {
 	met := newMetrics()
 	csrfKey := generateCSRFKey()
 
-	h := handler.New(coreClient, ss, cfg.TLSCert != "" || !cfg.Insecure, version, met, coreConnected, cfg.AuthAddr, loginRL.Reset)
+	h := handler.New(coreClient, ss, cfg.TLSCert != "" || !cfg.Insecure, version, met, coreConnected, cfg.AuthAddr, cfg.AuthPublicURL, loginRL.Reset)
 
 	mux := http.NewServeMux()
 
