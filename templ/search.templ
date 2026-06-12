@@ -1,0 +1,28 @@
+package templates
+
+type SearchResult struct {
+	Label   string
+	Sub     string
+	URL     string
+	Section string
+}
+
+templ SearchResults(q string, results []SearchResult) {
+	<div class="py-2">
+		<div class="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-800">
+			Search results for "{ q }"
+		</div>
+		for _, r := range results {
+			<a
+				href={ r.URL }
+				class="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-800/50 transition-colors"
+			>
+				<div class="min-w-0 flex-1">
+					<div class="text-sm font-medium text-gray-200 truncate">{ r.Label }</div>
+					<div class="text-xs text-gray-500 truncate">{ r.Sub }</div>
+				</div>
+				<span class="text-xs text-gray-600 shrink-0">{ r.Section }</span>
+			</a>
+		}
+	</div>
+}

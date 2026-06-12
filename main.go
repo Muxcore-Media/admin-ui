@@ -24,7 +24,7 @@ import (
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
-//go:embed assets/dist/* assets/htmx.min.js assets/sse.js assets/csrf.js assets/webauthn.js assets/nav.js
+//go:embed assets/dist/* assets/htmx.min.js assets/sse.js assets/csrf.js assets/webauthn.js assets/nav.js assets/toast.js
 var staticAssets embed.FS
 
 var version = "0.0.0-dev"

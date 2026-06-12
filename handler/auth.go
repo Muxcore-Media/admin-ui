@@ -30,6 +30,8 @@ var staticNavLinks = []templates.NavLink{
 	{Label: "Users", Path: "/users", Icon: "#"},
 	{Label: "Settings", Path: "/settings", Icon: "#"},
 	{Label: "Audit", Path: "/audit", Icon: "#"},
+	{Label: "Config", Path: "/config", Icon: "#"},
+	{Label: "Metrics", Path: "/metrics/view", Icon: "#"},
 }
 
 type AuthStatus struct {

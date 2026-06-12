@@ -31,6 +31,40 @@ func limitBody(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBody)
 }
 
+func toast(w http.ResponseWriter, typ, msg string) {
+	// Merge with any existing HX-Trigger header.
+	existing := w.Header().Get("HX-Trigger")
+	var data string
+	if existing != "" && existing != "null" {
+		data = existing[:len(existing)-1] + ","
+	} else {
+		data = "{"
+	}
+	data += `"show-toast":{"type":"` + typ + `","message":"` + escapeJSON(msg) + `"}}`
+	w.Header().Set("HX-Trigger", data)
+}
+
+func escapeJSON(s string) string {
+	out := make([]byte, 0, len(s))
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '\\':
+			out = append(out, '\\', '\\')
+		case '"':
+			out = append(out, '\\', '"')
+		case '\n':
+			out = append(out, '\\', 'n')
+		case '\r':
+			out = append(out, '\\', 'r')
+		case '\t':
+			out = append(out, '\\', 't')
+		default:
+			out = append(out, s[i])
+		}
+	}
+	return string(out)
+}
+
 type LoginMetrics interface {
 	IncSuccess()
 	IncFailure()
@@ -129,6 +163,9 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /users/{id}/passkeys/{credId}", h.requireAuth(h.PasskeyDelete))
 	mux.HandleFunc("GET /api/auth/passkey/register/{id}/begin", h.requireAuth(h.PasskeyBeginRegister))
 	mux.HandleFunc("POST /api/auth/passkey/register/{id}/complete", h.requireAuth(h.PasskeyCompleteRegister))
+
+	mux.HandleFunc("GET /search", h.requireAuth(h.Search))
+	mux.HandleFunc("GET /metrics/view", h.requireAuth(h.MetricsPage))
 
 	mux.HandleFunc("GET /auth/callback", h.AuthCallback)
 	mux.HandleFunc("GET /auth/status", h.AuthStatus)

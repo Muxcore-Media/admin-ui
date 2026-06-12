@@ -167,10 +167,12 @@ func (h *Handler) MediaLibraryUpdate(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		slog.Warn("media: UpdateMetadata failed", "module", moduleID, "id", itemID, "error", err)
+		toast(w, "error", "Update failed")
 		w.Write([]byte(`<div class="text-xs text-red-400">update failed</div>`))
 		return
 	}
 
+	toast(w, "success", "Saved")
 	w.Write([]byte(`<div class="text-xs text-green-400">saved</div>`))
 }
 

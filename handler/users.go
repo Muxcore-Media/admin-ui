@@ -119,6 +119,7 @@ func (h *Handler) UsersCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if resp.Error != "" {
+		toast(w, "error", resp.Error)
 		w.Write([]byte(fmt.Sprintf(`<div class="text-xs text-red-400">%s</div>`, resp.Error)))
 		return
 	}
@@ -129,6 +130,7 @@ func (h *Handler) UsersCreate(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	toast(w, "success", "User "+username+" created")
 	w.Header().Set("HX-Redirect", "/users")
 	w.WriteHeader(http.StatusOK)
 }
@@ -149,6 +151,7 @@ func (h *Handler) UsersDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if resp.Error != "" {
+		toast(w, "error", resp.Error)
 		w.Write([]byte(fmt.Sprintf(`<div class="text-xs text-red-400">%s</div>`, resp.Error)))
 		return
 	}
@@ -157,6 +160,7 @@ func (h *Handler) UsersDelete(w http.ResponseWriter, r *http.Request) {
 		h.auditLog(r.Context(), sess.UserID, "admin.user.delete", "user", userID, nil)
 	}
 
+	toast(w, "success", "User deleted")
 	w.Header().Set("HX-Redirect", "/users")
 	w.WriteHeader(http.StatusOK)
 }
@@ -191,6 +195,7 @@ func (h *Handler) UsersSetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if resp.Error != "" {
+		toast(w, "error", resp.Error)
 		w.Write([]byte(fmt.Sprintf(`<div class="text-xs text-red-400">%s</div>`, resp.Error)))
 		return
 	}
@@ -199,6 +204,7 @@ func (h *Handler) UsersSetPassword(w http.ResponseWriter, r *http.Request) {
 		h.auditLog(r.Context(), sess.UserID, "admin.user.set_password", "user", userID, nil)
 	}
 
+	toast(w, "success", "Password updated")
 	w.Header().Set("HX-Redirect", "/users")
 	w.WriteHeader(http.StatusOK)
 }
@@ -238,6 +244,7 @@ func (h *Handler) UsersSetRoles(w http.ResponseWriter, r *http.Request) {
 		h.auditLog(r.Context(), sess.UserID, "admin.user.set_roles", "user", userID, details)
 	}
 
+	toast(w, "success", "Roles updated")
 	w.Header().Set("HX-Redirect", "/users")
 	w.WriteHeader(http.StatusOK)
 }
@@ -270,6 +277,7 @@ func (h *Handler) UsersTOTP(w http.ResponseWriter, r *http.Request) {
 		if sess := SessionFromContext(r.Context()); sess != nil {
 			h.auditLog(r.Context(), sess.UserID, "admin.user.totp_disable", "user", userID, nil)
 		}
+		toast(w, "success", "TOTP disabled")
 		w.Write([]byte(`<span class="text-xs text-green-400">TOTP disabled</span>`))
 	} else {
 		resp, err := client.EnableTOTP(r.Context(), &authv1.EnableTOTPRequest{UserId: userID})
@@ -284,6 +292,7 @@ func (h *Handler) UsersTOTP(w http.ResponseWriter, r *http.Request) {
 		if sess := SessionFromContext(r.Context()); sess != nil {
 			h.auditLog(r.Context(), sess.UserID, "admin.user.totp_enable", "user", userID, nil)
 		}
+		toast(w, "success", "TOTP enabled")
 		w.Write([]byte(fmt.Sprintf(`<div class="text-xs space-y-1"><p class="text-green-400">TOTP enabled</p><p class="text-gray-400">Secret: <code class="text-gray-200">%s</code></p><p class="text-gray-400">QR URL: <a href="%s" class="text-indigo-400 hover:text-indigo-300" target="_blank">open</a></p></div>`,
 			resp.GetSecret(), resp.GetQrCodeUrl())))
 	}
@@ -328,6 +337,7 @@ func (h *Handler) UsersTokens(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if resp.Error != "" {
+			toast(w, "error", resp.Error)
 			w.Write([]byte(fmt.Sprintf(`<div class="text-xs text-red-400">%s</div>`, resp.Error)))
 			return
 		}
@@ -336,6 +346,7 @@ func (h *Handler) UsersTokens(w http.ResponseWriter, r *http.Request) {
 				"token_name": name,
 			})
 		}
+		toast(w, "success", "Token created")
 		w.Write([]byte(fmt.Sprintf(`<div class="text-xs space-y-1"><p class="text-green-400">Token created</p><p class="text-gray-400">Token: <code class="text-gray-200 break-all">%s</code></p><p class="text-yellow-400 text-xs">Store this — it will not be shown again.</p></div>`, resp.GetToken())))
 
 	case http.MethodDelete:

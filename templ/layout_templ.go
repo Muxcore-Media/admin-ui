@@ -42,7 +42,7 @@ func Layout(title string, nav templ.Component, content templ.Component) templ.Co
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " - MuxCore Admin</title><link rel=\"stylesheet\" href=\"/static/dist/styles.css\"><script src=\"/static/htmx.min.js\"></script><script src=\"/static/sse.js\"></script><script src=\"/static/csrf.js\"></script><script src=\"/static/webauthn.js\"></script><script src=\"/static/nav.js\"></script></head><body class=\"h-full text-gray-100 font-sans antialiased\" hx-boost=\"true\" hx-indicator=\"#loading-bar\"><div id=\"loading-bar\" class=\"fixed top-0 left-0 w-full h-0.5 bg-indigo-600 z-50 htmx-indicator\"></div><div class=\"flex h-full\"><nav id=\"sidebar\" class=\"w-64 shrink-0 border-r border-gray-800 bg-gray-900 -translate-x-full lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 transition-transform duration-200 ease-in-out overflow-y-auto\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " - MuxCore Admin</title><link rel=\"stylesheet\" href=\"/static/dist/styles.css\"><script src=\"/static/htmx.min.js\"></script><script src=\"/static/sse.js\"></script><script src=\"/static/csrf.js\"></script><script src=\"/static/webauthn.js\"></script><script src=\"/static/nav.js\"></script><script src=\"/static/toast.js\"></script></head><body class=\"h-full text-gray-100 font-sans antialiased\" hx-boost=\"true\" hx-indicator=\"#loading-bar\"><div id=\"loading-bar\" class=\"fixed top-0 left-0 w-full h-0.5 bg-indigo-600 z-50 htmx-indicator\"></div><div class=\"flex h-full\"><nav id=\"sidebar\" class=\"w-64 shrink-0 border-r border-gray-800 bg-gray-900 -translate-x-full lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 transition-transform duration-200 ease-in-out overflow-y-auto\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -58,7 +58,15 @@ func Layout(title string, nav templ.Component, content templ.Component) templ.Co
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</main></div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</main></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = ToastContainer().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -87,20 +95,20 @@ func ErrorLayout(title string, content templ.Component) templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<!doctype html><html lang=\"en\" class=\"h-full bg-gray-950\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<!doctype html><html lang=\"en\" class=\"h-full bg-gray-950\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/layout.templ`, Line: 41, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/layout.templ`, Line: 44, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, " - MuxCore Admin</title><link rel=\"stylesheet\" href=\"/static/dist/styles.css\"><script src=\"/static/csrf.js\"></script></head><body class=\"h-full text-gray-100 font-sans antialiased\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, " - MuxCore Admin</title><link rel=\"stylesheet\" href=\"/static/dist/styles.css\"><script src=\"/static/csrf.js\"></script></head><body class=\"h-full text-gray-100 font-sans antialiased\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -108,7 +116,7 @@ func ErrorLayout(title string, content templ.Component) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

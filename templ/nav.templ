@@ -14,6 +14,32 @@ templ Nav(links []NavLink, activePath string) {
 				<span class="text-lg font-bold">MuxCore</span>
 			</a>
 		</div>
+
+		<div class="relative mb-4" id="search-container">
+			<input
+				type="text"
+				placeholder="Search..."
+				class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+				hx-get="/search"
+				hx-trigger="keyup changed delay:300ms"
+				hx-target="#search-results"
+				hx-swap="innerHTML"
+				hx-indicator="#search-spinner"
+				name="q"
+				autocomplete="off"
+			/>
+			<div id="search-spinner" class="absolute right-3 top-2.5 htmx-indicator">
+				<svg class="animate-spin w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24">
+					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+					<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+				</svg>
+			</div>
+			<div id="search-results" class="absolute left-0 right-0 top-full mt-1 rounded-xl border border-gray-700 bg-gray-900 shadow-xl z-50 hidden"
+				hx-swap="innerHTML"
+				hx-target="this"
+			></div>
+		</div>
+
 		<ul class="space-y-1">
 			for _, link := range links {
 				<li>

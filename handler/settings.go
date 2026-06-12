@@ -117,6 +117,7 @@ func (h *Handler) SettingsUpdate(w http.ResponseWriter, r *http.Request) {
 	_, err = h.Core.Mesh.Call(r.Context(), moduleID, methodUpdate, payload)
 	if err != nil {
 		slog.Warn("settings: update failed", "module", moduleID, "key", key, "error", err)
+		toast(w, "error", "Update failed: "+err.Error())
 		w.Write([]byte(`<div class="text-xs text-red-400">update failed</div>`))
 		return
 	}
@@ -128,5 +129,6 @@ func (h *Handler) SettingsUpdate(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	toast(w, "success", key+" updated")
 	w.Write([]byte(fmt.Sprintf(`<div class="text-xs text-green-400">%s updated</div>`, key)))
 }

@@ -31,9 +31,54 @@
     });
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
+  function initSearch() {
+    var container = document.getElementById('search-container');
+    var input = container ? container.querySelector('input[name="q"]') : null;
+    var results = document.getElementById('search-results');
+    if (!input || !results) return;
+
+    function showResults() {
+      if (results.children.length > 0 && results.textContent.trim() !== '') {
+        results.classList.remove('hidden');
+      }
+    }
+
+    function hideResults() {
+      results.classList.add('hidden');
+    }
+
+    // Show results when input is focused and has content
+    input.addEventListener('focus', showResults);
+    input.addEventListener('input', function() {
+      if (this.value.length >= 2) showResults();
+    });
+
+    // Hide when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!container.contains(e.target)) {
+        hideResults();
+      }
+    });
+
+    // Listen for HTMX content swaps into the results div
+    var observer = new MutationObserver(function() {
+      if (input.value.length >= 2) {
+        showResults();
+      } else {
+        hideResults();
+      }
+    });
+    if (results) observer.observe(results, { childList: true, subtree: true });
+  }
+
+  function onReady() {
     init();
+    initSearch();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', onReady);
+  } else {
+    onReady();
   }
 })();

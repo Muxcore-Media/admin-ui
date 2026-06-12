@@ -1,0 +1,154 @@
+package templates
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
+
+type MetricGroup struct {
+	Name    string
+	Help    string
+	Type    string
+	Metrics []MetricEntry
+}
+
+type MetricEntry struct {
+	Name   string
+	Value  string
+	Labels map[string]string
+}
+
+type MetricSection struct {
+	Title    string
+	Groups   []MetricGroup
+}
+
+func groupIcon(name string) string {
+	switch {
+	case strings.Contains(name, "go_"):
+		return "G"
+	case strings.Contains(name, "http"), strings.Contains(name, "request"):
+		return "H"
+	case strings.Contains(name, "grpc"):
+		return "R"
+	case strings.Contains(name, "memory"), strings.Contains(name, "mem"):
+		return "M"
+	case strings.Contains(name, "cpu"), strings.Contains(name, "gc"):
+		return "C"
+	case strings.Contains(name, "module"), strings.Contains(name, "discovery"):
+		return "D"
+	case strings.Contains(name, "storage"):
+		return "S"
+	case strings.Contains(name, "audit"), strings.Contains(name, "event"):
+		return "E"
+	case strings.Contains(name, "admin_ui"):
+		return "A"
+	default:
+		return "?"
+	}
+}
+
+func groupColor(name string) string {
+	switch {
+	case strings.Contains(name, "go_"):
+		return "border-green-800/30 bg-green-900/20"
+	case strings.Contains(name, "http"), strings.Contains(name, "request"):
+		return "border-blue-800/30 bg-blue-900/20"
+	case strings.Contains(name, "grpc"):
+		return "border-indigo-800/30 bg-indigo-900/20"
+	case strings.Contains(name, "memory"), strings.Contains(name, "mem"):
+		return "border-purple-800/30 bg-purple-900/20"
+	case strings.Contains(name, "cpu"):
+		return "border-orange-800/30 bg-orange-900/20"
+	case strings.Contains(name, "storage"):
+		return "border-teal-800/30 bg-teal-900/20"
+	case strings.Contains(name, "admin_ui"):
+		return "border-yellow-800/30 bg-yellow-900/20"
+	default:
+		return "border-gray-800 bg-gray-900/50"
+	}
+}
+
+templ MetricsPage(groups []MetricGroup) {
+	<div class="space-y-6">
+		<div>
+			<h1 class="text-2xl font-bold">Metrics</h1>
+			<p class="text-gray-400 text-sm mt-1">Prometheus metrics from core</p>
+		</div>
+
+		if groups == nil || len(groups) == 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
+				<p class="text-gray-400">No metrics available. Core may be disconnected or metrics endpoint unreachable.</p>
+			</div>
+		} else {
+			<div class="grid grid-cols-1 gap-4">
+				for _, g := range groups {
+					if len(g.Metrics) == 0 {
+						continue
+					}
+					@MetricGroupCard(g)
+				}
+			</div>
+		}
+	</div>
+}
+
+templ MetricGroupCard(g MetricGroup) {
+	<div class={ "rounded-xl border p-4", groupColor(g.Name) }>
+		<div class="flex items-center gap-3 mb-3">
+			<div class={ "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0", groupColor(g.Name) }>
+				{ groupIcon(g.Name) }
+			</div>
+			<div class="min-w-0">
+				<div class="text-sm font-medium text-gray-200">{ g.Name }</div>
+				if g.Help != "" {
+					<div class="text-xs text-gray-500 truncate">{ g.Help }</div>
+				}
+			</div>
+			<span class="ml-auto text-xs text-gray-600">{ g.Type }</span>
+		</div>
+
+		<div class="space-y-1">
+			for _, m := range g.Metrics {
+				@MetricRow(m)
+			}
+		</div>
+	</div>
+}
+
+templ MetricRow(m MetricEntry) {
+	<div class="flex items-center justify-between py-1 px-2 rounded hover:bg-gray-800/30 transition-colors">
+		<div class="min-w-0 flex-1">
+			<div class="text-xs font-mono text-gray-300 truncate">
+				{ displayMetricName(m) }
+			</div>
+			if len(m.Labels) > 0 {
+				<div class="text-xs text-gray-600 truncate">
+					{ displayLabels(m.Labels) }
+				</div>
+			}
+		</div>
+		<span class="text-sm font-mono font-medium text-gray-100 ml-4 shrink-0">{ m.Value }</span>
+	</div>
+}
+
+func displayMetricName(m MetricEntry) string {
+	if len(m.Labels) > 0 {
+		return m.Name + "{...}"
+	}
+	return m.Name
+}
+
+func displayLabels(labels map[string]string) string {
+	keys := make([]string, 0, len(labels))
+	for k := range labels {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var parts []string
+	for _, k := range keys {
+		parts = append(parts, fmt.Sprintf("%s=%s", k, labels[k]))
+	}
+	return strings.Join(parts, ", ")
+}

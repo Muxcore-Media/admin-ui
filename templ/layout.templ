@@ -13,6 +13,7 @@ templ Layout(title string, nav templ.Component, content templ.Component) {
 			<script src="/static/csrf.js"></script>
 			<script src="/static/webauthn.js"></script>
 			<script src="/static/nav.js"></script>
+			<script src="/static/toast.js"></script>
 		</head>
 		<body class="h-full text-gray-100 font-sans antialiased" hx-boost="true" hx-indicator="#loading-bar">
 			<div id="loading-bar" class="fixed top-0 left-0 w-full h-0.5 bg-indigo-600 z-50 htmx-indicator"></div>
@@ -26,9 +27,11 @@ templ Layout(title string, nav templ.Component, content templ.Component) {
 
 				<main id="main-content" class="flex-1 overflow-y-auto p-6 pt-16 lg:pt-6 htmx-settling:hidden">
 					@content
-				</main>
-			</div>
-		</body>
+			</main>
+		</div>
+
+		@ToastContainer()
+	</body>
 	</html>
 }
 
