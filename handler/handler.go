@@ -81,6 +81,8 @@ type Handler struct {
 	AuthAddr      string // internal URL for server-to-server exchange calls
 	AuthPublicURL string // public URL for browser redirects (e.g. https://local-auth.digifender.com)
 
+	TrustedAuthHeader string // header name from proxy (e.g. X-Auth-User); when present, bypasses normal auth
+
 	ResetLoginRate func(ip string)
 
 	mediaMu      sync.RWMutex
@@ -93,7 +95,7 @@ type Handler struct {
 	connCacheMu sync.Mutex
 }
 
-func New(core *client.Client, store *session.Store, secure bool, version string, lm LoginMetrics, connected bool, authAddr, authPublicURL string, resetLoginRate func(ip string)) *Handler {
+func New(core *client.Client, store *session.Store, secure bool, version string, lm LoginMetrics, connected bool, authAddr, authPublicURL, trustedAuthHeader string, resetLoginRate func(ip string)) *Handler {
 	h := &Handler{
 		Core:           core,
 		Sessions:       store,
@@ -103,8 +105,9 @@ func New(core *client.Client, store *session.Store, secure bool, version string,
 		loginMetrics:   lm,
 		coreConnected:  connected,
 		AuthAddr:       authAddr,
-		AuthPublicURL:  authPublicURL,
-		ResetLoginRate: resetLoginRate,
+		AuthPublicURL:     authPublicURL,
+		TrustedAuthHeader: trustedAuthHeader,
+		ResetLoginRate:    resetLoginRate,
 		mediaRefreshCh: make(chan struct{}, 1),
 		connCache:      make(map[string]*grpc.ClientConn),
 	}
@@ -265,6 +268,19 @@ func (h *Handler) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
+		// Trusted header auth: if configured and the proxy set the header,
+		// create an admin session on-the-fly.
+		if h.TrustedAuthHeader != "" {
+			if headerVal := r.Header.Get(h.TrustedAuthHeader); headerVal != "" {
+				sess := h.sessionFromTrustedHeader(r.Context(), headerVal)
+				if sess != nil {
+					ctx := context.WithValue(r.Context(), ctxSessionKey, sess)
+					next(w, r.WithContext(ctx))
+					return
+				}
+			}
+		}
+
 		cookie, err := r.Cookie("session")
 		if err != nil {
 			redirectToLogin(w, r)
@@ -287,6 +303,26 @@ func (h *Handler) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 		ctx := context.WithValue(r.Context(), ctxSessionKey, sess)
 		next(w, r.WithContext(ctx))
 	}
+}
+
+// sessionFromTrustedHeader creates or returns a cached admin session
+// for a user identified by a trusted proxy header.
+func (h *Handler) sessionFromTrustedHeader(ctx context.Context, headerVal string) *session.Session {
+	// Normalize: treat the header value as the username.
+	// Check for an existing session keyed by this header value.
+	existing := h.Sessions.GetByUserID(headerVal)
+	if existing != nil {
+		return existing
+	}
+
+	token, err := h.Sessions.Create(headerVal, headerVal, []string{"user", "admin"}, nil)
+	if err != nil {
+		slog.Warn("trusted header: session create failed", "header", h.TrustedAuthHeader, "value", headerVal, "error", err)
+		return nil
+	}
+
+	sess, _ := h.Sessions.Get(token)
+	return sess
 }
 
 func (h *Handler) requireNoAuth(next http.HandlerFunc) http.HandlerFunc {

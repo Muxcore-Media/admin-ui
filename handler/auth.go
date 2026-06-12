@@ -64,13 +64,16 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) AuthCallback(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
+	slog.Info("auth: callback received", "code_present", code != "", "host", r.Host, "path", r.URL.Path)
 	if code == "" {
+		slog.Warn("auth: callback missing code")
 		http.Error(w, "code required", http.StatusBadRequest)
 		return
 	}
 
 	// Exchange the one-time code for a session token via auth-local's exchange endpoint.
 	body, _ := json.Marshal(map[string]string{"code": code})
+	slog.Info("auth: callback exchanging code", "target", h.AuthAddr+"/login/exchange")
 	resp, err := http.Post(h.AuthAddr+"/login/exchange", "application/json", strings.NewReader(string(body)))
 	if err != nil {
 		slog.Warn("auth: callback - exchange request failed", "error", err)
@@ -79,7 +82,9 @@ func (h *Handler) AuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
+	slog.Info("auth: callback exchange response", "status", resp.StatusCode)
 	if resp.StatusCode != http.StatusOK {
+		slog.Warn("auth: callback exchange failed", "status", resp.StatusCode)
 		http.Error(w, "code exchange failed", http.StatusUnauthorized)
 		return
 	}
@@ -91,9 +96,11 @@ func (h *Handler) AuthCallback(w http.ResponseWriter, r *http.Request) {
 		Roles    []string `json:"roles"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		slog.Warn("auth: callback exchange body decode failed", "error", err)
 		http.Error(w, "invalid response", http.StatusInternalServerError)
 		return
 	}
+	slog.Info("auth: callback exchange success", "user_id", result.UserID, "username", result.Username)
 
 	if h.ResetLoginRate != nil {
 		h.ResetLoginRate(extractRequestIP(r))
@@ -106,6 +113,7 @@ func (h *Handler) AuthCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	slog.Info("auth: callback session created", "user_id", result.UserID)
 
 	if h.loginMetrics != nil {
 		h.loginMetrics.IncSuccess()
@@ -115,12 +123,13 @@ func (h *Handler) AuthCallback(w http.ResponseWriter, r *http.Request) {
 		"username": result.Username,
 	})
 
+	secureCookie := h.secure || r.Header.Get("X-Forwarded-Proto") == "https"
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session",
 		Value:    sessionToken,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   h.secure,
+		Secure:   secureCookie,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(h.Sessions.TTL().Seconds()),
 	})

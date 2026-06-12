@@ -20,7 +20,7 @@ func mustRequest(method, path string) *http.Request {
 
 func TestNewHandler(t *testing.T) {
 	ss := session.NewStore(0)
-	h := New(nil, ss, false, "test-version", nil, false, "", "", nil)
+	h := New(nil, ss, false, "test-version", nil, false, "", "", "", nil)
 	if h == nil {
 		t.Fatal("expected non-nil handler")
 	}
@@ -31,7 +31,7 @@ func TestNewHandler(t *testing.T) {
 
 func TestHandlerDisconnectedMode(t *testing.T) {
 	ss := session.NewStore(0)
-	h := New(nil, ss, false, "test", nil, false, "", "", nil)
+	h := New(nil, ss, false, "test", nil, false, "", "", "", nil)
 
 	// requireAuth should show disconnected page instead of crashing
 	handler := h.requireAuth(func(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +65,7 @@ func TestNavLinks(t *testing.T) {
 
 func TestAuthStatus(t *testing.T) {
 	ss := session.NewStore(0)
-	h := New(nil, ss, false, "test", nil, false, "", "", nil)
+	h := New(nil, ss, false, "test", nil, false, "", "", "", nil)
 
 	r := mustRequest("GET", "/auth/status")
 	w := httptest.NewRecorder()
@@ -82,7 +82,7 @@ func TestAuthStatus(t *testing.T) {
 func TestLoginMetricsInterface(t *testing.T) {
 	lm := &mockLoginMetrics{}
 	ss := session.NewStore(0)
-	h := New(nil, ss, false, "test", lm, false, "", "", nil)
+	h := New(nil, ss, false, "test", lm, false, "", "", "", nil)
 
 	// Verify the handler stores the metrics
 	if h.loginMetrics != lm {
@@ -101,7 +101,7 @@ func (m *mockLoginMetrics) IncFailure() { m.failure++ }
 func TestForbiddenOnAuthorizedRoutes(t *testing.T) {
 	ss := session.NewStore(0)
 	token, _ := ss.Create("user1", "testuser", []string{"admin"}, []string{"admin.access"})
-	h := New(nil, ss, false, "test", nil, false, "", "", nil)
+	h := New(nil, ss, false, "test", nil, false, "", "", "", nil)
 
 	handler := h.requireAuth(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

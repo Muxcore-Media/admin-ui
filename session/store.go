@@ -80,6 +80,20 @@ func (s *Store) Revoke(token string) {
 	s.mu.Unlock()
 }
 
+// GetByUserID returns the first non-expired session for the given user ID.
+// Used by trusted-header auth to avoid creating sessions on every request.
+func (s *Store) GetByUserID(userID string) *Session {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	now := time.Now()
+	for _, sess := range s.sessions {
+		if sess.UserID == userID && now.Before(sess.ExpiresAt) {
+			return sess
+		}
+	}
+	return nil
+}
+
 func (s *Store) GetFromRequest(r *http.Request) (*Session, bool) {
 	cookie, err := r.Cookie("session")
 	if err != nil {

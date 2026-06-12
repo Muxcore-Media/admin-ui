@@ -30,31 +30,33 @@ var staticAssets embed.FS
 var version = "0.0.0-dev"
 
 type Config struct {
-	Addr       string
-	CoreAddr   string
-	Insecure   bool
-	TLSCert    string
-	TLSKey     string
-	SessionTTL time.Duration
-	LogLevel   string
-	LogFormat  string
-	AuthAddr      string
-	AuthPublicURL string
+	Addr              string
+	CoreAddr          string
+	Insecure          bool
+	TLSCert           string
+	TLSKey            string
+	SessionTTL        time.Duration
+	LogLevel          string
+	LogFormat         string
+	AuthAddr          string
+	AuthPublicURL     string
+	TrustedAuthHeader string
 }
 
 func loadConfig() Config {
 	ttl, _ := time.ParseDuration(env("ADMIN_UI_SESSION_TTL", "30m"))
 	return Config{
-		Addr:       env("ADMIN_UI_ADDR", ":8080"),
-		CoreAddr:   env("ADMIN_UI_CORE_ADDR", "localhost:9090"),
-		Insecure:   env("ADMIN_UI_INSECURE", "") == "true",
-		TLSCert:    env("ADMIN_UI_TLS_CERT", ""),
-		TLSKey:     env("ADMIN_UI_TLS_KEY", ""),
-		SessionTTL: ttl,
-		LogLevel:   env("ADMIN_UI_LOG_LEVEL", "info"),
-		LogFormat:     env("ADMIN_UI_LOG_FORMAT", "text"),
-		AuthAddr:      env("ADMIN_UI_AUTH_ADDR", "http://localhost:9401"),
-		AuthPublicURL: env("ADMIN_UI_AUTH_PUBLIC_URL", ""),
+		Addr:              env("ADMIN_UI_ADDR", ":8080"),
+		CoreAddr:          env("ADMIN_UI_CORE_ADDR", "localhost:9090"),
+		Insecure:          env("ADMIN_UI_INSECURE", "") == "true",
+		TLSCert:           env("ADMIN_UI_TLS_CERT", ""),
+		TLSKey:            env("ADMIN_UI_TLS_KEY", ""),
+		SessionTTL:        ttl,
+		LogLevel:          env("ADMIN_UI_LOG_LEVEL", "info"),
+		LogFormat:         env("ADMIN_UI_LOG_FORMAT", "text"),
+		AuthAddr:          env("ADMIN_UI_AUTH_ADDR", "http://localhost:9401"),
+		AuthPublicURL:     env("ADMIN_UI_AUTH_PUBLIC_URL", ""),
+		TrustedAuthHeader: env("ADMIN_UI_TRUSTED_AUTH_HEADER", ""),
 	}
 }
 
@@ -118,7 +120,7 @@ func main() {
 	met := newMetrics()
 	csrfKey := generateCSRFKey()
 
-	h := handler.New(coreClient, ss, cfg.TLSCert != "" || !cfg.Insecure, version, met, coreConnected, cfg.AuthAddr, cfg.AuthPublicURL, loginRL.Reset)
+	h := handler.New(coreClient, ss, cfg.TLSCert != "" || !cfg.Insecure, version, met, coreConnected, cfg.AuthAddr, cfg.AuthPublicURL, cfg.TrustedAuthHeader, loginRL.Reset)
 
 	mux := http.NewServeMux()
 
@@ -280,14 +282,14 @@ func withMiddleware(next http.Handler, csrfKey string, loginRL *rateLimiter, mut
 		// CSRF token cookie on all responses
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			token := csrfToken(csrfKey)
-			http.SetCookie(w, &http.Cookie{
-				Name:     "csrf-token",
-				Value:    token,
-				Path:     "/",
-				HttpOnly: false,
-				Secure:   r.TLS != nil,
-				SameSite: http.SameSiteLaxMode,
-			})
+	http.SetCookie(w, &http.Cookie{
+			Name:     "csrf-token",
+			Value:    token,
+			Path:     "/",
+			HttpOnly: false,
+			Secure:   r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https",
+			SameSite: http.SameSiteLaxMode,
+		})
 		}
 
 		// CSRF double-submit check on mutating requests
