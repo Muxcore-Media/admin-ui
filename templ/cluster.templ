@@ -1,6 +1,25 @@
 package templates
 
-import "fmt"
+import (
+	"fmt"
+	"net"
+)
+
+func nodeDisplayName(id, httpAddr, grpcAddr string) string {
+	if httpAddr != "" {
+		if host, _, err := net.SplitHostPort(httpAddr); err == nil && host != "" && host != "0.0.0.0" {
+			return host
+		}
+		return httpAddr
+	}
+	if grpcAddr != "" {
+		if host, _, err := net.SplitHostPort(grpcAddr); err == nil && host != "" && host != "0.0.0.0" {
+			return host
+		}
+		return grpcAddr
+	}
+	return displayNodeID(id)
+}
 
 type NodeCardData struct {
 	ID           string
@@ -58,7 +77,7 @@ templ NodeCard(node NodeCardData) {
 					{ nodeAvatar(node.ID) }
 				</div>
 				<div class="min-w-0">
-					<div class="text-sm font-medium text-gray-200 truncate">{ displayNodeID(node.ID) }</div>
+					<div class="text-sm font-medium text-gray-200 truncate">{ nodeDisplayName(node.ID, node.HTTPAddr, node.GRPCAddr) }</div>
 					<div class="text-xs text-gray-500">{ node.GRPCAddr }</div>
 				</div>
 			</div>

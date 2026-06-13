@@ -3,7 +3,6 @@ package handler
 import (
 	"log/slog"
 	"net/http"
-	"strings"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
@@ -64,7 +63,7 @@ func (h *Handler) ModuleList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ModuleDetail(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimPrefix(r.URL.Path, "/modules/")
+	id := r.PathValue("id")
 	if id == "" {
 		http.Redirect(w, r, "/modules", http.StatusSeeOther)
 		return

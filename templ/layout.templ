@@ -18,8 +18,18 @@ templ Layout(title string, nav templ.Component, content templ.Component) {
 		<body class="h-full text-gray-100 font-sans antialiased" hx-boost="true" hx-indicator="#loading-bar">
 			<div id="loading-bar" class="fixed top-0 left-0 w-full h-0.5 bg-indigo-600 z-50 htmx-indicator"></div>
 
+			<button
+				id="sidebar-toggle"
+				class="fixed top-4 left-4 z-50 lg:hidden text-gray-400 hover:text-white p-2 rounded-lg bg-gray-900 border border-gray-800"
+				aria-label="Toggle navigation"
+			>
+				<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+				</svg>
+			</button>
+
 			<div class="flex h-full">
-				<nav id="sidebar" class="w-64 shrink-0 border-r border-gray-800 bg-gray-900 -translate-x-full lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 transition-transform duration-200 ease-in-out overflow-y-auto">
+				<nav id="sidebar" class="w-64 shrink-0 border-r border-gray-800 bg-gray-900 -translate-x-full lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 transition-transform duration-200 ease-in-out overflow-y-auto pt-16 lg:pt-0">
 					@nav
 				</nav>
 

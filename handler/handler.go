@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -111,11 +112,15 @@ func New(core *client.Client, store *session.Store, secure bool, version string,
 		mediaRefreshCh: make(chan struct{}, 1),
 		connCache:      make(map[string]*grpc.ClientConn),
 	}
+	// Use a short timeout for initial RPCs so a slow gRPC connection doesn't
+	// block the HTTP server from starting.
+	startupCtx, startupCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	if connected && core != nil {
-		h.refreshMediaNavLinks(context.Background())
-		h.startMediaEventSubscription(context.Background())
+		h.refreshMediaNavLinks(startupCtx)
+		h.startMediaEventSubscription(startupCtx)
 	}
-	h.startEventSubscription(context.Background())
+	h.startEventSubscription(startupCtx)
+	startupCancel()
 	return h
 }
 
@@ -216,15 +221,15 @@ func (h *Handler) startMediaEventSubscription(ctx context.Context) {
 		h.mediaSubCancel()
 	}
 
-	ch, cancel, err := h.Core.Events.Subscribe(ctx, "*")
-	if err != nil {
-		slog.Warn("media: subscribe to module.registered failed", "error", err)
-		return
-	}
-
-	h.mediaSubCancel = cancel
-
 	go func() {
+		ch, cancel, err := h.Core.Events.Subscribe(ctx, "*")
+		if err != nil {
+			slog.Warn("media: subscribe failed", "error", err)
+			return
+		}
+
+		h.mediaSubCancel = cancel
+
 		for ev := range ch {
 			evType := ev.GetType()
 			if evType != "module.registered" && evType != "module.unregistered" {

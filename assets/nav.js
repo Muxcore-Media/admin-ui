@@ -1,79 +1,72 @@
 // Mobile sidebar toggle with backdrop overlay
+// Uses event delegation on body so handlers survive HTMX body swaps.
 (function() {
   function init() {
-    var sidebar = document.getElementById('sidebar');
-    var overlay = document.getElementById('sidebar-overlay');
-    if (!sidebar || !overlay) return;
+    var body = document.body;
 
-    // Create hamburger button
-    var btn = document.createElement('button');
-    btn.className = 'fixed top-4 left-4 z-50 lg:hidden text-gray-400 hover:text-white p-2 rounded-lg bg-gray-900 border border-gray-800';
-    btn.setAttribute('aria-label', 'Toggle navigation');
-    btn.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>';
-    document.body.appendChild(btn);
+    body.addEventListener('click', function(e) {
+      var btn = e.target.closest('#sidebar-toggle');
+      if (btn) {
+        var sidebar = document.getElementById('sidebar');
+        var overlay = document.getElementById('sidebar-overlay');
+        if (sidebar && overlay) {
+          sidebar.classList.toggle('-translate-x-full');
+          overlay.classList.toggle('hidden');
+        }
+        return;
+      }
 
-    btn.addEventListener('click', function() {
-      sidebar.classList.toggle('-translate-x-full');
-      overlay.classList.toggle('hidden');
-    });
-
-    overlay.addEventListener('click', function() {
-      sidebar.classList.add('-translate-x-full');
-      overlay.classList.add('hidden');
-    });
-
-    // Close sidebar on HTMX navigation (after settle)
-    document.addEventListener('htmx:afterSettle', function() {
-      if (window.innerWidth < 1024) {
-        sidebar.classList.add('-translate-x-full');
-        overlay.classList.add('hidden');
+      if (e.target.closest('#sidebar-overlay')) {
+        var sidebar = document.getElementById('sidebar');
+        var overlay = document.getElementById('sidebar-overlay');
+        if (sidebar && overlay) {
+          sidebar.classList.add('-translate-x-full');
+          overlay.classList.add('hidden');
+        }
       }
     });
   }
 
+  // Search results visibility
   function initSearch() {
-    var container = document.getElementById('search-container');
-    var input = container ? container.querySelector('input[name="q"]') : null;
-    var results = document.getElementById('search-results');
-    if (!input || !results) return;
+    var body = document.body;
 
-    function showResults() {
-      if (results.children.length > 0 && results.textContent.trim() !== '') {
+    body.addEventListener('focusin', function(e) {
+      var input = e.target.closest('#search-container input[name="q"]');
+      if (!input) return;
+      var results = document.getElementById('search-results');
+      if (results && results.children.length > 0 && results.textContent.trim() !== '') {
         results.classList.remove('hidden');
       }
-    }
-
-    function hideResults() {
-      results.classList.add('hidden');
-    }
-
-    // Show results when input is focused and has content
-    input.addEventListener('focus', showResults);
-    input.addEventListener('input', function() {
-      if (this.value.length >= 2) showResults();
     });
 
-    // Hide when clicking outside
-    document.addEventListener('click', function(e) {
-      if (!container.contains(e.target)) {
-        hideResults();
+    body.addEventListener('click', function(e) {
+      var container = document.getElementById('search-container');
+      var results = document.getElementById('search-results');
+      if (container && results && !container.contains(e.target)) {
+        results.classList.add('hidden');
       }
     });
+  }
 
-    // Listen for HTMX content swaps into the results div
-    var observer = new MutationObserver(function() {
-      if (input.value.length >= 2) {
-        showResults();
-      } else {
-        hideResults();
+  // Watch for HTMX swaps to manage search results visibility
+  function watchSearchResults() {
+    var body = document.body;
+    body.addEventListener('htmx:afterSettle', function() {
+      var results = document.getElementById('search-results');
+      var input = document.querySelector('#search-container input[name="q"]');
+      if (results && input) {
+        if (input.value.length >= 2 && results.children.length > 0 && results.textContent.trim() !== '') {
+          results.classList.remove('hidden');
+        }
       }
     });
-    if (results) observer.observe(results, { childList: true, subtree: true });
   }
 
   function onReady() {
     init();
     initSearch();
+    watchSearchResults();
   }
 
   if (document.readyState === 'loading') {

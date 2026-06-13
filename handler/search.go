@@ -2,8 +2,10 @@ package handler
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	authv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/auth/v1"
 
@@ -18,23 +20,34 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 	}
 	qLower := strings.ToLower(q)
 
+	// Use a short timeout so a slow upstream doesn't hang the search UI.
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	slog.Info("search: request", "q", q)
+
 	var results []templates.SearchResult
 
-	// Search modules
 	if h.Core != nil {
-		results = append(results, h.searchModules(r.Context(), qLower)...)
-		results = append(results, h.searchAudit(r.Context(), qLower)...)
-		results = append(results, h.searchUsers(r.Context(), qLower)...)
+		n := len(results)
+		results = append(results, h.searchModules(ctx, qLower)...)
+		slog.Info("search: modules", "q", q, "count", len(results)-n)
+
+		n = len(results)
+		results = append(results, h.searchUsers(ctx, qLower)...)
+		slog.Info("search: users", "q", q, "count", len(results)-n)
 	}
 
-	// Search events (from the in-memory ring buffer)
+	n := len(results)
 	results = append(results, h.searchEvents(qLower)...)
+	slog.Info("search: events", "q", q, "count", len(results)-n)
+
+	slog.Info("search: total", "q", q, "count", len(results))
 
 	if len(results) == 0 {
 		w.Write([]byte(`<div class="p-4 text-sm text-gray-500">No results for "` + q + `".</div>`))
 		return
 	}
-
 	if len(results) > 20 {
 		results = results[:20]
 	}

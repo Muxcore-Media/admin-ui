@@ -18,13 +18,7 @@ templ ModuleListPage(modules []ModuleListItem) {
 			<h1 class="text-2xl font-bold">Modules</h1>
 			<p class="text-gray-400 text-sm mt-1">{ fmt.Sprintf("%d modules registered", len(modules)) }</p>
 		</div>
-		<div
-			id="module-list"
-			hx-get="/modules"
-			hx-trigger="load"
-			hx-target="this"
-			hx-swap="outerHTML"
-		>
+		<div id="module-list">
 			@ModuleTable(modules)
 		</div>
 	</div>
