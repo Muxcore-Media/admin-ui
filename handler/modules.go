@@ -52,6 +52,7 @@ func (h *Handler) ModuleList(w http.ResponseWriter, r *http.Request) {
 				Roles:        info.GetRoles(),
 				Capabilities: info.GetCapabilities(),
 				Healthy:      healthErr == "",
+				Repository:   info.GetRepository(),
 			})
 		}
 	}
@@ -96,6 +97,7 @@ func (h *Handler) ModuleDetail(w http.ResponseWriter, r *http.Request) {
 		Healthy:        true,
 		Description:    info.GetDescription(),
 		Author:         info.GetAuthor(),
+		Repository:     info.GetRepository(),
 		Roles:          info.GetRoles(),
 		Capabilities:   info.GetCapabilities(),
 		DependsOn:      info.GetDependsOn(),

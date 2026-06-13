@@ -1,6 +1,9 @@
 package templates
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type ModuleDetail struct {
 	ID             string
@@ -11,11 +14,45 @@ type ModuleDetail struct {
 	HealthError    string
 	Description    string
 	Author         string
+	Repository     string
 	Roles          []string
 	Capabilities   []string
 	DependsOn      []string
 	HTTPAddr       string
 	MinCoreVersion string
+}
+
+func trustedIcon(repo string) string {
+	switch {
+	case repo == "internal":
+		return "built-in"
+	case repo != "":
+		return "verified"
+	default:
+		return ""
+	}
+}
+
+func trustedLink(repo string) string {
+	switch {
+	case repo == "internal":
+		return "https://github.com/Muxcore-Media"
+	case repo != "" && (strings.HasPrefix(repo, "https://github.com/") || strings.HasPrefix(repo, "http://github.com/")):
+		return repo
+	default:
+		return ""
+	}
+}
+
+func trustedLabel(repo string) string {
+	switch {
+	case repo == "internal":
+		return "Built-in module"
+	case repo != "":
+		return "Verified — " + repo
+	default:
+		return "Unverified external module"
+	}
 }
 
 templ ModuleDetailPage(m ModuleDetail) {
@@ -60,13 +97,39 @@ templ ModuleDetailPage(m ModuleDetail) {
 templ ModuleMetaFields(m ModuleDetail) {
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 		@DetailField("Version", m.Version)
-		@DetailField("Author", m.Author)
+		if m.Author != "" {
+			@DetailField("Author", m.Author)
+		}
+		@ModuleTrustBadge(m)
 		if m.HTTPAddr != "" {
 			@DetailField("HTTP Address", m.HTTPAddr)
 		}
 		if m.MinCoreVersion != "" {
 			@DetailField("Min Core Version", m.MinCoreVersion)
 		}
+	</div>
+}
+
+templ ModuleTrustBadge(m ModuleDetail) {
+	<div class="rounded-lg border border-gray-800 bg-gray-900/30 px-4 py-3">
+		<div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Trust</div>
+		<div class="text-sm mt-0.5">
+			if m.Repository == "internal" {
+				<a href="https://github.com/Muxcore-Media" target="_blank" class="inline-flex items-center gap-1.5 text-green-400 hover:text-green-300">
+					<svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+					Built-in
+				</a>
+			} else if m.Repository == "untrusted" {
+				<span class="text-gray-500">Unverified — author claim rejected</span>
+			} else if m.Repository != "" {
+				<a href={ templ.SafeURL(m.Repository) } target="_blank" class="inline-flex items-center gap-1.5 text-green-400 hover:text-green-300">
+					<svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+					Verified
+				</a>
+			} else {
+				<span class="text-gray-500">Unverified</span>
+			}
+		</div>
 	</div>
 }
 

@@ -15,6 +15,7 @@ templ SearchResults(q string, results []SearchResult) {
 		for _, r := range results {
 			<a
 				href={ r.URL }
+				hx-boost="false"
 				class="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-800/50 transition-colors"
 			>
 				<div class="min-w-0 flex-1">
