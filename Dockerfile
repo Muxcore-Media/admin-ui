@@ -5,10 +5,6 @@ RUN go install github.com/a-h/templ/cmd/templ@latest
 # Copy dependencies alongside so replace directives resolve
 COPY core/ /build/core/
 COPY contracts-media-admin/ /build/contracts-media-admin/
-COPY downloader-native-torrent/ /build/downloader-native-torrent/
-COPY indexer-prowlarr/ /build/indexer-prowlarr/
-COPY media-movies/ /build/media-movies/
-COPY metadata-tmdb/ /build/metadata-tmdb/
 COPY notification-default/ /build/notification-default/
 COPY admin-ui/ /build/admin-ui/
 
