@@ -1,0 +1,98 @@
+package templates
+
+import (
+	"fmt"
+	"strconv"
+)
+
+type BackupItem struct {
+	ID           string
+	Timestamp    int64
+	SizeBytes    int64
+	ModuleIDs    []string
+	DisplayTime  string
+	DisplaySize  string
+}
+
+templ BackupsPage(backups []BackupItem) {
+	<div class="space-y-6">
+		<div class="flex items-center justify-between">
+			<div>
+				<h1 class="text-2xl font-bold">Backups</h1>
+				<p class="text-gray-400 text-sm mt-1">{ strconv.Itoa(len(backups)) } backup(s)</p>
+			</div>
+			<button
+				hx-post="/backups/create"
+				hx-target="#backup-list"
+				hx-swap="outerHTML"
+				class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
+			>Create Backup</button>
+		</div>
+
+		@BackupTable(backups)
+	</div>
+}
+
+templ BackupTable(backups []BackupItem) {
+	<div id="backup-list" class="rounded-xl border border-gray-800 bg-gray-900/50 overflow-hidden">
+		if len(backups) == 0 {
+			<div class="p-8 text-center text-sm text-gray-500">No backups yet. Create one to safeguard your data.</div>
+		} else {
+			<table class="w-full text-sm">
+				<thead>
+					<tr class="border-b border-gray-800 text-left text-xs text-gray-500 uppercase tracking-wider">
+						<th class="px-4 py-3 font-medium">Backup ID</th>
+						<th class="px-4 py-3 font-medium w-40">Created</th>
+						<th class="px-4 py-3 font-medium w-24 text-right">Size</th>
+						<th class="px-4 py-3 font-medium w-48">Modules</th>
+						<th class="px-4 py-3 font-medium w-28 text-right">Actions</th>
+					</tr>
+				</thead>
+				<tbody class="divide-y divide-gray-800/50">
+					for _, b := range backups {
+						@BackupRow(b)
+					}
+				</tbody>
+			</table>
+		}
+	</div>
+}
+
+templ BackupRow(b BackupItem) {
+	<tr class="hover:bg-gray-800/30 transition-colors" id={ templ.SafeURL(fmt.Sprintf("backup-%s", b.ID)) }>
+		<td class="px-4 py-3">
+			<span class="text-xs font-mono text-gray-300">{ b.ID }</span>
+		</td>
+		<td class="px-4 py-3 text-xs text-gray-400">{ b.DisplayTime }</td>
+		<td class="px-4 py-3 text-right text-xs text-gray-400">{ b.DisplaySize }</td>
+		<td class="px-4 py-3">
+			<div class="flex flex-wrap gap-1">
+				for _, m := range b.ModuleIDs {
+					<span class="inline-flex items-center rounded-md bg-indigo-900/30 px-1.5 py-0.5 text-xs font-medium text-indigo-400 border border-indigo-800/50">{ m }</span>
+				}
+			</div>
+		</td>
+		<td class="px-4 py-3 text-right">
+			<div class="flex items-center justify-end gap-1">
+				<button
+					hx-post={ templ.SafeURL(fmt.Sprintf("/backups/%s/restore", b.ID)) }
+					hx-target={ templ.SafeURL(fmt.Sprintf("#backup-%s", b.ID)) }
+					hx-swap="outerHTML"
+					class="rounded border border-gray-700 px-2 py-1 text-xs text-gray-400 hover:text-indigo-400 hover:border-indigo-700 transition-colors"
+				>Restore</button>
+				<button
+					hx-delete={ templ.SafeURL(fmt.Sprintf("/backups/%s", b.ID)) }
+					hx-target={ templ.SafeURL(fmt.Sprintf("#backup-%s", b.ID)) }
+					hx-swap="outerHTML"
+					class="p-1 rounded text-gray-500 hover:text-red-400 hover:bg-gray-800 transition-colors"
+					title="Delete Backup"
+				>
+					<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+				</button>
+			</div>
+		</td>
+	</tr>
+}
+
+
+

@@ -1,0 +1,169 @@
+package templates
+
+import (
+	"fmt"
+	"strconv"
+
+	metadatav1 "github.com/Muxcore-Media/metadata-tmdb/proto/metadatav1"
+	indexerv1 "github.com/Muxcore-Media/indexer-prowlarr/proto/indexerv1"
+)
+
+templ MediaSearchPage(moduleID, mediaType string, results []*metadatav1.SearchResult, query string) {
+	<div class="space-y-6">
+		<div>
+			<h1 class="text-2xl font-bold">Search & Add</h1>
+			<p class="text-gray-400 text-sm mt-1">Search for media to add to your library</p>
+		</div>
+
+		<form class="flex gap-2" hx-get={ templ.SafeURL("/media/"+moduleID+"/search") } hx-target="#main-content" hx-swap="innerHTML" hx-trigger="submit">
+			<input
+				type="text" name="q" value={ query }
+				placeholder="Search for movies..."
+				class="flex-1 rounded-lg border border-gray-700 bg-gray-800 px-4 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+				autofocus
+			/>
+			<input type="hidden" name="type" value={ mediaType }/>
+			<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors">Search</button>
+		</form>
+
+		if query != "" {
+			if len(results) == 0 {
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
+					<p class="text-gray-400">No results found for "{ query }".</p>
+				</div>
+			} else {
+				<div class="space-y-4">
+					<p class="text-sm text-gray-500">{ strconv.Itoa(len(results)) } result(s)</p>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						for _, r := range results {
+							@MediaSearchResultCard(r, moduleID)
+						}
+					</div>
+				</div>
+			}
+		}
+	</div>
+}
+
+templ MediaSearchResultCard(r *metadatav1.SearchResult, moduleID string) {
+	<form
+		hx-post={ templ.SafeURL("/media/"+moduleID+"/add") }
+		hx-target="#main-content"
+		hx-swap="innerHTML"
+		class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 hover:border-gray-700 transition-colors"
+	>
+		<input type="hidden" name="tmdb_id" value={ strconv.FormatInt(int64(r.GetId()), 10) }/>
+		<input type="hidden" name="title" value={ r.GetTitle() }/>
+		<input type="hidden" name="year" value={ yearFromDate(r.GetReleaseDate()) }/>
+		<input type="hidden" name="overview" value={ r.GetOverview() }/>
+		<input type="hidden" name="poster_path" value={ r.GetPosterPath() }/>
+		<input type="hidden" name="backdrop_path" value={ r.GetBackdropPath() }/>
+		for _, g := range r.GetGenreIds() {
+			<input type="hidden" name="genres" value={ strconv.Itoa(int(g)) }/>
+		}
+
+		<div class="flex gap-4">
+			<div class="w-20 shrink-0">
+				<div class="aspect-[2/3] rounded-lg bg-gray-800 flex items-center justify-center text-gray-600 text-lg overflow-hidden">
+					if r.GetPosterPath() != "" {
+						<img src={ templ.SafeURL("https://image.tmdb.org/t/p/w154"+r.GetPosterPath()) } alt={ r.GetTitle() } class="w-full h-full object-cover"/>
+					} else {
+						?
+					}
+				</div>
+			</div>
+			<div class="flex-1 min-w-0">
+				<h3 class="text-sm font-semibold text-white">{ r.GetTitle() }</h3>
+				if yr := yearFromDate(r.GetReleaseDate()); yr != "" {
+					<p class="text-xs text-gray-500">{ yr }</p>
+				}
+				if r.GetOverview() != "" {
+					<p class="text-xs text-gray-400 mt-1 line-clamp-3">{ r.GetOverview() }</p>
+				}
+				<div class="flex items-center gap-2 mt-2">
+					<span class="text-xs text-yellow-400">{ fmt.Sprintf("%.1f", r.GetVoteAverage()) }</span>
+					<span class="text-xs text-gray-600">|</span>
+					<span class="text-xs text-gray-500">{ mediaTypeString(r.GetMediaType()) }</span>
+				</div>
+			</div>
+		</div>
+		<button type="submit" class="w-full mt-3 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors">
+			Add to Library
+		</button>
+	</form>
+}
+
+templ MediaIndexerResults(title, moduleID string, results []*indexerv1.IndexerResult) {
+	<div class="space-y-6">
+		<a href={ templ.SafeURL("/media/"+moduleID) } class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Back</a>
+
+		<div>
+			<h1 class="text-2xl font-bold">{ title }</h1>
+			<p class="text-gray-400 text-sm mt-1">Indexer search results</p>
+		</div>
+
+		if len(results) == 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
+				<p class="text-gray-400">No results found.</p>
+			</div>
+		} else {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 overflow-hidden">
+				<table class="w-full text-sm">
+					<thead>
+						<tr class="border-b border-gray-800 text-left text-xs text-gray-500 uppercase tracking-wider">
+							<th class="px-4 py-3 font-medium">Release</th>
+							<th class="px-4 py-3 font-medium w-20 text-right">Size</th>
+							<th class="px-4 py-3 font-medium w-16 text-right">S</th>
+							<th class="px-4 py-3 font-medium w-16 text-right">P</th>
+							<th class="px-4 py-3 font-medium w-20">Indexer</th>
+							<th class="px-4 py-3 font-medium w-20 text-right">Actions</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-800/50">
+						for _, r := range results {
+							@MediaIndexerResultRow(r, moduleID)
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+	</div>
+}
+
+templ MediaIndexerResultRow(r *indexerv1.IndexerResult, moduleID string) {
+	<tr class="hover:bg-gray-800/30 transition-colors">
+		<td class="px-4 py-3">
+			<div class="text-xs text-gray-200 font-medium">{ r.GetTitle() }</div>
+			<div class="text-xs text-gray-600 mt-0.5">{ r.GetCategory() }</div>
+		</td>
+		<td class="px-4 py-3 text-right text-xs text-gray-400">{ formatBytes(r.GetSize()) }</td>
+		<td class="px-4 py-3 text-right text-xs text-gray-400">{ strconv.FormatInt(int64(r.GetSeeders()), 10) }</td>
+		<td class="px-4 py-3 text-right text-xs text-gray-400">{ strconv.FormatInt(int64(r.GetPeers()), 10) }</td>
+		<td class="px-4 py-3 text-xs text-gray-500">{ r.GetIndexerName() }</td>
+		<td class="px-4 py-3 text-right">
+			<a
+				href={ templ.SafeURL(r.GetDownloadUrl()) }
+				target="_blank"
+				class="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-500 transition-colors"
+			>Download</a>
+		</td>
+	</tr>
+}
+
+func yearFromDate(date string) string {
+	if len(date) >= 4 {
+		return date[:4]
+	}
+	return ""
+}
+
+func mediaTypeString(t metadatav1.MediaType) string {
+	switch t {
+	case metadatav1.MediaType_MEDIA_TYPE_MOVIE:
+		return "Movie"
+	case metadatav1.MediaType_MEDIA_TYPE_TV:
+		return "TV"
+	default:
+		return "Unknown"
+	}
+}

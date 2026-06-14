@@ -9,11 +9,20 @@ import (
 
 templ MediaListPage(displayName string, items []*mediaadminv1.MediaItem, total, page, pageSize int, moduleID string) {
 	<div class="space-y-6">
-		<div>
-			<h1 class="text-2xl font-bold">{ displayName }</h1>
-			if items != nil {
-				<p class="text-gray-400 text-sm mt-1">{ strconv.Itoa(total) } items</p>
-			}
+		<div class="flex items-center justify-between">
+			<div>
+				<h1 class="text-2xl font-bold">{ displayName }</h1>
+				if items != nil {
+					<p class="text-gray-400 text-sm mt-1">{ strconv.Itoa(total) } items</p>
+				}
+			</div>
+			<a
+				href={ templ.SafeURL(fmt.Sprintf("/media/%s/search", moduleID)) }
+				hx-get={ templ.SafeURL(fmt.Sprintf("/media/%s/search", moduleID)) }
+				hx-target="#main-content"
+				hx-swap="innerHTML"
+				class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
+			>Search &amp; Add</a>
 		</div>
 
 		if items == nil {
@@ -61,25 +70,69 @@ templ MediaItemCard(item *mediaadminv1.MediaItem, moduleID string) {
 	</a>
 }
 
+templ CollectionInfo(metadata map[string]string) {
+	if hasCollectionInfo(metadata) {
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+			<h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Collection</h3>
+			if metadata["collection_name"] != "" {
+				<p class="text-sm text-gray-200">{ metadata["collection_name"] }</p>
+			}
+			if metadata["collection_id"] != "" {
+				<p class="text-xs text-gray-500 font-mono mt-1">ID: { metadata["collection_id"] }</p>
+			}
+			if metadata["collection_tmdb_id"] != "" {
+				<a href={ templ.SafeURL("https://www.themoviedb.org/collection/" + metadata["collection_tmdb_id"]) } target="_blank" class="inline-flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 mt-1">
+					<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
+					View on TMDB
+				</a>
+			}
+		</div>
+	}
+}
+
+func hasCollectionInfo(metadata map[string]string) bool {
+	return metadata["collection_name"] != "" || metadata["collection_id"] != "" || metadata["collection_tmdb_id"] != ""
+}
+
 templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string) {
 	<div class="space-y-6">
 		<a href="javascript:history.back()" class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Back</a>
 
+		<div class="flex items-center gap-2">
+			<h1 class="text-2xl font-bold flex-1">{ item.GetTitle() }</h1>
+			<a
+				href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s/search-indexers", moduleID, item.GetId())) }
+				hx-get={ templ.SafeURL(fmt.Sprintf("/media/%s/%s/search-indexers", moduleID, item.GetId())) }
+				hx-target="#main-content"
+				hx-swap="innerHTML"
+				class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors"
+			>Search Indexers</a>
+			<button
+				hx-post={ templ.SafeURL(fmt.Sprintf("/media/%s/%s/refresh", moduleID, item.GetId())) }
+				hx-swap="none"
+				class="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-400 hover:text-white transition-colors"
+			>Refresh</button>
+			<button
+				hx-post={ templ.SafeURL(fmt.Sprintf("/media/%s/%s/delete", moduleID, item.GetId())) }
+				hx-target="#main-content"
+				hx-swap="innerHTML"
+				class="rounded-lg bg-red-600/20 border border-red-800/50 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-600/30 transition-colors"
+			>Delete</button>
+		</div>
+
+		if item.GetYear() > 0 {
+			<p class="text-gray-400 text-sm">{ strconv.FormatInt(item.GetYear(), 10) }</p>
+		}
+
 		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-			<div class="lg:col-span-1">
+			<div class="lg:col-span-1 space-y-4">
 				<div class="aspect-[2/3] rounded-xl bg-gray-800 flex items-center justify-center text-gray-600 text-6xl">
 					?
 				</div>
+				@CollectionInfo(item.GetMetadata())
 			</div>
 
 			<div class="lg:col-span-2 space-y-4">
-				<div>
-					<h1 class="text-2xl font-bold">{ item.GetTitle() }</h1>
-					if item.GetYear() > 0 {
-						<p class="text-gray-400 text-sm">{ strconv.FormatInt(item.GetYear(), 10) }</p>
-					}
-				</div>
-
 				if item.GetDescription() != "" {
 					<div>
 						<h3 class="text-sm font-semibold text-gray-300 mb-1">Description</h3>

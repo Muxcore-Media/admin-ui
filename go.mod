@@ -4,8 +4,13 @@ go 1.26.4
 
 require (
 	github.com/Muxcore-Media/contracts-media-admin v0.1.0
-	github.com/Muxcore-Media/core v0.1.0
+	github.com/Muxcore-Media/core v0.4.0
 	github.com/Muxcore-Media/core/sdk/go/client v0.1.0
+	github.com/Muxcore-Media/downloader-native-torrent v0.1.0
+	github.com/Muxcore-Media/indexer-prowlarr v0.1.0
+	github.com/Muxcore-Media/media-movies v0.1.0
+	github.com/Muxcore-Media/metadata-tmdb v0.1.0
+	github.com/Muxcore-Media/notification-default v0.1.0
 	github.com/a-h/templ v0.3.1020
 	github.com/google/uuid v1.6.0
 	google.golang.org/grpc v1.81.1
@@ -26,3 +31,13 @@ replace github.com/Muxcore-Media/core => ../core
 replace github.com/Muxcore-Media/core/sdk/go/client => ../core/sdk/go/client
 
 replace github.com/Muxcore-Media/core/pkg/contracts => ../core/pkg/contracts
+
+replace github.com/Muxcore-Media/downloader-native-torrent => ../downloader-native-torrent
+
+replace github.com/Muxcore-Media/indexer-prowlarr => ../indexer-prowlarr
+
+replace github.com/Muxcore-Media/media-movies => ../media-movies
+
+replace github.com/Muxcore-Media/metadata-tmdb => ../metadata-tmdb
+
+replace github.com/Muxcore-Media/notification-default => ../notification-default

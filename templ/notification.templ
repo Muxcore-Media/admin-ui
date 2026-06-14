@@ -1,0 +1,115 @@
+package templates
+
+type ChannelStatus struct {
+	Channel     string
+	Enabled     bool
+	Description string
+}
+
+templ NotificationsPage(channels []ChannelStatus) {
+	<div class="space-y-6 max-w-3xl">
+		<div>
+			<h1 class="text-2xl font-bold">Notifications</h1>
+			<p class="text-gray-400 text-sm mt-1">Configure notification channels</p>
+		</div>
+
+		if len(channels) == 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">
+				No notification module available.
+			</div>
+		} else {
+			<div class="space-y-4">
+				for _, c := range channels {
+					@ChannelCard(c)
+				}
+			</div>
+		}
+	</div>
+}
+
+templ ChannelCard(c ChannelStatus) {
+	<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-5">
+		<div class="flex items-center justify-between mb-4">
+			<div class="flex items-center gap-3">
+				<div class={ "w-10 h-10 rounded-lg flex items-center justify-center text-lg",
+					templ.KV("bg-green-900/20 border border-green-800/50", c.Enabled),
+					templ.KV("bg-gray-800 border border-gray-700", !c.Enabled),
+				}>
+					{ channelIcon(c.Channel) }
+				</div>
+				<div>
+					<h3 class="text-sm font-semibold text-gray-200">{ channelLabel(c.Channel) }</h3>
+					<p class="text-xs text-gray-500">{ c.Description }</p>
+				</div>
+			</div>
+			@ChannelStatusDot(c.Enabled)
+		</div>
+
+		<form
+			hx-post={ templ.SafeURL("/notifications/configure/" + c.Channel) }
+			hx-target="closest .rounded-xl"
+			hx-swap="outerHTML"
+			class="space-y-3"
+		>
+			if c.Channel == "discord" || c.Channel == "slack" || c.Channel == "webhook" {
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Webhook URL</label>
+					<input type="url" name="webhook_url" placeholder="https://discord.com/api/webhooks/..." class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"/>
+				</div>
+			}
+			if c.Channel == "email" {
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">SMTP Server</label>
+					<input type="text" name="smtp_server" placeholder="smtp.example.com:587" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"/>
+				</div>
+			}
+			<div class="flex gap-2">
+				<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors">Save</button>
+				<button
+					type="button"
+					hx-post={ templ.SafeURL("/notifications/test/" + c.Channel) }
+					hx-swap="none"
+					class="rounded-lg border border-gray-700 px-4 py-2 text-xs text-gray-400 hover:text-white transition-colors"
+				>Test</button>
+			</div>
+		</form>
+	</div>
+}
+
+templ ChannelStatusDot(enabled bool) {
+	if enabled {
+		<span class="inline-flex items-center gap-1 text-xs text-green-400"><span class="w-2 h-2 rounded-full bg-green-400"></span>Enabled</span>
+	} else {
+		<span class="inline-flex items-center gap-1 text-xs text-gray-500"><span class="w-2 h-2 rounded-full bg-gray-500"></span>Disabled</span>
+	}
+}
+
+func channelIcon(ch string) string {
+	switch ch {
+	case "discord":
+		return "D"
+	case "slack":
+		return "S"
+	case "webhook":
+		return "W"
+	case "email":
+		return "E"
+	default:
+		return "?"
+	}
+}
+
+func channelLabel(ch string) string {
+	switch ch {
+	case "discord":
+		return "Discord"
+	case "slack":
+		return "Slack"
+	case "webhook":
+		return "Generic Webhook"
+	case "email":
+		return "Email"
+	default:
+		return ch
+	}
+}

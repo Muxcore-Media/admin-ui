@@ -282,14 +282,14 @@ func withMiddleware(next http.Handler, csrfKey string, loginRL *rateLimiter, mut
 		// CSRF token cookie on all responses
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
 			token := csrfToken(csrfKey)
-	http.SetCookie(w, &http.Cookie{
-			Name:     "csrf-token",
-			Value:    token,
-			Path:     "/",
-			HttpOnly: false,
-			Secure:   r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https",
-			SameSite: http.SameSiteLaxMode,
-		})
+			http.SetCookie(w, &http.Cookie{
+				Name:     "csrf-token",
+				Value:    token,
+				Path:     "/",
+				HttpOnly: false,
+				Secure:   r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https",
+				SameSite: http.SameSiteLaxMode,
+			})
 		}
 
 		// CSRF double-submit check on mutating requests
@@ -352,6 +352,18 @@ func isMutatingEndpoint(path string) bool {
 	case hasPrefix(path, "/users"):
 		return true
 	case hasPrefix(path, "/media/"):
+		return true
+	case hasPrefix(path, "/downloads/"):
+		return true
+	case hasPrefix(path, "/scheduler/"):
+		return true
+	case hasPrefix(path, "/backups/"):
+		return true
+	case hasPrefix(path, "/notifications/"):
+		return true
+	case hasPrefix(path, "/quality-profiles/"):
+		return true
+	case hasPrefix(path, "/tags/"):
 		return true
 	case hasPrefix(path, "/api/"):
 		return true

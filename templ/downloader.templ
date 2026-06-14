@@ -1,0 +1,413 @@
+package templates
+
+import (
+	"fmt"
+	"strconv"
+
+	downloaderv1 "github.com/Muxcore-Media/downloader-native-torrent/proto/downloaderv1"
+)
+
+templ DownloadsPage(torrents []*downloaderv1.TorrentInfo, filter string, vpn *downloaderv1.VpnStatusResponse, nat *downloaderv1.NatPmpStatusResponse, moduleID string, leakTestTorrent *downloaderv1.TorrentInfo) {
+	<div class="space-y-6">
+		<div class="flex items-center justify-between">
+			<div>
+				<h1 class="text-2xl font-bold">Downloads</h1>
+				<p class="text-gray-400 text-sm mt-1">{ strconv.Itoa(len(torrents)) } torrent(s)</p>
+			</div>
+			<button
+				hx-get="/downloads/add-form"
+				hx-target="#main-content"
+				hx-swap="beforeend"
+				class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
+			>Add Torrent</button>
+		</div>
+
+		<div class="flex gap-2 border-b border-gray-800">
+			<a href="/downloads/list?filter=active" hx-get="/downloads/list?filter=active" hx-target="#torrent-list-container" hx-swap="innerHTML" class={ "px-4 py-2 text-sm font-medium border-b-2 transition-colors", templ.KV("border-indigo-500 text-indigo-400", filter == "active"), templ.KV("border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-600", filter != "active") }>Active</a>
+			<a href="/downloads/list?filter=completed" hx-get="/downloads/list?filter=completed" hx-target="#torrent-list-container" hx-swap="innerHTML" class={ "px-4 py-2 text-sm font-medium border-b-2 transition-colors", templ.KV("border-indigo-500 text-indigo-400", filter == "completed"), templ.KV("border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-600", filter != "completed") }>Completed</a>
+			<a href="/downloads/list?filter=all" hx-get="/downloads/list?filter=all" hx-target="#torrent-list-container" hx-swap="innerHTML" class={ "px-4 py-2 text-sm font-medium border-b-2 transition-colors", templ.KV("border-indigo-500 text-indigo-400", filter == "all"), templ.KV("border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-600", filter != "all") }>All</a>
+		</div>
+
+		<div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
+			<div class="xl:col-span-3 space-y-6">
+				@TorrentTable(torrents, moduleID)
+				@IpLeakTestPanel(vpn, leakTestTorrent, moduleID)
+			</div>
+			<div class="xl:col-span-1 space-y-4">
+				@VpnStatusPanel(vpn, moduleID)
+				@NatPmpStatusPanel(nat)
+			</div>
+		</div>
+	</div>
+}
+
+templ TorrentTable(torrents []*downloaderv1.TorrentInfo, moduleID string) {
+	<div id="torrent-list-container" class="rounded-xl border border-gray-800 bg-gray-900/50 overflow-hidden">
+		if len(torrents) == 0 {
+			<div class="p-8 text-center text-sm text-gray-500">No torrents found.</div>
+		} else {
+			<table class="w-full text-sm">
+				<thead>
+					<tr class="border-b border-gray-800 text-left text-xs text-gray-500 uppercase tracking-wider">
+						<th class="px-4 py-3 font-medium">Name</th>
+						<th class="px-4 py-3 font-medium w-24">Status</th>
+						<th class="px-4 py-3 font-medium w-40">Progress</th>
+						<th class="px-4 py-3 font-medium w-24 text-right">Size</th>
+						<th class="px-4 py-3 font-medium w-24 text-right">Down</th>
+						<th class="px-4 py-3 font-medium w-24 text-right">Up</th>
+						<th class="px-4 py-3 font-medium w-20 text-right">Seeds</th>
+						<th class="px-4 py-3 font-medium w-20 text-right">Peers</th>
+						<th class="px-4 py-3 font-medium w-24 text-right">Actions</th>
+					</tr>
+				</thead>
+				<tbody class="divide-y divide-gray-800/50">
+					for _, t := range torrents {
+						@TorrentRow(t, moduleID)
+					}
+				</tbody>
+			</table>
+		}
+	</div>
+}
+
+templ TorrentRow(t *downloaderv1.TorrentInfo, moduleID string) {
+	<tr class="hover:bg-gray-800/30 transition-colors">
+		<td class="px-4 py-3">
+			<a
+				href={ templ.SafeURL(fmt.Sprintf("/downloads/%s", t.GetId())) }
+				hx-get={ templ.SafeURL(fmt.Sprintf("/downloads/%s", t.GetId())) }
+				hx-target="#main-content"
+				hx-swap="innerHTML"
+				class="text-gray-200 hover:text-indigo-400 font-medium truncate block max-w-xs"
+			>{ t.GetName() }</a>
+			if t.GetLabel() != "" {
+				<span class="inline-flex items-center rounded-md bg-purple-900/30 px-1.5 py-0.5 text-xs font-medium text-purple-400 border border-purple-800/50 mt-1">{ t.GetLabel() }</span>
+			}
+		</td>
+		<td class="px-4 py-3">
+			@TorrentStatusBadge(t.GetStatus())
+		</td>
+		<td class="px-4 py-3">
+			<div class="flex items-center gap-2">
+				<div class="flex-1 h-2 rounded-full bg-gray-700 overflow-hidden">
+					<div class={ "h-full rounded-full transition-all duration-500",
+						templ.KV("bg-green-500", t.GetStatus() == "completed"),
+						templ.KV("bg-indigo-500", t.GetStatus() == "downloading"),
+						templ.KV("bg-gray-600", t.GetStatus() == "queued" || t.GetStatus() == "paused"),
+						templ.KV("bg-red-500", t.GetStatus() == "error"),
+					} style={ fmt.Sprintf("width: %.1f%%", t.GetProgress()) }></div>
+				</div>
+				<span class="text-xs text-gray-400 w-10 text-right">{ fmt.Sprintf("%.1f%%", t.GetProgress()) }</span>
+			</div>
+		</td>
+		<td class="px-4 py-3 text-right text-gray-400">{ formatBytes(t.GetTotalSize()) }</td>
+		<td class="px-4 py-3 text-right text-gray-400">{ formatSpeed(t.GetDownloadRate()) }</td>
+		<td class="px-4 py-3 text-right text-gray-400">{ formatSpeed(t.GetUploadRate()) }</td>
+		<td class="px-4 py-3 text-right text-gray-400">{ strconv.FormatInt(int64(t.GetSeeders()), 10) }</td>
+		<td class="px-4 py-3 text-right text-gray-400">{ strconv.FormatInt(int64(t.GetPeers()), 10) }</td>
+		<td class="px-4 py-3 text-right">
+			<div class="flex items-center justify-end gap-1">
+				if t.GetStatus() == "downloading" || t.GetStatus() == "queued" {
+					<button
+						hx-post={ templ.SafeURL(fmt.Sprintf("/downloads/%s/pause", t.GetId())) }
+						hx-target="closest tr"
+						hx-swap="outerHTML"
+						class="p-1 rounded text-gray-500 hover:text-yellow-400 hover:bg-gray-800 transition-colors"
+						title="Pause"
+					>
+						<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+					</button>
+				}
+				if t.GetStatus() == "paused" {
+					<button
+						hx-post={ templ.SafeURL(fmt.Sprintf("/downloads/%s/resume", t.GetId())) }
+						hx-target="closest tr"
+						hx-swap="outerHTML"
+						class="p-1 rounded text-gray-500 hover:text-green-400 hover:bg-gray-800 transition-colors"
+						title="Resume"
+					>
+						<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>
+					</button>
+				}
+				<button
+					hx-post={ templ.SafeURL(fmt.Sprintf("/downloads/%s/delete", t.GetId())) }
+					hx-target="closest tr"
+					hx-swap="outerHTML"
+					class="p-1 rounded text-gray-500 hover:text-red-400 hover:bg-gray-800 transition-colors"
+					title="Remove"
+				>
+					<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+				</button>
+			</div>
+		</td>
+	</tr>
+}
+
+templ TorrentStatusBadge(status string) {
+	<span class={ "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+		templ.KV("bg-green-900/30 text-green-400 border border-green-800/50", status == "completed"),
+		templ.KV("bg-blue-900/30 text-blue-400 border border-blue-800/50", status == "downloading"),
+		templ.KV("bg-yellow-900/30 text-yellow-400 border border-yellow-800/50", status == "queued"),
+		templ.KV("bg-gray-900/30 text-gray-400 border border-gray-800/50", status == "paused"),
+		templ.KV("bg-red-900/30 text-red-400 border border-red-800/50", status == "error"),
+	}>{ status }</span>
+}
+
+templ AddTorrentModal() {
+	<div id="add-torrent-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onclick="if(event.target===this)this.remove()">
+		<div class="rounded-xl border border-gray-800 bg-gray-900 p-6 w-full max-w-lg mx-4" onclick="event.stopPropagation()">
+			<div class="flex items-center justify-between mb-4">
+				<h2 class="text-lg font-semibold">Add Torrent</h2>
+				<button onclick="this.closest('#add-torrent-modal').remove()" class="text-gray-500 hover:text-gray-300">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+				</button>
+			</div>
+			<form
+				hx-post="/downloads/add"
+				hx-target="#torrent-list-container"
+				hx-swap="beforeend"
+				hx-on::after-request="document.getElementById('add-torrent-modal')?.remove()"
+				class="space-y-4"
+			>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Magnet URI or URL</label>
+					<input type="text" name="uri" required placeholder="magnet:?xt=urn:btih:..." class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"/>
+				</div>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Label (optional)</label>
+					<input type="text" name="label" placeholder="movies, tv, music..." class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"/>
+				</div>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Save Path (optional)</label>
+					<input type="text" name="save_path" placeholder="/var/lib/downloads" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"/>
+				</div>
+				<label class="flex items-center gap-2">
+					<input type="checkbox" name="paused" class="rounded border-gray-700 bg-gray-800 text-indigo-600 focus:ring-indigo-500"/>
+					<span class="text-sm text-gray-400">Start paused</span>
+				</label>
+				<button type="submit" class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors">Add Torrent</button>
+			</form>
+		</div>
+	</div>
+}
+
+templ VpnStatusPanel(vpn *downloaderv1.VpnStatusResponse, moduleID string) {
+	<div id="vpn-panel" class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+		<h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">VPN Status</h3>
+		if vpn != nil {
+			<div class="space-y-2">
+				<div class="flex items-center justify-between">
+					<span class="text-xs text-gray-500">Status</span>
+					if vpn.GetConnected() {
+						<span class="inline-flex items-center gap-1 text-xs text-green-400"><span class="w-2 h-2 rounded-full bg-green-400"></span>Connected</span>
+					} else {
+						<span class="inline-flex items-center gap-1 text-xs text-gray-400"><span class="w-2 h-2 rounded-full bg-gray-400"></span>Disconnected</span>
+					}
+				</div>
+				if vpn.GetInterfaceName() != "" {
+					<div class="flex items-center justify-between"><span class="text-xs text-gray-500">Interface</span><span class="text-xs text-gray-300 font-mono">{ vpn.GetInterfaceName() }</span></div>
+				}
+				if vpn.GetLocalIp() != "" {
+					<div class="flex items-center justify-between"><span class="text-xs text-gray-500">Local IP</span><span class="text-xs text-gray-300 font-mono">{ vpn.GetLocalIp() }</span></div>
+				}
+				if vpn.GetGatewayIp() != "" {
+					<div class="flex items-center justify-between"><span class="text-xs text-gray-500">Gateway</span><span class="text-xs text-gray-300 font-mono">{ vpn.GetGatewayIp() }</span></div>
+				}
+				<div class="flex items-center justify-between">
+					<span class="text-xs text-gray-500">Kill Switch</span>
+					if vpn.GetKillSwitchEnabled() {
+						<span class="text-xs text-green-400">Enabled</span>
+					} else {
+						<span class="text-xs text-gray-400">Disabled</span>
+					}
+				</div>
+				if vpn.GetConnected() {
+					<button hx-post="/downloads/vpn/stop" hx-target="#vpn-panel" hx-swap="outerHTML" class="w-full mt-3 rounded-lg bg-red-600/20 border border-red-800/50 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-600/30 transition-colors">Stop VPN</button>
+				} else {
+					<button hx-post="/downloads/vpn/start" hx-target="#vpn-panel" hx-swap="outerHTML" class="w-full mt-3 rounded-lg bg-green-600/20 border border-green-800/50 px-3 py-1.5 text-xs font-medium text-green-400 hover:bg-green-600/30 transition-colors">Start VPN</button>
+				}
+			</div>
+		} else {
+			<div class="text-xs text-gray-500">VPN module not available</div>
+		}
+	</div>
+}
+
+templ NatPmpStatusPanel(nat *downloaderv1.NatPmpStatusResponse) {
+	<div id="natpmp-panel" class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+		<h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">NAT-PMP</h3>
+		if nat != nil {
+			if nat.GetEnabled() {
+				<div class="space-y-2">
+					<div class="flex items-center justify-between"><span class="text-xs text-gray-500">Internal Port</span><span class="text-xs text-gray-300 font-mono">{ strconv.FormatInt(int64(nat.GetInternalPort()), 10) }</span></div>
+					<div class="flex items-center justify-between"><span class="text-xs text-gray-500">External Port</span><span class="text-xs text-gray-300 font-mono">{ strconv.FormatInt(int64(nat.GetExternalPort()), 10) }</span></div>
+					<div class="flex items-center justify-between"><span class="text-xs text-gray-500">Protocol</span><span class="text-xs text-gray-300 font-mono">{ nat.GetProtocol() }</span></div>
+					if nat.GetGateway() != "" {
+						<div class="flex items-center justify-between"><span class="text-xs text-gray-500">Gateway</span><span class="text-xs text-gray-300 font-mono">{ nat.GetGateway() }</span></div>
+					}
+				</div>
+			} else {
+				<div class="text-xs text-gray-500">Not active</div>
+			}
+		} else {
+			<div class="text-xs text-gray-500">NAT-PMP not available</div>
+		}
+	</div>
+}
+
+templ TorrentDetailPage(t *downloaderv1.TorrentInfo, moduleID string) {
+	<div class="max-w-3xl space-y-6">
+		<a href="/downloads" hx-get="/downloads" hx-target="#main-content" hx-swap="innerHTML" class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Back to downloads</a>
+
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 space-y-4">
+			<div>
+				<h1 class="text-xl font-bold">{ t.GetName() }</h1>
+				<p class="text-xs text-gray-500 font-mono mt-1">{ t.GetInfoHash() }</p>
+			</div>
+
+			<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+				@DetailField("Status", t.GetStatus())
+				@DetailField("Size", formatBytes(t.GetTotalSize()))
+				@DetailField("Downloaded", formatBytes(t.GetDownloaded()))
+				@DetailField("Progress", fmt.Sprintf("%.1f%%", t.GetProgress()))
+				@DetailField("Download Rate", formatSpeed(t.GetDownloadRate()))
+				@DetailField("Upload Rate", formatSpeed(t.GetUploadRate()))
+				@DetailField("Seeders", strconv.FormatInt(int64(t.GetSeeders()), 10))
+				@DetailField("Peers", strconv.FormatInt(int64(t.GetPeers()), 10))
+				if t.GetLabel() != "" {
+					@DetailField("Label", t.GetLabel())
+				}
+				if t.GetSavePath() != "" {
+					@DetailField("Save Path", t.GetSavePath())
+				}
+			</div>
+
+			if len(t.GetFiles()) > 0 {
+				<div>
+					<h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Files</h3>
+					<div class="rounded-lg border border-gray-800 bg-gray-900/30 overflow-hidden">
+						<table class="w-full text-sm">
+							<thead>
+								<tr class="border-b border-gray-800 text-left text-xs text-gray-500 uppercase tracking-wider">
+									<th class="px-3 py-2 font-medium">Path</th>
+									<th class="px-3 py-2 font-medium text-right w-24">Size</th>
+									<th class="px-3 py-2 font-medium text-right w-24">Progress</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-gray-800/50">
+								for _, f := range t.GetFiles() {
+									<tr class="hover:bg-gray-800/30 transition-colors">
+										<td class="px-3 py-2 text-xs text-gray-300 font-mono">{ f.GetPath() }</td>
+										<td class="px-3 py-2 text-xs text-gray-400 text-right">{ formatBytes(f.GetSize()) }</td>
+										<td class="px-3 py-2 text-xs text-gray-400 text-right">{ formatBytes(f.GetDownloaded()) }</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			}
+		</div>
+	</div>
+}
+
+templ IpLeakTestPanel(vpn *downloaderv1.VpnStatusResponse, leakTest *downloaderv1.TorrentInfo, moduleID string) {
+	<div id="ipleak-panel" class="rounded-xl border border-gray-800 bg-gray-900/50 overflow-hidden">
+		<details class="group">
+			<summary class="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-gray-800/30 transition-colors">
+				<div class="flex items-center gap-3">
+					<svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+					<div>
+						<h3 class="text-sm font-semibold text-gray-200">IP Leak Test</h3>
+						<p class="text-xs text-gray-500">Verify your VPN is protecting your torrent traffic</p>
+					</div>
+				</div>
+				<svg class="w-5 h-5 text-gray-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+			</summary>
+			<div class="px-5 pb-5 space-y-4 border-t border-gray-800 pt-4">
+				if vpn == nil || !vpn.GetConnected() {
+					<div class="rounded-lg border border-yellow-800/50 bg-yellow-900/20 p-3">
+						<div class="flex items-start gap-2">
+							<svg class="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+							<div>
+								<p class="text-sm text-yellow-300 font-medium">VPN Not Connected</p>
+								<p class="text-xs text-yellow-400/70 mt-1">Connect a VPN before running a leak test, otherwise your real IP will be exposed.</p>
+							</div>
+						</div>
+					</div>
+				} else {
+					<div class="rounded-lg border border-green-800/50 bg-green-900/20 p-3">
+						<div class="flex items-center gap-2">
+							<svg class="w-5 h-5 text-green-400 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+							<span class="text-sm text-green-300">VPN Connected</span>
+							if vpn.GetLocalIp() != "" {
+								<span class="text-xs text-green-400/70 font-mono">({ vpn.GetLocalIp() })</span>
+							}
+						</div>
+					</div>
+				}
+				if leakTest != nil {
+					<div class="rounded-lg border border-gray-800 bg-gray-900/30 p-4 space-y-3">
+						<div class="flex items-center justify-between">
+							<div>
+								<p class="text-sm font-medium text-gray-200">Test Torrent Active</p>
+								<p class="text-xs text-gray-500 font-mono mt-0.5 truncate max-w-xs">{ leakTest.GetName() }</p>
+							</div>
+							@TorrentStatusBadge(leakTest.GetStatus())
+						</div>
+						<div class="flex items-center gap-2">
+							<div class="flex-1 h-2 rounded-full bg-gray-700 overflow-hidden">
+								<div class={ "h-full rounded-full",
+									templ.KV("bg-green-500", leakTest.GetStatus() == "completed"),
+									templ.KV("bg-indigo-500", leakTest.GetStatus() == "downloading"),
+									templ.KV("bg-gray-600", true),
+								} style={ fmt.Sprintf("width: %.1f%%", leakTest.GetProgress()) }></div>
+							</div>
+							<span class="text-xs text-gray-400">{ fmt.Sprintf("%.1f%%", leakTest.GetProgress()) }</span>
+						</div>
+						<div class="flex items-center justify-between text-xs text-gray-500">
+							<span>Peers: { strconv.FormatInt(int64(leakTest.GetPeers()), 10) }</span>
+							<span>Seeders: { strconv.FormatInt(int64(leakTest.GetSeeders()), 10) }</span>
+							<span>{ formatSpeed(leakTest.GetDownloadRate()) }</span>
+						</div>
+						<div class="flex items-center gap-2 pt-1">
+							<a href="https://ipleak.net" target="_blank" class="flex-1 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white text-center hover:bg-indigo-500 transition-colors">Check ipleak.net</a>
+							<button hx-post="/downloads/ipleak/remove" hx-target="#ipleak-panel" hx-swap="outerHTML" class="rounded-lg border border-red-800/50 px-3 py-2 text-xs font-medium text-red-400 hover:bg-red-900/20 transition-colors">Remove Test Torrent</button>
+						</div>
+					</div>
+				} else {
+					<div class="space-y-3">
+						<p class="text-xs text-gray-500">Add a test torrent to verify your VPN is masking your real IP. The torrent will be labeled for easy removal.</p>
+						<form hx-post="/downloads/ipleak/start" hx-target="#ipleak-panel" hx-swap="outerHTML" class="space-y-3">
+							<div>
+								<label class="block text-xs text-gray-500 mb-1">Test Magnet URI</label>
+								<input type="text" name="uri" placeholder="magnet:?xt=urn:btih:..." value="magnet:?xt=urn:btih:679c4d9c02a7a52aa6227e42360735c2a8f600df&dn=ubuntu-24.04-desktop-amd64.iso" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-xs text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"/>
+							</div>
+							<button type="submit" class="w-full rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-500 transition-colors">Start IP Leak Test</button>
+						</form>
+					</div>
+				}
+			</div>
+		</details>
+	</div>
+}
+
+func formatBytes(b int64) string {
+	switch {
+	case b >= 1<<30:
+		return fmt.Sprintf("%.1f GB", float64(b)/float64(1<<30))
+	case b >= 1<<20:
+		return fmt.Sprintf("%.1f MB", float64(b)/float64(1<<20))
+	case b >= 1<<10:
+		return fmt.Sprintf("%.1f KB", float64(b)/float64(1<<10))
+	default:
+		return fmt.Sprintf("%d B", b)
+	}
+}
+
+func formatSpeed(b int32) string {
+	if b == 0 {
+		return "-"
+	}
+	return formatBytes(int64(b)) + "/s"
+}
