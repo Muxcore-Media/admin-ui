@@ -28,11 +28,12 @@ templ QualityDefinitionsPanel(defs []QualityDefinition) {
 		<div class="p-5 space-y-3">
 			for _, d := range defs {
 				<form
-					hx-post={ templ.SafeURL("/quality-profiles/defs/" + d.ID) }
+					hx-post="/quality-profiles/defs"
 					hx-target="closest form"
 					hx-swap="outerHTML"
 					class="rounded-lg border border-gray-800 bg-gray-900/30 p-3"
 				>
+					<input type="hidden" name="id" value={ d.ID }/>
 					<div class="flex items-center gap-3">
 						<input type="text" name="name" value={ d.Name } class="flex-1 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-white"/>
 						<div class="flex items-center gap-1">

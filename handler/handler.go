@@ -213,7 +213,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /quality-profiles/create", h.requireAuth(h.QualityProfileCreate))
 	mux.HandleFunc("POST /quality-profiles/{id}/update", h.requireAuth(h.QualityProfileUpdate))
 	mux.HandleFunc("DELETE /quality-profiles/{id}", h.requireAuth(h.QualityProfileDelete))
-	mux.HandleFunc("POST /quality-profiles/defs/{id}", h.requireAuth(h.QualityDefUpdate))
+	mux.HandleFunc("POST /quality-profiles/defs", h.requireAuth(h.QualityDefUpdate))
 	mux.HandleFunc("GET /quality-profiles/{id}/edit", h.requireAuth(h.QualityProfileEditForm))
 	mux.HandleFunc("GET /api/quality-profiles", h.requireAuth(h.QualityProfilesJSON))
 

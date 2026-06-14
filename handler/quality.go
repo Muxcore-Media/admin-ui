@@ -131,13 +131,13 @@ func (h *Handler) QualityProfileDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) QualityDefUpdate(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
 	if err := r.ParseForm(); err != nil {
 		toast(w, "error", "Invalid form")
 		http.Redirect(w, r, "/quality-profiles", http.StatusSeeOther)
 		return
 	}
 
+	id := r.FormValue("id")
 	res, _ := strconv.Atoi(r.FormValue("resolution"))
 	h.Quality.UpdateDefinition(QualityDefinition{
 		ID:         id,
