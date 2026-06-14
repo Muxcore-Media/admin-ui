@@ -1,10 +1,13 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sync"
+	"time"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
@@ -32,38 +35,64 @@ type updateSettingReq struct {
 }
 
 func (h *Handler) SettingsPage(w http.ResponseWriter, r *http.Request) {
-	modules, err := h.Core.Discovery.FindByCapability(r.Context(), capSettings)
+	discCtx, discCancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer discCancel()
+
+	modules, err := h.Core.Discovery.FindByCapability(discCtx, capSettings)
 	if err != nil {
 		slog.Warn("settings: FindByCapability failed", "error", err)
 	}
 
-	var groups []templates.SettingsModuleGroup
+	type modResult struct {
+		ID   string
+		Name string
+		Defs []settingDefJSON
+	}
+
+	resultCh := make(chan modResult, len(modules))
+	var wg sync.WaitGroup
+
 	for _, mod := range modules {
+		wg.Add(1)
+		modID := mod.GetId()
+		modName := mod.GetName()
+		go func() {
+			defer wg.Done()
+			meshCtx, meshCancel := context.WithTimeout(r.Context(), 3*time.Second)
+			defer meshCancel()
+
+			raw, err := h.Core.Mesh.Call(meshCtx, modID, methodGet, nil)
+			if err != nil {
+				slog.Warn("settings: mesh call failed", "module", modID, "error", err)
+				return
+			}
+
+			var defs []settingDefJSON
+			if err := json.Unmarshal(raw, &defs); err != nil {
+				slog.Warn("settings: unmarshal failed", "module", modID, "error", err)
+				return
+			}
+			resultCh <- modResult{ID: modID, Name: modName, Defs: defs}
+		}()
+	}
+
+	wg.Wait()
+	close(resultCh)
+
+	var groups []templates.SettingsModuleGroup
+	for res := range resultCh {
 		mg := templates.SettingsModuleGroup{
-			ModuleID:   mod.GetId(),
-			ModuleName: mod.GetName(),
+			ModuleID:   res.ID,
+			ModuleName: res.Name,
 			Groups:     make(map[string][]templates.SettingField),
 		}
-
-		raw, err := h.Core.Mesh.Call(r.Context(), mod.GetId(), methodGet, nil)
-		if err != nil {
-			slog.Warn("settings: mesh call failed", "module", mod.GetId(), "error", err)
-			continue
-		}
-
-		var defs []settingDefJSON
-		if err := json.Unmarshal(raw, &defs); err != nil {
-			slog.Warn("settings: unmarshal failed", "module", mod.GetId(), "error", err)
-			continue
-		}
-
-		for _, d := range defs {
+		for _, d := range res.Defs {
 			group := d.Group
 			if group == "" {
 				group = "General"
 			}
 			f := templates.SettingField{
-				ModuleID:    mod.GetId(),
+				ModuleID:    res.ID,
 				Key:         d.Key,
 				Label:       d.Label,
 				Type:        d.Type,
@@ -76,7 +105,6 @@ func (h *Handler) SettingsPage(w http.ResponseWriter, r *http.Request) {
 			}
 			mg.Groups[group] = append(mg.Groups[group], f)
 		}
-
 		groups = append(groups, mg)
 	}
 

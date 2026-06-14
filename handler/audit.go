@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -45,7 +46,10 @@ func (h *Handler) AuditPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	mod, err := h.Core.Discovery.FindByCapability(r.Context(), capAudit)
+	discCtx, discCancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer discCancel()
+
+	mod, err := h.Core.Discovery.FindByCapability(discCtx, capAudit)
 	if err != nil || len(mod) == 0 {
 		slog.Warn("audit: no audit module found")
 		nav := h.nav(r.URL.Path)
@@ -79,7 +83,10 @@ func (h *Handler) AuditPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	raw, err := h.Core.Mesh.Call(r.Context(), mod[0].GetId(), methodQuery, payload)
+	meshCtx, meshCancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer meshCancel()
+
+	raw, err := h.Core.Mesh.Call(meshCtx, mod[0].GetId(), methodQuery, payload)
 	if err != nil {
 		slog.Warn("audit: mesh call failed", "error", err)
 	}

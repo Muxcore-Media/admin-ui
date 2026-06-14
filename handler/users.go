@@ -1,14 +1,28 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
+
+	"google.golang.org/grpc"
 
 	authv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/auth/v1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
+
+func grpcContext(r *http.Request) context.Context {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	go func() { <-ctx.Done(); cancel() }()
+	return ctx
+}
+
+func (h *Handler) authClientRequest(r *http.Request) (authv1.AuthServiceClient, *grpc.ClientConn, error) {
+	return h.authClient(grpcContext(r))
+}
 
 func (h *Handler) UsersCreateForm(w http.ResponseWriter, r *http.Request) {
 	component := templates.UserCreateForm()
@@ -17,15 +31,15 @@ func (h *Handler) UsersCreateForm(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) UsersDetail(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
-	ctx := r.Context()
 
-	client, _, err := h.authClient(ctx)
+	client, _, err := h.authClientRequest(r)
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
 
-	resp, err := client.ListUsers(ctx, &authv1.ListUsersRequest{})
+	gctx := grpcContext(r)
+	resp, err := client.ListUsers(gctx, &authv1.ListUsersRequest{})
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">list users failed</div>`))
 		return
@@ -44,13 +58,14 @@ func (h *Handler) UsersDetail(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) UsersTOTPStatus(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
-	client, _, err := h.authClient(r.Context())
+	gctx := grpcContext(r)
+	client, _, err := h.authClient(gctx)
 	if err != nil {
 		w.Write([]byte(`<span class="text-xs text-red-400">auth unavailable</span>`))
 		return
 	}
 
-	status, err := client.TOTPStatus(r.Context(), &authv1.TOTPStatusRequest{UserId: userID})
+	status, err := client.TOTPStatus(gctx, &authv1.TOTPStatusRequest{UserId: userID})
 	if err != nil {
 		w.Write([]byte(`<span class="text-xs text-red-400">totp status failed</span>`))
 		return
@@ -63,7 +78,7 @@ func (h *Handler) UsersTOTPStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UsersPage(w http.ResponseWriter, r *http.Request) {
-	client, _, err := h.authClient(r.Context())
+	client, _, err := h.authClientRequest(r)
 	if err != nil {
 		slog.Warn("users: auth client failed", "error", err)
 		content := templates.UsersPage(nil, "")
@@ -73,7 +88,8 @@ func (h *Handler) UsersPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := client.ListUsers(r.Context(), &authv1.ListUsersRequest{})
+	gctx := grpcContext(r)
+	resp, err := client.ListUsers(gctx, &authv1.ListUsersRequest{})
 	if err != nil {
 		slog.Warn("users: ListUsers failed", "error", err)
 		content := templates.UsersPage(nil, "")
@@ -96,7 +112,8 @@ func (h *Handler) UsersCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, _, err := h.authClient(r.Context())
+	gctx := grpcContext(r)
+	client, _, err := h.authClient(gctx)
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
@@ -109,7 +126,7 @@ func (h *Handler) UsersCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := client.CreateUser(r.Context(), &authv1.CreateUserRequest{
+	resp, err := client.CreateUser(gctx, &authv1.CreateUserRequest{
 		Username: username,
 		Password: password,
 	})
@@ -138,7 +155,7 @@ func (h *Handler) UsersCreate(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UsersDelete(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
 
-	client, _, err := h.authClient(r.Context())
+	client, _, err := h.authClientRequest(r)
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
@@ -173,7 +190,7 @@ func (h *Handler) UsersSetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, _, err := h.authClient(r.Context())
+	client, _, err := h.authClientRequest(r)
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
@@ -217,7 +234,7 @@ func (h *Handler) UsersSetRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, _, err := h.authClient(r.Context())
+	client, _, err := h.authClientRequest(r)
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
@@ -252,7 +269,7 @@ func (h *Handler) UsersSetRoles(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UsersTOTP(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
 
-	client, _, err := h.authClient(r.Context())
+	client, _, err := h.authClientRequest(r)
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
@@ -301,7 +318,7 @@ func (h *Handler) UsersTOTP(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UsersTokens(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
 
-	client, _, err := h.authClient(r.Context())
+	client, _, err := h.authClientRequest(r)
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
