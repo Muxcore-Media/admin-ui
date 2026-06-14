@@ -120,7 +120,7 @@ func main() {
 	met := newMetrics()
 	csrfKey := generateCSRFKey()
 
-	h := handler.New(coreClient, ss, cfg.TLSCert != "" || !cfg.Insecure, version, met, coreConnected, cfg.AuthAddr, cfg.AuthPublicURL, cfg.TrustedAuthHeader, loginRL.Reset)
+	h := handler.New(coreClient, ss, cfg.TLSCert != "" || !cfg.Insecure, version, met, coreConnected, cfg.AuthAddr, cfg.AuthPublicURL, cfg.TrustedAuthHeader, loginRL.Reset, cfg.CoreAddr)
 
 	mux := http.NewServeMux()
 
@@ -353,8 +353,6 @@ func isMutatingEndpoint(path string) bool {
 		return true
 	case hasPrefix(path, "/media/"):
 		return true
-	case hasPrefix(path, "/downloads/"):
-		return true
 	case hasPrefix(path, "/scheduler/"):
 		return true
 	case hasPrefix(path, "/backups/"):
@@ -364,6 +362,8 @@ func isMutatingEndpoint(path string) bool {
 	case hasPrefix(path, "/quality-profiles/"):
 		return true
 	case hasPrefix(path, "/tags/"):
+		return true
+	case hasPrefix(path, "/marketplace/"):
 		return true
 	case hasPrefix(path, "/api/"):
 		return true

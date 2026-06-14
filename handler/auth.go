@@ -22,10 +22,10 @@ const (
 )
 
 var staticNavLinks = []templates.NavLink{
+	{Label: "Marketplace", Path: "/marketplace", Icon: "#"},
 	{Label: "Dashboard", Path: "/", Icon: "#"},
 	{Label: "Modules", Path: "/modules", Icon: "#"},
 	{Label: "Cluster", Path: "/cluster", Icon: "#"},
-	{Label: "Downloads", Path: "/downloads", Icon: "#"},
 	{Label: "Scheduler", Path: "/scheduler", Icon: "#"},
 	{Label: "Events", Path: "/events", Icon: "#"},
 	{Label: "Storage", Path: "/storage", Icon: "#"},

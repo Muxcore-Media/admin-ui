@@ -95,14 +95,18 @@ type Handler struct {
 	connCache   map[string]*grpc.ClientConn
 	connCacheMu sync.Mutex
 
-	Quality *QualityStore
-	Tags    *TagStore
+	Quality    *QualityStore
+	Tags       *TagStore
+	Marketplace *SpoolStore
+	CoreAddr   string
 }
 
-func New(core *client.Client, store *session.Store, secure bool, version string, lm LoginMetrics, connected bool, authAddr, authPublicURL, trustedAuthHeader string, resetLoginRate func(ip string)) *Handler {
+func New(core *client.Client, store *session.Store, secure bool, version string, lm LoginMetrics, connected bool, authAddr, authPublicURL, trustedAuthHeader string, resetLoginRate func(ip string), coreAddr string) *Handler {
 	h := &Handler{
-		Quality:           NewQualityStore(),
-		Tags:              NewTagStore(),
+		Quality:    NewQualityStore(),
+		Tags:       NewTagStore(),
+		Marketplace: NewSpoolStore(),
+		CoreAddr:   coreAddr,
 		Core:              core,
 		Sessions:          store,
 		secure:            secure,
@@ -161,12 +165,6 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /media/{moduleID}/{id}", h.requireAuth(h.MediaLibraryItem))
 	mux.HandleFunc("POST /media/{moduleID}/{id}/metadata", h.requireAuth(h.MediaLibraryUpdate))
 	mux.HandleFunc("GET /media/{moduleID}/{id}/artwork", h.requireAuth(h.MediaLibraryArtwork))
-	mux.HandleFunc("GET /media/{moduleID}/search", h.requireAuth(h.MediaSearchAdd))
-	mux.HandleFunc("POST /media/{moduleID}/add", h.requireAuth(h.MediaAdd))
-	mux.HandleFunc("POST /media/{moduleID}/{id}/delete", h.requireAuth(h.MediaDelete))
-	mux.HandleFunc("POST /media/{moduleID}/{id}/refresh", h.requireAuth(h.MediaRefresh))
-	mux.HandleFunc("GET /media/{moduleID}/{id}/search-indexers", h.requireAuth(h.MediaSearchIndexers))
-	mux.HandleFunc("POST /media/{moduleID}/{id}/download", h.requireAuth(h.MediaDownload))
 
 	mux.HandleFunc("GET /users", h.requireAuth(h.UsersPage))
 	mux.HandleFunc("GET /users/create-form", h.requireAuth(h.UsersCreateForm))
@@ -186,19 +184,6 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/auth/passkey/register/{id}/complete", h.requireAuth(h.PasskeyCompleteRegister))
 
 	mux.HandleFunc("GET /search", h.requireAuth(h.Search))
-	mux.HandleFunc("GET /downloads", h.requireAuth(h.DownloadsPage))
-	mux.HandleFunc("GET /downloads/list", h.requireAuth(h.TorrentList))
-	mux.HandleFunc("GET /downloads/add-form", h.requireAuth(h.TorrentAddForm))
-	mux.HandleFunc("POST /downloads/add", h.requireAuth(h.TorrentAdd))
-	mux.HandleFunc("GET /downloads/{id}", h.requireAuth(h.TorrentDetail))
-	mux.HandleFunc("DELETE /downloads/{id}", h.requireAuth(h.TorrentDelete))
-	mux.HandleFunc("POST /downloads/{id}/delete", h.requireAuth(h.TorrentDelete))
-	mux.HandleFunc("GET /downloads/vpn", h.requireAuth(h.VpnPanel))
-	mux.HandleFunc("POST /downloads/vpn/start", h.requireAuth(h.VpnStart))
-	mux.HandleFunc("POST /downloads/vpn/stop", h.requireAuth(h.VpnStop))
-	mux.HandleFunc("POST /downloads/ipleak/start", h.requireAuth(h.IpLeakTestStart))
-	mux.HandleFunc("POST /downloads/ipleak/remove", h.requireAuth(h.IpLeakTestRemove))
-
 	mux.HandleFunc("GET /scheduler", h.requireAuth(h.SchedulerPage))
 	mux.HandleFunc("GET /scheduler/add-form", h.requireAuth(h.SchedulerAddForm))
 	mux.HandleFunc("POST /scheduler/add", h.requireAuth(h.SchedulerAdd))
@@ -216,6 +201,13 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /quality-profiles/defs", h.requireAuth(h.QualityDefUpdate))
 	mux.HandleFunc("GET /quality-profiles/{id}/edit", h.requireAuth(h.QualityProfileEditForm))
 	mux.HandleFunc("GET /api/quality-profiles", h.requireAuth(h.QualityProfilesJSON))
+
+	mux.HandleFunc("GET /marketplace", h.requireAuth(h.MarketplacePage))
+	mux.HandleFunc("GET /marketplace/add-form", h.requireAuth(h.MarketplaceAddSpoolForm))
+	mux.HandleFunc("POST /marketplace/add", h.requireAuth(h.MarketplaceAddSpool))
+	mux.HandleFunc("POST /marketplace/remove", h.requireAuth(h.MarketplaceRemoveSpool))
+	mux.HandleFunc("POST /marketplace/tags/{tag}/deploy", h.requireAuth(h.MarketplaceDeployTag))
+	mux.HandleFunc("GET /marketplace/tags/{tag}", h.requireAuth(h.MarketplaceTagDetail))
 
 	mux.HandleFunc("GET /tags", h.requireAuth(h.TagsPage))
 	mux.HandleFunc("POST /tags/create", h.requireAuth(h.TagsCreate))

@@ -1,0 +1,180 @@
+package templates
+
+type SpoolData struct {
+	URL     string
+	Catalog *CatalogData
+	Error   string
+}
+
+type CatalogData struct {
+	Name        string
+	Description string
+	Version     string
+	Modules     []CatalogModuleData
+}
+
+type CatalogModuleData struct {
+	Repo    string
+	Name    string
+	Version string
+}
+
+templ MarketplacePage(spools []SpoolData) {
+	<div class="space-y-6">
+		<div class="flex items-center justify-between">
+			<div>
+				<h1 class="text-2xl font-bold">Marketplace</h1>
+				<p class="text-gray-400 text-sm mt-1">Browse and deploy modules from spools</p>
+			</div>
+			<button
+				hx-get="/marketplace/add-form"
+				hx-target="#main-content"
+				hx-swap="beforeend"
+				class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
+			>Add Spool</button>
+		</div>
+
+		for _, spool := range spools {
+			@SpoolSection(spool)
+		}
+
+		if len(spools) == 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
+				<p class="text-gray-400">No spools configured.</p>
+			</div>
+		}
+	</div>
+}
+
+templ SpoolSection(spool SpoolData) {
+	<div class="rounded-xl border border-gray-800 bg-gray-900/50 overflow-hidden">
+		<div class="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+			<div>
+				<h2 class="text-lg font-semibold">{ spoolTitle(spool.Catalog) }</h2>
+				<p class="text-xs text-gray-500 font-mono mt-0.5">{ spool.URL }</p>
+			</div>
+			if spool.URL != officialSpoolURL() {
+				<button
+					hx-post={ templ.SafeURL("/marketplace/remove?url=" + spool.URL) }
+					class="text-xs text-red-400 hover:text-red-300"
+				>Remove</button>
+			}
+		</div>
+
+		<div class="p-5">
+			if spool.Error != "" {
+				<div class="text-sm text-red-400">{ spool.Error }</div>
+			} else if spool.Catalog != nil {
+				if spool.Catalog.Description != "" {
+					<p class="text-sm text-gray-400 mb-4">{ spool.Catalog.Description }</p>
+				}
+				if len(spool.Catalog.Modules) == 0 {
+					<p class="text-sm text-gray-500">No modules in catalog.</p>
+				} else {
+					<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+						for _, mod := range spool.Catalog.Modules {
+							@MarketplaceModuleCard(mod)
+						}
+					</div>
+				}
+			}
+		</div>
+	</div>
+}
+
+templ MarketplaceModuleCard(mod CatalogModuleData) {
+	<div class="rounded-lg border border-gray-800 bg-gray-900/30 p-3 hover:border-gray-700 transition-colors">
+		<div class="flex items-start justify-between">
+			<div class="min-w-0 flex-1">
+				<h3 class="text-sm font-semibold text-gray-200 truncate">{ mod.Name }</h3>
+				<p class="text-xs text-gray-500 font-mono truncate mt-0.5">{ mod.Repo }</p>
+			</div>
+			<span class="text-xs text-gray-500 ml-2 shrink-0">{ mod.Version }</span>
+		</div>
+	</div>
+}
+
+templ AddSpoolModal() {
+	<div id="add-spool-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onclick="if(event.target===this)this.remove()">
+		<div class="rounded-xl border border-gray-800 bg-gray-900 p-6 w-full max-w-lg mx-4" onclick="event.stopPropagation()">
+			<div class="flex items-center justify-between mb-4">
+				<h2 class="text-lg font-semibold">Add Spool</h2>
+				<button onclick="this.closest('#add-spool-modal').remove()" class="text-gray-500 hover:text-gray-300">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+				</button>
+			</div>
+			<form
+				hx-post="/marketplace/add"
+				hx-target="#main-content"
+				hx-swap="innerHTML"
+				hx-on::after-request="document.getElementById('add-spool-modal')?.remove()"
+				class="space-y-4"
+			>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Spool URL</label>
+					<input
+						type="url" name="url" required
+						placeholder="https://raw.githubusercontent.com/org/spool/main"
+						class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+					/>
+					<p class="text-xs text-gray-600 mt-1">URL pointing to a spool repository root containing <code class="text-gray-500">catalog.json</code> and <code class="text-gray-500">tags/</code>.</p>
+				</div>
+				<button type="submit" class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors">Add Spool</button>
+			</form>
+		</div>
+	</div>
+}
+
+templ MarketplaceTagDetail(tag TagFileData) {
+	<div class="space-y-6 max-w-3xl">
+		<a href="/marketplace" hx-get="/marketplace" hx-target="#main-content" hx-swap="innerHTML" class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Back to marketplace</a>
+
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6">
+			<h1 class="text-2xl font-bold">{ tag.Name }</h1>
+			<p class="text-gray-400 text-sm mt-1">{ tag.Description }</p>
+
+			<div class="mt-4 space-y-2">
+				for _, mod := range tag.Modules {
+					<div class="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900/30 p-3">
+						<div>
+							<span class="text-sm text-gray-200 font-mono">{ mod.Repo }</span>
+							<span class="text-xs text-gray-500 ml-2">{ mod.Version }</span>
+						</div>
+						if mod.Required {
+							<span class="text-xs text-yellow-400">Required</span>
+						}
+					</div>
+				}
+			</div>
+
+			<button
+				hx-post={ templ.SafeURL("/marketplace/tags/" + tag.Name + "/deploy") }
+				class="mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
+			>Deploy Tag</button>
+		</div>
+	</div>
+}
+
+type TagFileData struct {
+	Name        string
+	Description string
+	Version     string
+	Modules     []TagFileModuleData
+}
+
+type TagFileModuleData struct {
+	Repo     string
+	Version  string
+	Required bool
+}
+
+func spoolTitle(c *CatalogData) string {
+	if c != nil {
+		return c.Name
+	}
+	return "Spool"
+}
+
+func officialSpoolURL() string {
+	return "https://raw.githubusercontent.com/Muxcore-Media/spool/main"
+}
