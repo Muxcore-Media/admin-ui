@@ -35,7 +35,7 @@ type updateSettingReq struct {
 }
 
 func (h *Handler) SettingsPage(w http.ResponseWriter, r *http.Request) {
-	discCtx, discCancel := context.WithTimeout(r.Context(), 5*time.Second)
+	discCtx, discCancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer discCancel()
 
 	modules, err := h.Core.Discovery.FindByCapability(discCtx, capSettings)
@@ -58,7 +58,7 @@ func (h *Handler) SettingsPage(w http.ResponseWriter, r *http.Request) {
 		modName := mod.GetName()
 		go func() {
 			defer wg.Done()
-			meshCtx, meshCancel := context.WithTimeout(r.Context(), 3*time.Second)
+			meshCtx, meshCancel := context.WithTimeout(r.Context(), 2*time.Second)
 			defer meshCancel()
 
 			raw, err := h.Core.Mesh.Call(meshCtx, modID, methodGet, nil)

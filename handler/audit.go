@@ -46,7 +46,7 @@ func (h *Handler) AuditPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	discCtx, discCancel := context.WithTimeout(r.Context(), 5*time.Second)
+	discCtx, discCancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer discCancel()
 
 	mod, err := h.Core.Discovery.FindByCapability(discCtx, capAudit)
@@ -83,7 +83,7 @@ func (h *Handler) AuditPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	meshCtx, meshCancel := context.WithTimeout(r.Context(), 5*time.Second)
+	meshCtx, meshCancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer meshCancel()
 
 	raw, err := h.Core.Mesh.Call(meshCtx, mod[0].GetId(), methodQuery, payload)

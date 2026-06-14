@@ -15,7 +15,7 @@ import (
 )
 
 func grpcContext(r *http.Request) context.Context {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	go func() { <-ctx.Done(); cancel() }()
 	return ctx
 }
