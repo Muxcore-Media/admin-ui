@@ -155,8 +155,9 @@ func (h *Handler) MediaLibraryItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	profiles := h.listProfileOptions(ctx)
+	roots := h.listRootOptions(ctx, mediaKindFromModule(moduleID, displayName))
 
-	content := templates.MediaDetailPage(item.GetItem(), moduleID, history, profiles, features, displayName)
+	content := templates.MediaDetailPage(item.GetItem(), moduleID, history, profiles, roots, features, displayName)
 	nav := h.nav(r.URL.Path)
 	component := templates.Layout(item.GetItem().GetTitle()+" — "+displayName, nav, content)
 	h.render(w, r, component)

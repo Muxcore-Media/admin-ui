@@ -163,7 +163,7 @@ templ MediaItemCard(item *mediaadminv1.MediaItem, moduleID string) {
 	</a>
 }
 
-templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []ActivityEntry, profiles []ProfileOption, features []string, displayName string) {
+templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []ActivityEntry, profiles []ProfileOption, roots []RootOption, features []string, displayName string) {
 	<div class="space-y-6">
 		@MediaSubnav(moduleID, displayName, features, "")
 		<a href={ templ.SafeURL(fmt.Sprintf("/media/%s", moduleID)) } class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Back</a>
@@ -231,6 +231,20 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 												<option value={ p.ID } selected>{ p.Name }</option>
 											} else {
 												<option value={ p.ID }>{ p.Name }</option>
+											}
+										}
+									</select>
+								</div>
+							} else if k == "root_folder_path" && len(roots) > 0 {
+								<div>
+									<label class="block text-xs text-gray-500 mb-1">Root Folder</label>
+									<select name="root_folder_path" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+										<option value="">—</option>
+										for _, root := range roots {
+											if root.Path == v {
+												<option value={ root.Path } selected>{ root.Name } ({ root.Path })</option>
+											} else {
+												<option value={ root.Path }>{ root.Name } ({ root.Path })</option>
 											}
 										}
 									</select>
