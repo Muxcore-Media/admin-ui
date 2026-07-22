@@ -119,6 +119,21 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /formats/profiles/{id}", h.requireAuth(h.ProfileUpdate))
 	mux.HandleFunc("POST /formats/profiles/{id}/delete", h.requireAuth(h.ProfileDelete))
 
+	mux.HandleFunc("GET /roots", h.requireAuth(h.RootsList))
+	mux.HandleFunc("GET /roots/new", h.requireAuth(h.RootNew))
+	mux.HandleFunc("POST /roots", h.requireAuth(h.RootCreate))
+	mux.HandleFunc("GET /roots/browse", h.requireAuth(h.RootsBrowse))
+	mux.HandleFunc("GET /roots/{id}", h.requireAuth(h.RootEdit))
+	mux.HandleFunc("POST /roots/{id}", h.requireAuth(h.RootUpdate))
+	mux.HandleFunc("POST /roots/{id}/delete", h.requireAuth(h.RootDelete))
+
+	mux.HandleFunc("GET /rename/templates", h.requireAuth(h.NamingTemplatesList))
+	mux.HandleFunc("GET /rename/templates/new", h.requireAuth(h.NamingTemplateNew))
+	mux.HandleFunc("POST /rename/templates", h.requireAuth(h.NamingTemplateCreate))
+	mux.HandleFunc("GET /rename/templates/{id}", h.requireAuth(h.NamingTemplateEdit))
+	mux.HandleFunc("POST /rename/templates/{id}", h.requireAuth(h.NamingTemplateUpdate))
+	mux.HandleFunc("POST /rename/templates/{id}/delete", h.requireAuth(h.NamingTemplateDelete))
+
 	mux.HandleFunc("GET /users", h.requireAuth(h.UsersPage))
 	mux.HandleFunc("GET /users/create-form", h.requireAuth(h.UsersCreateForm))
 	mux.HandleFunc("POST /users", h.requireAuth(h.UsersCreate))

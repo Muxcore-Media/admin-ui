@@ -1,0 +1,104 @@
+package templates
+
+import (
+	"fmt"
+
+	renamev1 "github.com/Muxcore-Media/media-rename/proto/renamev1"
+)
+
+templ NamingTemplatesListPage(items []*renamev1.NamingTemplate, errMsg string) {
+	<div class="space-y-6">
+		<div class="flex items-center justify-between">
+			<div>
+				<h1 class="text-2xl font-bold">Naming Templates</h1>
+				<p class="text-gray-400 text-sm mt-1">Patterns from media-rename</p>
+			</div>
+			<a href="/rename/templates/new" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">New template</a>
+		</div>
+		if errMsg != "" {
+			<div class="rounded-xl border border-amber-800 bg-amber-950/40 p-4 text-sm text-amber-200">{ errMsg }</div>
+		}
+		if len(items) == 0 && errMsg == "" {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
+				<p class="text-gray-400">No naming templates.</p>
+			</div>
+		} else if len(items) > 0 {
+			<ul class="space-y-2">
+				for _, t := range items {
+					<li class="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3">
+						<div>
+							<a href={ templ.SafeURL(fmt.Sprintf("/rename/templates/%s", t.GetId())) } class="font-medium text-indigo-400 hover:text-indigo-300">
+								{ t.GetName() }
+							</a>
+							<p class="text-xs text-gray-500 mt-1">
+								{ t.GetMediaType() }
+								if t.GetIsDefault() {
+									<span class="text-emerald-400"> · default</span>
+								}
+							</p>
+							<p class="text-xs text-gray-500 mt-1 font-mono truncate max-w-xl">{ t.GetPattern() }</p>
+						</div>
+						<form method="post" action={ templ.SafeURL(fmt.Sprintf("/rename/templates/%s/delete", t.GetId())) }>
+							<button type="submit" class="text-xs text-red-400 hover:text-red-300">Delete</button>
+						</form>
+					</li>
+				}
+			</ul>
+		}
+	</div>
+}
+
+templ NamingTemplateEditPage(tpl *renamev1.NamingTemplate, isNew bool, errMsg string) {
+	<div class="space-y-6 max-w-xl">
+		<a href="/rename/templates" class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Templates</a>
+		if isNew {
+			<h1 class="text-2xl font-bold">New naming template</h1>
+		} else {
+			<h1 class="text-2xl font-bold">Edit { tpl.GetName() }</h1>
+		}
+		if errMsg != "" {
+			<div class="rounded-xl border border-red-800 bg-red-950/40 p-4 text-sm text-red-200">{ errMsg }</div>
+		}
+		<form
+			if isNew {
+				method="post" action="/rename/templates" class="space-y-4"
+			} else {
+				method="post" action={ templ.SafeURL(fmt.Sprintf("/rename/templates/%s", tpl.GetId())) } class="space-y-4"
+			}
+		>
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">Name</label>
+				<input type="text" name="name" required value={ tpl.GetName() }
+					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+			</div>
+			if isNew {
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Media type</label>
+					<select name="media_type" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+						if tpl.GetMediaType() == "tv" {
+							<option value="movie">movie</option>
+							<option value="tv" selected>tv</option>
+						} else {
+							<option value="movie" selected>movie</option>
+							<option value="tv">tv</option>
+						}
+					</select>
+				</div>
+			}
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">Pattern</label>
+				<textarea name="pattern" rows="3" required class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-mono"
+				>{ tpl.GetPattern() }</textarea>
+			</div>
+			<label class="flex items-center gap-2 text-sm text-gray-300">
+				if tpl.GetIsDefault() {
+					<input type="checkbox" name="is_default" value="1" checked/>
+				} else {
+					<input type="checkbox" name="is_default" value="1"/>
+				}
+				Default for media type
+			</label>
+			<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Save</button>
+		</form>
+	</div>
+}

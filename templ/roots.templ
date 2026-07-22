@@ -1,0 +1,176 @@
+package templates
+
+import (
+	"fmt"
+
+	rootsv1 "github.com/Muxcore-Media/media-root-folders/proto/rootsv1"
+)
+
+func formatBytes(n int64) string {
+	if n <= 0 {
+		return "—"
+	}
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for v := n / unit; v >= unit; v /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGTPE"[exp])
+}
+
+templ RootsListPage(roots []*rootsv1.RootFolder, errMsg string) {
+	<div class="space-y-6">
+		<div class="flex items-center justify-between">
+			<div>
+				<h1 class="text-2xl font-bold">Root Folders</h1>
+				<p class="text-gray-400 text-sm mt-1">Library paths from media-root-folders</p>
+			</div>
+			<a href="/roots/new" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Add root</a>
+		</div>
+		if errMsg != "" {
+			<div class="rounded-xl border border-amber-800 bg-amber-950/40 p-4 text-sm text-amber-200">{ errMsg }</div>
+		}
+		if len(roots) == 0 && errMsg == "" {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
+				<p class="text-gray-400">No root folders registered.</p>
+			</div>
+		} else if len(roots) > 0 {
+			<ul class="space-y-2">
+				for _, r := range roots {
+					<li class="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3">
+						<div>
+							<a href={ templ.SafeURL(fmt.Sprintf("/roots/%s", r.GetId())) } class="font-medium text-indigo-400 hover:text-indigo-300">
+								{ r.GetName() }
+							</a>
+							<p class="text-xs text-gray-500 mt-1 font-mono">{ r.GetPath() }</p>
+							<p class="text-xs text-gray-500 mt-1">
+								{ r.GetMediaKind() }
+								if r.GetAccessible() {
+									<span class="text-emerald-400"> · accessible</span>
+									<span> · free { formatBytes(r.GetFreeBytes()) } / { formatBytes(r.GetTotalBytes()) }</span>
+								} else {
+									<span class="text-amber-400"> · inaccessible</span>
+								}
+							</p>
+						</div>
+						<form method="post" action={ templ.SafeURL(fmt.Sprintf("/roots/%s/delete", r.GetId())) }>
+							<button type="submit" class="text-xs text-red-400 hover:text-red-300">Delete</button>
+						</form>
+					</li>
+				}
+			</ul>
+		}
+	</div>
+}
+
+templ RootsBrowsePartial(resp *rootsv1.BrowsePathResponse, errMsg string) {
+	<div id="roots-browser" class="rounded-xl border border-gray-800 bg-gray-900/50 p-3 space-y-2">
+		if errMsg != "" {
+			<p class="text-sm text-red-300">{ errMsg }</p>
+		}
+		if resp != nil {
+			<div class="flex items-center gap-2 text-xs text-gray-400">
+				<span class="font-mono truncate">{ resp.GetPath() }</span>
+				if resp.GetParent() != "" {
+					<button
+						type="button"
+						class="text-indigo-400 hover:text-indigo-300"
+						hx-get={ templ.SafeURL("/roots/browse?path=" + resp.GetParent()) }
+						hx-target="#roots-browser"
+						hx-swap="outerHTML"
+					>Up</button>
+				}
+			</div>
+			<ul class="max-h-48 overflow-y-auto space-y-1">
+				for _, e := range resp.GetEntries() {
+					<li>
+						<button
+							type="button"
+							class="w-full text-left text-sm text-gray-200 hover:bg-gray-800 rounded px-2 py-1 font-mono"
+							data-path={ e.GetPath() }
+							hx-get={ templ.SafeURL("/roots/browse?path=" + e.GetPath()) }
+							hx-target="#roots-browser"
+							hx-swap="outerHTML"
+							onclick="document.getElementById('root-path').value=this.dataset.path"
+						>{ e.GetName() }/</button>
+					</li>
+				}
+			</ul>
+			<button
+				type="button"
+				class="text-xs text-indigo-400 hover:text-indigo-300"
+				data-path={ resp.GetPath() }
+				onclick="document.getElementById('root-path').value=this.dataset.path"
+			>Use this path</button>
+		}
+	</div>
+}
+
+templ RootEditPage(root *rootsv1.RootFolder, isNew bool, namingTemplates []NamingTemplateOption, browse *rootsv1.BrowsePathResponse, errMsg string) {
+	<div class="space-y-6 max-w-xl">
+		<a href="/roots" class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Root folders</a>
+		if isNew {
+			<h1 class="text-2xl font-bold">Add root folder</h1>
+		} else {
+			<h1 class="text-2xl font-bold">Edit { root.GetName() }</h1>
+		}
+		if errMsg != "" {
+			<div class="rounded-xl border border-red-800 bg-red-950/40 p-4 text-sm text-red-200">{ errMsg }</div>
+		}
+		<form
+			if isNew {
+				method="post" action="/roots" class="space-y-4"
+			} else {
+				method="post" action={ templ.SafeURL(fmt.Sprintf("/roots/%s", root.GetId())) } class="space-y-4"
+			}
+		>
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">Name</label>
+				<input type="text" name="name" value={ root.GetName() }
+					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+			</div>
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">Path</label>
+				<input id="root-path" type="text" name="path" required value={ root.GetPath() }
+					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-mono"/>
+			</div>
+			@RootsBrowsePartial(browse, "")
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">Media kind</label>
+				<select name="media_kind" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+					if root.GetMediaKind() == "movies" {
+						<option value="any">any</option>
+						<option value="movies" selected>movies</option>
+						<option value="tv">tv</option>
+					} else if root.GetMediaKind() == "tv" {
+						<option value="any">any</option>
+						<option value="movies">movies</option>
+						<option value="tv" selected>tv</option>
+					} else {
+						<option value="any" selected>any</option>
+						<option value="movies">movies</option>
+						<option value="tv">tv</option>
+					}
+				</select>
+			</div>
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">Naming template</label>
+				<select name="naming_template_id" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+					<option value="">Default</option>
+					for _, t := range namingTemplates {
+						if t.ID == root.GetNamingTemplateId() {
+							<option value={ t.ID } selected>{ t.Name } ({ t.MediaType })</option>
+						} else {
+							<option value={ t.ID }>{ t.Name } ({ t.MediaType })</option>
+						}
+					}
+				</select>
+			</div>
+			<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Save</button>
+		</form>
+	</div>
+}
