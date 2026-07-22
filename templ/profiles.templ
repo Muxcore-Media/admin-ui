@@ -1,0 +1,125 @@
+package templates
+
+import (
+	"fmt"
+	"strconv"
+
+	formatsv1 "github.com/Muxcore-Media/media-custom-formats/proto/formatsv1"
+)
+
+templ ProfilesListPage(profiles []*formatsv1.QualityProfile, errMsg string) {
+	<div class="space-y-6">
+		<div class="flex items-center justify-between">
+			<div>
+				<h1 class="text-2xl font-bold">Quality Profiles</h1>
+				<p class="text-gray-400 text-sm mt-1">Scoring profiles from media-custom-formats</p>
+			</div>
+			<a href="/formats/profiles/new" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">New profile</a>
+		</div>
+		if errMsg != "" {
+			<div class="rounded-xl border border-amber-800 bg-amber-950/40 p-4 text-sm text-amber-200">{ errMsg }</div>
+		}
+		if len(profiles) == 0 && errMsg == "" {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
+				<p class="text-gray-400">No quality profiles yet.</p>
+			</div>
+		} else if len(profiles) > 0 {
+			<ul class="space-y-2">
+				for _, p := range profiles {
+					<li class="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3">
+						<div>
+							<a href={ templ.SafeURL(fmt.Sprintf("/formats/profiles/%s", p.GetId())) } class="font-medium text-indigo-400 hover:text-indigo-300">
+								{ p.GetName() }
+							</a>
+							<p class="text-xs text-gray-500 mt-1">
+								min { strconv.Itoa(int(p.GetMinScore())) } · cutoff { strconv.Itoa(int(p.GetCutoffScore())) }
+								if p.GetUpgradeAllowed() {
+									<span> · upgrades on</span>
+								}
+							</p>
+						</div>
+						<form method="post" action={ templ.SafeURL(fmt.Sprintf("/formats/profiles/%s/delete", p.GetId())) }>
+							<button type="submit" class="text-xs text-red-400 hover:text-red-300">Delete</button>
+						</form>
+					</li>
+				}
+			</ul>
+		}
+	</div>
+}
+
+templ ProfileEditPage(profile *formatsv1.QualityProfile, isNew bool, errMsg string) {
+	<div class="space-y-6 max-w-xl">
+		<a href="/formats/profiles" class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Profiles</a>
+		if isNew {
+			<h1 class="text-2xl font-bold">New quality profile</h1>
+		} else {
+			<h1 class="text-2xl font-bold">Edit { profile.GetName() }</h1>
+		}
+		if errMsg != "" {
+			<div class="rounded-xl border border-red-800 bg-red-950/40 p-4 text-sm text-red-200">{ errMsg }</div>
+		}
+		<form
+			if isNew {
+				method="post" action="/formats/profiles" class="space-y-4"
+			} else {
+				method="post" action={ templ.SafeURL(fmt.Sprintf("/formats/profiles/%s", profile.GetId())) } class="space-y-4"
+			}
+		>
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">Name</label>
+				<input type="text" name="name" required value={ profile.GetName() }
+					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+			</div>
+			<div class="grid grid-cols-2 gap-3">
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Min score</label>
+					<input type="number" name="min_score" value={ strconv.Itoa(int(profile.GetMinScore())) }
+						class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Cutoff score</label>
+					<input type="number" name="cutoff_score" value={ strconv.Itoa(int(profile.GetCutoffScore())) }
+						class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+			</div>
+			<div class="grid grid-cols-2 gap-3">
+				<label class="flex items-center gap-2 text-sm text-gray-300">
+					if profile.GetUpgradeAllowed() {
+						<input type="checkbox" name="upgrade_allowed" value="1" checked/>
+					} else {
+						<input type="checkbox" name="upgrade_allowed" value="1"/>
+					}
+					Upgrades allowed
+				</label>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Upgrade delay (minutes)</label>
+					<input type="number" name="upgrade_delay_minutes" value={ strconv.Itoa(int(profile.GetUpgradeDelayMinutes())) }
+						class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+			</div>
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">Format scores (format_id=score per line)</label>
+				<textarea name="format_scores" rows="6" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-mono"
+				>{ formatScoresText(profile.GetFormatScores()) }</textarea>
+			</div>
+			<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Save</button>
+		</form>
+	</div>
+}
+
+func formatScoresText(scores map[string]int32) string {
+	if len(scores) == 0 {
+		return ""
+	}
+	var b string
+	first := true
+	for id, score := range scores {
+		if !first {
+			b += "\n"
+		}
+		first = false
+		b += id + "=" + strconv.Itoa(int(score))
+	}
+	return b
+}

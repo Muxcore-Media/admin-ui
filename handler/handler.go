@@ -97,12 +97,27 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /audit", h.requireAuth(h.AuditPage))
 
+	mux.HandleFunc("GET /activity", h.requireAuth(h.ActivityPage))
+
 	mux.HandleFunc("GET /config", h.requireAuth(h.ConfigPage))
 
 	mux.HandleFunc("GET /media/{moduleID}", h.requireAuth(h.MediaLibraryList))
+	mux.HandleFunc("GET /media/{moduleID}/missing", h.requireAuth(h.MediaMissing))
+	mux.HandleFunc("GET /media/{moduleID}/tags", h.requireAuth(h.MediaTags))
+	mux.HandleFunc("POST /media/{moduleID}/tags", h.requireAuth(h.MediaTagsPost))
+	mux.HandleFunc("GET /media/{moduleID}/collections", h.requireAuth(h.MediaCollections))
+	mux.HandleFunc("GET /media/{moduleID}/collections/{collectionID}", h.requireAuth(h.MediaCollectionDetail))
+	mux.HandleFunc("GET /media/{moduleID}/calendar", h.requireAuth(h.MediaCalendar))
 	mux.HandleFunc("GET /media/{moduleID}/{id}", h.requireAuth(h.MediaLibraryItem))
 	mux.HandleFunc("POST /media/{moduleID}/{id}/metadata", h.requireAuth(h.MediaLibraryUpdate))
 	mux.HandleFunc("GET /media/{moduleID}/{id}/artwork", h.requireAuth(h.MediaLibraryArtwork))
+
+	mux.HandleFunc("GET /formats/profiles", h.requireAuth(h.ProfilesList))
+	mux.HandleFunc("GET /formats/profiles/new", h.requireAuth(h.ProfileNew))
+	mux.HandleFunc("POST /formats/profiles", h.requireAuth(h.ProfileCreate))
+	mux.HandleFunc("GET /formats/profiles/{id}", h.requireAuth(h.ProfileEdit))
+	mux.HandleFunc("POST /formats/profiles/{id}", h.requireAuth(h.ProfileUpdate))
+	mux.HandleFunc("POST /formats/profiles/{id}/delete", h.requireAuth(h.ProfileDelete))
 
 	mux.HandleFunc("GET /users", h.requireAuth(h.UsersPage))
 	mux.HandleFunc("GET /users/create-form", h.requireAuth(h.UsersCreateForm))

@@ -1,0 +1,213 @@
+package templates
+
+import (
+	"fmt"
+	"strconv"
+
+	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
+)
+
+templ MediaMissingPage(displayName string, moduleID string, features []string, items []*mediaadminv1.MissingItem, total, page, pageSize int) {
+	<div class="space-y-6">
+		@MediaSubnav(moduleID, displayName, features, "missing")
+		<div>
+			<h1 class="text-2xl font-bold">Missing</h1>
+			<p class="text-gray-400 text-sm mt-1">{ strconv.Itoa(total) } items</p>
+		</div>
+		if len(items) == 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
+				<p class="text-gray-400">Nothing missing.</p>
+			</div>
+		} else {
+			<div class="rounded-xl border border-gray-800 overflow-hidden">
+				<table class="w-full text-sm">
+					<thead class="bg-gray-900/80 text-gray-400 text-left">
+						<tr>
+							<th class="px-4 py-2 font-medium">Title</th>
+							<th class="px-4 py-2 font-medium">Year</th>
+							<th class="px-4 py-2 font-medium">Details</th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, it := range items {
+							<tr class="border-t border-gray-800 hover:bg-gray-900/40">
+								<td class="px-4 py-2">
+									<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s", moduleID, it.GetParentId())) } class="text-indigo-400 hover:text-indigo-300">
+										{ it.GetTitle() }
+									</a>
+								</td>
+								<td class="px-4 py-2 text-gray-400">{ strconv.Itoa(int(it.GetYear())) }</td>
+								<td class="px-4 py-2 text-gray-500">
+									if it.GetMetadata()["season_number"] != "" {
+										S{ it.GetMetadata()["season_number"] }E{ it.GetMetadata()["episode_number"] }
+										if it.GetMetadata()["air_date"] != "" {
+											<span> · { it.GetMetadata()["air_date"] }</span>
+										}
+									} else if it.GetMetadata()["quality_profile_id"] != "" {
+										{ it.GetMetadata()["quality_profile_id"] }
+									}
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			if total > pageSize {
+				<div class="flex items-center justify-center gap-2">
+					if page > 1 {
+						<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/missing?page=%d", moduleID, page-1)) } class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800">Prev</a>
+					}
+					<span class="text-sm text-gray-500">Page { strconv.Itoa(page) }</span>
+					if page*pageSize < total {
+						<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/missing?page=%d", moduleID, page+1)) } class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800">Next</a>
+					}
+				</div>
+			}
+		}
+	</div>
+}
+
+templ MediaTagsPage(displayName string, moduleID string, features []string, tags []*mediaadminv1.Tag) {
+	<div class="space-y-6">
+		@MediaSubnav(moduleID, displayName, features, "tags")
+		<div>
+			<h1 class="text-2xl font-bold">Tags</h1>
+		</div>
+		<form method="post" action={ templ.SafeURL(fmt.Sprintf("/media/%s/tags", moduleID)) } class="flex gap-2">
+			<input type="hidden" name="action" value="create"/>
+			<input type="text" name="label" placeholder="New tag label" required
+				class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+			<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Create</button>
+		</form>
+		if len(tags) == 0 {
+			<p class="text-gray-400 text-sm">No tags yet.</p>
+		} else {
+			<ul class="space-y-2">
+				for _, t := range tags {
+					<li class="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3">
+						<div>
+							<a href={ templ.SafeURL(fmt.Sprintf("/media/%s?tag=%s", moduleID, t.GetId())) } class="text-indigo-400 hover:text-indigo-300 font-medium">
+								{ t.GetLabel() }
+							</a>
+							<span class="text-xs text-gray-500 ml-2">{ t.GetId() }</span>
+						</div>
+						<form method="post" action={ templ.SafeURL(fmt.Sprintf("/media/%s/tags", moduleID)) }>
+							<input type="hidden" name="action" value="delete"/>
+							<input type="hidden" name="tag_id" value={ t.GetId() }/>
+							<button type="submit" class="text-xs text-red-400 hover:text-red-300">Delete</button>
+						</form>
+					</li>
+				}
+			</ul>
+		}
+	</div>
+}
+
+templ MediaCollectionsPage(displayName string, moduleID string, features []string, collections []*mediaadminv1.CollectionSummary) {
+	<div class="space-y-6">
+		@MediaSubnav(moduleID, displayName, features, "collections")
+		<div>
+			<h1 class="text-2xl font-bold">Collections</h1>
+		</div>
+		if len(collections) == 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
+				<p class="text-gray-400">No collections.</p>
+			</div>
+		} else {
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+				for _, c := range collections {
+					<a
+						href={ templ.SafeURL(fmt.Sprintf("/media/%s/collections/%s", moduleID, c.GetId())) }
+						class="block rounded-xl border border-gray-800 bg-gray-900/50 p-4 hover:border-gray-700"
+					>
+						<h3 class="font-semibold text-white">{ c.GetName() }</h3>
+						<p class="text-sm text-gray-500 mt-1">{ strconv.Itoa(int(c.GetItemCount())) } items</p>
+					</a>
+				}
+			</div>
+		}
+	</div>
+}
+
+templ MediaCollectionDetailPage(displayName string, moduleID string, features []string, name string, collectionID string, items []*mediaadminv1.MediaItem) {
+	<div class="space-y-6">
+		@MediaSubnav(moduleID, displayName, features, "collections")
+		<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/collections", moduleID)) } class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Collections</a>
+		<div>
+			<h1 class="text-2xl font-bold">{ name }</h1>
+			<p class="text-gray-400 text-sm mt-1">{ strconv.Itoa(len(items)) } items</p>
+		</div>
+		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+			for _, item := range items {
+				@MediaItemCard(item, moduleID)
+			}
+		</div>
+	</div>
+}
+
+templ MediaCalendarPage(displayName string, moduleID string, features []string, items []*mediaadminv1.CalendarItem, start, end string) {
+	<div class="space-y-6">
+		@MediaSubnav(moduleID, displayName, features, "calendar")
+		<div>
+			<h1 class="text-2xl font-bold">Calendar</h1>
+		</div>
+		<form method="get" action={ templ.SafeURL(fmt.Sprintf("/media/%s/calendar", moduleID)) } class="flex flex-wrap gap-2 items-end">
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">Start</label>
+				<input type="date" name="start" value={ start } class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+			</div>
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">End</label>
+				<input type="date" name="end" value={ end } class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+			</div>
+			<label class="flex items-center gap-2 text-sm text-gray-400 pb-2">
+				<input type="checkbox" name="unmonitored" value="1"/>
+				Include unmonitored
+			</label>
+			<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Apply</button>
+		</form>
+		if len(items) == 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
+				<p class="text-gray-400">No airings in this range.</p>
+			</div>
+		} else {
+			<div class="rounded-xl border border-gray-800 overflow-hidden">
+				<table class="w-full text-sm">
+					<thead class="bg-gray-900/80 text-gray-400 text-left">
+						<tr>
+							<th class="px-4 py-2 font-medium">Date</th>
+							<th class="px-4 py-2 font-medium">Series</th>
+							<th class="px-4 py-2 font-medium">Episode</th>
+							<th class="px-4 py-2 font-medium">Status</th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, it := range items {
+							<tr class="border-t border-gray-800">
+								<td class="px-4 py-2 text-gray-400">{ it.GetDate() }</td>
+								<td class="px-4 py-2">
+									<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s", moduleID, it.GetParentId())) } class="text-indigo-400 hover:text-indigo-300">
+										{ it.GetTitle() }
+									</a>
+								</td>
+								<td class="px-4 py-2 text-gray-300">
+									S{ it.GetMetadata()["season_number"] }E{ it.GetMetadata()["episode_number"] }
+									if it.GetSubtitle() != "" {
+										<span class="text-gray-500"> — { it.GetSubtitle() }</span>
+									}
+								</td>
+								<td class="px-4 py-2 text-gray-500">
+									if it.GetHasFile() {
+										<span class="text-green-400">Has file</span>
+									} else {
+										<span class="text-amber-400">Missing</span>
+									}
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+	</div>
+}

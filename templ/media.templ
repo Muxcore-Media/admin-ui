@@ -3,16 +3,97 @@ package templates
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
 )
 
-templ MediaListPage(displayName string, items []*mediaadminv1.MediaItem, total, page, pageSize int, moduleID string) {
+func mediaHasFeature(features []string, name string) bool {
+	for _, f := range features {
+		if f == name {
+			return true
+		}
+	}
+	return false
+}
+
+func mediaPosterURL(item *mediaadminv1.MediaItem) string {
+	for _, a := range item.GetArtwork() {
+		if a.GetType() == "poster" && a.GetUrl() != "" {
+			return a.GetUrl()
+		}
+	}
+	return ""
+}
+
+func mediaListQuery(q, tagID string, page int) string {
+	var parts []string
+	if q != "" {
+		parts = append(parts, "q="+q)
+	}
+	if tagID != "" {
+		parts = append(parts, "tag="+tagID)
+	}
+	if page > 1 {
+		parts = append(parts, "page="+strconv.Itoa(page))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "?" + strings.Join(parts, "&")
+}
+
+templ MediaSubnav(moduleID string, displayName string, features []string, active string) {
+	<div class="flex flex-wrap items-center gap-2 border-b border-gray-800 pb-3">
+		<span class="text-sm font-semibold text-gray-300 mr-2">{ displayName }</span>
+		<a
+			href={ templ.SafeURL(fmt.Sprintf("/media/%s", moduleID)) }
+			class={ "text-sm px-2 py-1 rounded", templ.KV("bg-indigo-600 text-white", active == "browse"), templ.KV("text-gray-400 hover:text-white", active != "browse") }
+		>Browse</a>
+		if mediaHasFeature(features, "missing") {
+			<a
+				href={ templ.SafeURL(fmt.Sprintf("/media/%s/missing", moduleID)) }
+				class={ "text-sm px-2 py-1 rounded", templ.KV("bg-indigo-600 text-white", active == "missing"), templ.KV("text-gray-400 hover:text-white", active != "missing") }
+			>Missing</a>
+		}
+		if mediaHasFeature(features, "tags") {
+			<a
+				href={ templ.SafeURL(fmt.Sprintf("/media/%s/tags", moduleID)) }
+				class={ "text-sm px-2 py-1 rounded", templ.KV("bg-indigo-600 text-white", active == "tags"), templ.KV("text-gray-400 hover:text-white", active != "tags") }
+			>Tags</a>
+		}
+		if mediaHasFeature(features, "collections") {
+			<a
+				href={ templ.SafeURL(fmt.Sprintf("/media/%s/collections", moduleID)) }
+				class={ "text-sm px-2 py-1 rounded", templ.KV("bg-indigo-600 text-white", active == "collections"), templ.KV("text-gray-400 hover:text-white", active != "collections") }
+			>Collections</a>
+		}
+		if mediaHasFeature(features, "calendar") {
+			<a
+				href={ templ.SafeURL(fmt.Sprintf("/media/%s/calendar", moduleID)) }
+				class={ "text-sm px-2 py-1 rounded", templ.KV("bg-indigo-600 text-white", active == "calendar"), templ.KV("text-gray-400 hover:text-white", active != "calendar") }
+			>Calendar</a>
+		}
+	</div>
+}
+
+templ MediaListPage(displayName string, items []*mediaadminv1.MediaItem, total, page, pageSize int, moduleID string, features []string, search, tagID string) {
 	<div class="space-y-6">
-		<div>
-			<h1 class="text-2xl font-bold">{ displayName }</h1>
+		@MediaSubnav(moduleID, displayName, features, "browse")
+
+		<div class="flex flex-col sm:flex-row sm:items-end gap-3">
+			<form method="get" action={ templ.SafeURL(fmt.Sprintf("/media/%s", moduleID)) } class="flex flex-wrap gap-2 flex-1">
+				<input
+					type="search" name="q" value={ search } placeholder="Search…"
+					class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm min-w-[12rem]"
+				/>
+				if tagID != "" {
+					<input type="hidden" name="tag" value={ tagID }/>
+				}
+				<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Search</button>
+			</form>
 			if items != nil {
-				<p class="text-gray-400 text-sm mt-1">{ strconv.Itoa(total) } items</p>
+				<p class="text-gray-400 text-sm">{ strconv.Itoa(total) } items</p>
 			}
 		</div>
 
@@ -31,8 +112,20 @@ templ MediaListPage(displayName string, items []*mediaadminv1.MediaItem, total, 
 				}
 			</div>
 			if total > pageSize {
-				<div class="mt-4">
+				<div class="mt-4 flex items-center justify-center gap-2">
+					if page > 1 {
+						<a
+							href={ templ.SafeURL(fmt.Sprintf("/media/%s%s", moduleID, mediaListQuery(search, tagID, page-1))) }
+							class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800"
+						>Prev</a>
+					}
 					<span class="text-sm text-gray-500">Page { strconv.Itoa(page) }</span>
+					if page*pageSize < total {
+						<a
+							href={ templ.SafeURL(fmt.Sprintf("/media/%s%s", moduleID, mediaListQuery(search, tagID, page+1))) }
+							class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800"
+						>Next</a>
+					}
 				</div>
 			}
 		}
@@ -44,9 +137,18 @@ templ MediaItemCard(item *mediaadminv1.MediaItem, moduleID string) {
 		href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s", moduleID, item.GetId())) }
 		class="block rounded-xl border border-gray-800 bg-gray-900/50 p-4 hover:border-gray-700 transition-colors"
 	>
-		<div class="aspect-[2/3] rounded-lg bg-gray-800 mb-3 flex items-center justify-center text-gray-600 text-4xl">
-			?
-		</div>
+		if mediaPosterURL(item) != "" {
+			<img
+				src={ templ.SafeURL(mediaPosterURL(item)) }
+				alt={ item.GetTitle() }
+				class="aspect-[2/3] rounded-lg w-full object-cover mb-3 bg-gray-800"
+				loading="lazy"
+			/>
+		} else {
+			<div class="aspect-[2/3] rounded-lg bg-gray-800 mb-3 flex items-center justify-center text-gray-600 text-4xl">
+				?
+			</div>
+		}
 		<h3 class="text-sm font-semibold text-white truncate">{ item.GetTitle() }</h3>
 		if item.GetYear() > 0 {
 			<p class="text-xs text-gray-500 mt-1">{ strconv.FormatInt(item.GetYear(), 10) }</p>
@@ -61,15 +163,24 @@ templ MediaItemCard(item *mediaadminv1.MediaItem, moduleID string) {
 	</a>
 }
 
-templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string) {
+templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []ActivityEntry, profiles []ProfileOption, features []string, displayName string) {
 	<div class="space-y-6">
-		<a href="javascript:history.back()" class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Back</a>
+		@MediaSubnav(moduleID, displayName, features, "")
+		<a href={ templ.SafeURL(fmt.Sprintf("/media/%s", moduleID)) } class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Back</a>
 
 		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 			<div class="lg:col-span-1">
-				<div class="aspect-[2/3] rounded-xl bg-gray-800 flex items-center justify-center text-gray-600 text-6xl">
-					?
-				</div>
+				if mediaPosterURL(item) != "" {
+					<img
+						src={ templ.SafeURL(mediaPosterURL(item)) }
+						alt={ item.GetTitle() }
+						class="aspect-[2/3] rounded-xl w-full object-cover bg-gray-800"
+					/>
+				} else {
+					<div class="aspect-[2/3] rounded-xl bg-gray-800 flex items-center justify-center text-gray-600 text-6xl">
+						?
+					</div>
+				}
 			</div>
 
 			<div class="lg:col-span-2 space-y-4">
@@ -110,13 +221,29 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string) {
 							>{ item.GetDescription() }</textarea>
 						</div>
 						for k, v := range item.GetMetadata() {
-							<div>
-								<label class="block text-xs text-gray-500 mb-1">{ k }</label>
-								<input
-									type="text" name={ k } value={ v }
-									class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
-								/>
-							</div>
+							if k == "quality_profile_id" && len(profiles) > 0 {
+								<div>
+									<label class="block text-xs text-gray-500 mb-1">Quality Profile</label>
+									<select name="quality_profile_id" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+										<option value="">—</option>
+										for _, p := range profiles {
+											if p.ID == v {
+												<option value={ p.ID } selected>{ p.Name }</option>
+											} else {
+												<option value={ p.ID }>{ p.Name }</option>
+											}
+										}
+									</select>
+								</div>
+							} else {
+								<div>
+									<label class="block text-xs text-gray-500 mb-1">{ k }</label>
+									<input
+										type="text" name={ k } value={ v }
+										class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+									/>
+								</div>
+							}
 						}
 						<button
 							type="submit"
@@ -130,6 +257,8 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string) {
 		<div id="artwork-section" hx-get={ templ.SafeURL(fmt.Sprintf("/media/%s/%s/artwork", moduleID, item.GetId())) } hx-trigger="load" hx-swap="innerHTML">
 			<div class="text-sm text-gray-500">Loading artwork...</div>
 		</div>
+
+		@ItemHistorySection(history)
 	</div>
 }
 

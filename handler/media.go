@@ -42,7 +42,7 @@ func (h *Handler) MediaLibraryList(w http.ResponseWriter, r *http.Request) {
 	addr, err := h.mediaModuleAddr(ctx, moduleID)
 	if err != nil {
 		slog.Warn("media: resolve failed", "module", moduleID, "error", err)
-		content := templates.MediaListPage("Error", nil, 0, 0, 0, moduleID)
+		content := templates.MediaListPage("Error", nil, 0, 0, 0, moduleID, nil, "", "")
 		nav := h.nav(r.URL.Path)
 		component := templates.Layout("Media", nav, content)
 		h.render(w, r, component)
@@ -52,7 +52,7 @@ func (h *Handler) MediaLibraryList(w http.ResponseWriter, r *http.Request) {
 	conn, client, err := h.dialMediaModule(addr)
 	if err != nil {
 		slog.Warn("media: dial failed", "module", moduleID, "error", err)
-		content := templates.MediaListPage("Error", nil, 0, 0, 0, moduleID)
+		content := templates.MediaListPage("Error", nil, 0, 0, 0, moduleID, nil, "", "")
 		nav := h.nav(r.URL.Path)
 		component := templates.Layout("Media", nav, content)
 		h.render(w, r, component)
@@ -65,29 +65,34 @@ func (h *Handler) MediaLibraryList(w http.ResponseWriter, r *http.Request) {
 		page = 1
 	}
 	pageSize := 50
+	search := r.URL.Query().Get("q")
+	tagID := r.URL.Query().Get("tag")
 
 	info, err := client.GetMediaTypeInfo(ctx, &mediaadminv1.GetMediaTypeInfoRequest{})
 	displayName := moduleID
+	var features []string
 	if err == nil {
 		displayName = info.GetDisplayName()
+		features = info.GetFeatures()
 	}
 
 	resp, err := client.ListItems(ctx, &mediaadminv1.ListItemsRequest{
 		Page:     int32(page),
 		PageSize: int32(pageSize),
-		Search:   r.URL.Query().Get("q"),
+		Search:   search,
 		SortBy:   r.URL.Query().Get("sort"),
+		TagId:    tagID,
 	})
 	if err != nil {
 		slog.Warn("media: ListItems failed", "module", moduleID, "error", err)
-		content := templates.MediaListPage(displayName, nil, 0, 0, 0, moduleID)
+		content := templates.MediaListPage(displayName, nil, 0, 0, 0, moduleID, features, search, tagID)
 		nav := h.nav(r.URL.Path)
 		component := templates.Layout(displayName, nav, content)
 		h.render(w, r, component)
 		return
 	}
 
-	content := templates.MediaListPage(displayName, resp.GetItems(), int(resp.GetTotal()), int(resp.GetPage()), int(resp.GetPageSize()), moduleID)
+	content := templates.MediaListPage(displayName, resp.GetItems(), int(resp.GetTotal()), int(resp.GetPage()), int(resp.GetPageSize()), moduleID, features, search, tagID)
 	nav := h.nav(r.URL.Path)
 	component := templates.Layout(displayName, nav, content)
 	h.render(w, r, component)
@@ -115,8 +120,10 @@ func (h *Handler) MediaLibraryItem(w http.ResponseWriter, r *http.Request) {
 
 	info, _ := client.GetMediaTypeInfo(ctx, &mediaadminv1.GetMediaTypeInfoRequest{})
 	displayName := moduleID
+	var features []string
 	if info != nil {
 		displayName = info.GetDisplayName()
+		features = info.GetFeatures()
 	}
 
 	item, err := client.GetItem(ctx, &mediaadminv1.GetItemRequest{Id: itemID})
@@ -126,7 +133,30 @@ func (h *Handler) MediaLibraryItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	content := templates.MediaDetailPage(item.GetItem(), moduleID)
+	var history []templates.ActivityEntry
+	if hist, err := client.ListHistory(ctx, &mediaadminv1.ListHistoryRequest{
+		Page: 1, PageSize: 50, ItemId: itemID,
+	}); err == nil {
+		for _, rec := range hist.GetRecords() {
+			history = append(history, templates.ActivityEntry{
+				ID:          rec.GetId(),
+				EventType:   rec.GetEventType(),
+				ItemID:      rec.GetItemId(),
+				Title:       rec.GetTitle(),
+				SourceTitle: rec.GetSourceTitle(),
+				Quality:     rec.GetQuality(),
+				Indexer:     rec.GetIndexer(),
+				FilePath:    rec.GetFilePath(),
+				CreatedAt:   rec.GetCreatedAt(),
+				ModuleID:    moduleID,
+				ModuleName:  displayName,
+			})
+		}
+	}
+
+	profiles := h.listProfileOptions(ctx)
+
+	content := templates.MediaDetailPage(item.GetItem(), moduleID, history, profiles, features, displayName)
 	nav := h.nav(r.URL.Path)
 	component := templates.Layout(item.GetItem().GetTitle()+" — "+displayName, nav, content)
 	h.render(w, r, component)

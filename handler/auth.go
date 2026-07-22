@@ -26,6 +26,8 @@ var staticNavLinks = []templates.NavLink{
 	{Label: "Modules", Path: "/modules", Icon: "#"},
 	{Label: "Cluster", Path: "/cluster", Icon: "#"},
 	{Label: "Events", Path: "/events", Icon: "#"},
+	{Label: "Activity", Path: "/activity", Icon: "#"},
+	{Label: "Profiles", Path: "/formats/profiles", Icon: "#"},
 	{Label: "Storage", Path: "/storage", Icon: "#"},
 	{Label: "Users", Path: "/users", Icon: "#"},
 	{Label: "Settings", Path: "/settings", Icon: "#"},

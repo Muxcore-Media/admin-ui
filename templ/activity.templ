@@ -1,0 +1,136 @@
+package templates
+
+import (
+	"fmt"
+	"strings"
+)
+
+type ActivityEntry struct {
+	ID          string
+	EventType   string
+	ItemID      string
+	Title       string
+	SourceTitle string
+	Quality     string
+	Indexer     string
+	FilePath    string
+	CreatedAt   string
+	ModuleID    string
+	ModuleName  string
+}
+
+type ActivityPageData struct {
+	Entries    []ActivityEntry
+	EventType  string
+	Page       int
+	TotalPages int
+	Total      int
+}
+
+templ ActivityPage(data ActivityPageData) {
+	<div class="space-y-6">
+		<div>
+			<h1 class="text-2xl font-bold">Activity</h1>
+			<p class="text-gray-400 text-sm mt-1">Grab, import, and delete history across media libraries</p>
+		</div>
+
+		<form
+			class="flex flex-wrap gap-3 items-end"
+			hx-get="/activity"
+			hx-target="main"
+			hx-push-url="true"
+			hx-trigger="submit"
+		>
+			<div>
+				<label class="block text-xs font-medium text-gray-500 mb-1">Event type</label>
+				<select
+					name="event_type"
+					class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
+				>
+					<option value="" selected?={ data.EventType == "" }>All</option>
+					<option value="grab" selected?={ data.EventType == "grab" }>Grab</option>
+					<option value="import" selected?={ data.EventType == "import" }>Import</option>
+					<option value="delete_item" selected?={ data.EventType == "delete_item" }>Delete item</option>
+					<option value="delete_file" selected?={ data.EventType == "delete_file" }>Delete file</option>
+				</select>
+			</div>
+			<button
+				type="submit"
+				class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition-colors"
+			>Filter</button>
+		</form>
+
+		@ActivityTable(data.Entries)
+
+		if data.TotalPages > 1 {
+			@Pagination(data.Page, data.TotalPages, "/activity")
+		}
+	</div>
+}
+
+templ ActivityTable(entries []ActivityEntry) {
+	if len(entries) == 0 {
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">
+			No activity yet.
+		</div>
+	} else {
+		<div class="overflow-x-auto rounded-xl border border-gray-800">
+			<table class="min-w-full divide-y divide-gray-800 text-sm">
+				<thead class="bg-gray-900/50">
+					<tr>
+						<th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+						<th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Library</th>
+						<th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event</th>
+						<th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+						<th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+						<th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+					</tr>
+				</thead>
+				<tbody class="divide-y divide-gray-800 text-xs">
+					for _, e := range entries {
+						<tr class="hover:bg-gray-800/30 transition-colors">
+							<td class="px-3 py-2.5 whitespace-nowrap text-gray-400 font-mono">{ e.CreatedAt }</td>
+							<td class="px-3 py-2.5 whitespace-nowrap text-gray-300">{ e.ModuleName }</td>
+							<td class="px-3 py-2.5 whitespace-nowrap">
+								<span class="rounded-md bg-indigo-900/30 px-1.5 py-0.5 text-xs font-medium text-indigo-400 border border-indigo-800/50">{ e.EventType }</span>
+							</td>
+							<td class="px-3 py-2.5 whitespace-nowrap">
+								if e.ModuleID != "" && e.ItemID != "" {
+									<a
+										href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s", e.ModuleID, e.ItemID)) }
+										class="text-indigo-400 hover:text-indigo-300"
+									>{ e.Title }</a>
+								} else {
+									<span class="text-gray-200">{ e.Title }</span>
+								}
+							</td>
+							<td class="px-3 py-2.5 text-gray-400 max-w-[220px] truncate" title={ e.SourceTitle }>{ e.SourceTitle }</td>
+							<td class="px-3 py-2.5 text-gray-500 max-w-[240px] truncate" title={ activityDetails(e) }>{ activityDetails(e) }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
+
+templ ItemHistorySection(entries []ActivityEntry) {
+	<div class="space-y-3">
+		<h2 class="text-lg font-semibold">History</h2>
+		@ActivityTable(entries)
+	</div>
+}
+
+func activityDetails(e ActivityEntry) string {
+	parts := make([]string, 0, 3)
+	if e.Quality != "" {
+		parts = append(parts, e.Quality)
+	}
+	if e.Indexer != "" {
+		parts = append(parts, e.Indexer)
+	}
+	if e.FilePath != "" {
+		parts = append(parts, e.FilePath)
+	}
+	return strings.Join(parts, " · ")
+}
