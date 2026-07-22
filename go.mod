@@ -13,6 +13,8 @@ require (
 )
 
 require (
+	github.com/Muxcore-Media/media-rename v0.1.0
+	github.com/Muxcore-Media/media-root-folders v0.1.0
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
@@ -29,3 +31,7 @@ replace github.com/Muxcore-Media/core/sdk/go/client => ../core/sdk/go/client
 replace github.com/Muxcore-Media/core/pkg/contracts => ../core/pkg/contracts
 
 replace github.com/Muxcore-Media/media-custom-formats => ../media-custom-formats
+
+replace github.com/Muxcore-Media/media-root-folders => ../media-root-folders
+
+replace github.com/Muxcore-Media/media-rename => ../media-rename

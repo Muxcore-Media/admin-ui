@@ -28,6 +28,8 @@ var staticNavLinks = []templates.NavLink{
 	{Label: "Events", Path: "/events", Icon: "#"},
 	{Label: "Activity", Path: "/activity", Icon: "#"},
 	{Label: "Profiles", Path: "/formats/profiles", Icon: "#"},
+	{Label: "Root Folders", Path: "/roots", Icon: "#"},
+	{Label: "Naming", Path: "/rename/templates", Icon: "#"},
 	{Label: "Storage", Path: "/storage", Icon: "#"},
 	{Label: "Users", Path: "/users", Icon: "#"},
 	{Label: "Settings", Path: "/settings", Icon: "#"},
