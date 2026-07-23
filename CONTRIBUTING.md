@@ -23,8 +23,8 @@ make build   # produces ./admin-ui
 cd ../core
 MUXCORE_INSECURE_DISABLE_TLS=true ./muxcored
 
-# Terminal 2: start admin UI
-ADMIN_UI_INSECURE=true ./admin-ui
+# Terminal 2: start admin UI (point AUTH_ADDR at your auth module)
+ADMIN_UI_INSECURE=true ADMIN_UI_AUTH_ADDR=http://localhost:9401 ./admin-ui
 # → http://localhost:8080
 ```
 

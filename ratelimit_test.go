@@ -66,17 +66,39 @@ func TestRateLimiterSeparateIPs(t *testing.T) {
 	}
 }
 
-func TestExtractIP(t *testing.T) {
+func TestExtractClientIP(t *testing.T) {
+	trusted := parseTrustedProxies(nil)
+
 	r := mustRequest("GET", "/")
-	if ip := extractIP(r); ip == "" {
-		t.Fatal("expected non-empty IP")
+	if ip := extractClientIP(r, trusted); ip != "127.0.0.1" {
+		t.Fatalf("expected 127.0.0.1, got %s", ip)
 	}
 }
 
-func TestExtractIPWithXFF(t *testing.T) {
+func TestExtractClientIPTrustedXFF(t *testing.T) {
+	trusted := parseTrustedProxies(nil)
 	r := mustRequest("GET", "/")
 	r.Header.Set("X-Forwarded-For", "203.0.113.1")
-	if ip := extractIP(r); ip != "203.0.113.1" {
+	if ip := extractClientIP(r, trusted); ip != "203.0.113.1" {
 		t.Fatalf("expected 203.0.113.1, got %s", ip)
+	}
+}
+
+func TestExtractClientIPUntrustedXFFIgnored(t *testing.T) {
+	trusted := parseTrustedProxies(nil)
+	r := mustRequest("GET", "/")
+	r.RemoteAddr = "192.168.1.50:9999"
+	r.Header.Set("X-Forwarded-For", "203.0.113.1")
+	if ip := extractClientIP(r, trusted); ip != "192.168.1.50" {
+		t.Fatalf("expected 192.168.1.50, got %s", ip)
+	}
+}
+
+func TestExtractClientIPXRealIPIgnored(t *testing.T) {
+	trusted := parseTrustedProxies(nil)
+	r := mustRequest("GET", "/")
+	r.Header.Set("X-Real-IP", "203.0.113.9")
+	if ip := extractClientIP(r, trusted); ip != "127.0.0.1" {
+		t.Fatalf("expected 127.0.0.1, got %s", ip)
 	}
 }

@@ -115,6 +115,12 @@ func (h *Handler) NamingTemplateCreate(w http.ResponseWriter, r *http.Request) {
 		h.render(w, r, templates.Layout("New Template", h.nav(r.URL.Path), content))
 		return
 	}
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.rename.template.create", "naming_template", resp.GetTemplate().GetId(), map[string]string{
+			"name":       r.FormValue("name"),
+			"media_type": r.FormValue("media_type"),
+		})
+	}
 	http.Redirect(w, r, "/rename/templates/"+resp.GetTemplate().GetId(), http.StatusSeeOther)
 }
 
@@ -165,6 +171,11 @@ func (h *Handler) NamingTemplateUpdate(w http.ResponseWriter, r *http.Request) {
 		h.render(w, r, templates.Layout("Edit Template", h.nav(r.URL.Path), content))
 		return
 	}
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.rename.template.update", "naming_template", id, map[string]string{
+			"name": r.FormValue("name"),
+		})
+	}
 	http.Redirect(w, r, "/rename/templates/"+id, http.StatusSeeOther)
 }
 
@@ -178,6 +189,11 @@ func (h *Handler) NamingTemplateDelete(w http.ResponseWriter, r *http.Request) {
 	defer closer()
 	if _, err := client.DeleteTemplate(r.Context(), &renamev1.DeleteTemplateRequest{Id: id}); err != nil {
 		slog.Warn("rename: DeleteTemplate failed", "id", id, "error", err)
+		http.Redirect(w, r, "/rename/templates", http.StatusSeeOther)
+		return
+	}
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.rename.template.delete", "naming_template", id, nil)
 	}
 	http.Redirect(w, r, "/rename/templates", http.StatusSeeOther)
 }

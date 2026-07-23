@@ -205,6 +205,13 @@ func (h *Handler) MediaLibraryUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.media.library.update", "media_item", itemID, map[string]string{
+			"module": moduleID,
+			"title":  r.FormValue("title"),
+		})
+	}
+
 	w.Write([]byte(`<div class="text-xs text-green-400">saved</div>`))
 }
 
