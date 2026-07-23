@@ -1,8 +1,9 @@
 # Media Admin UI surfaces
 
 Admin-ui library pages beyond basic browse, backed by extended `MediaAdminService`
-(`contracts-media-admin`) plus `FormatService` for quality profiles,
-`RootFolderService` for library roots, and `RenameService` for naming templates.
+(`contracts-media-admin`) plus `FormatService` for custom formats and quality
+profiles, `RootFolderService` for library roots, and `RenameService` for naming
+templates.
 
 ## Contract (`contracts-media-admin`)
 
@@ -27,8 +28,20 @@ Per library module (`media.library`):
 | `GET /media/{moduleID}/missing` | `missing` |
 | `GET|POST /media/{moduleID}/tags` | `tags` |
 | `GET /media/{moduleID}/collections` | `collections` |
-| `GET /media/{moduleID}/collections/{id}` | `collections` |
+| `GET /media/{moduleID}/collections/{collectionID}` | `collections` |
 | `GET /media/{moduleID}/calendar` | `calendar` |
+| `GET /media/{moduleID}/{id}` | item detail |
+| `POST /media/{moduleID}/{id}/metadata` | update metadata |
+| `GET /media/{moduleID}/{id}/artwork` | artwork partial |
+
+Custom formats (`media.formats` → `FormatService`):
+
+| Path | Purpose |
+|------|---------|
+| `GET /formats` | list |
+| `GET /formats/new` + `POST /formats` | create |
+| `GET|POST /formats/{id}` | edit |
+| `POST /formats/{id}/delete` | delete |
 
 Profiles (`media.formats` → `FormatService`):
 

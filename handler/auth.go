@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -27,6 +26,7 @@ var staticNavLinks = []templates.NavLink{
 	{Label: "Cluster", Path: "/cluster", Icon: "#"},
 	{Label: "Events", Path: "/events", Icon: "#"},
 	{Label: "Activity", Path: "/activity", Icon: "#"},
+	{Label: "Formats", Path: "/formats", Icon: "#"},
 	{Label: "Profiles", Path: "/formats/profiles", Icon: "#"},
 	{Label: "Root Folders", Path: "/roots", Icon: "#"},
 	{Label: "Naming", Path: "/rename/templates", Icon: "#"},
@@ -86,7 +86,7 @@ func (h *Handler) AuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.ResetLoginRate != nil {
-		h.ResetLoginRate(extractRequestIP(r))
+		h.ResetLoginRate(extractClientIP(r, h.TrustedProxies))
 	}
 
 	// Create local session.
@@ -155,14 +155,6 @@ func (h *Handler) findFirstModule(ctx context.Context, capability string) (*disc
 		return nil, fmt.Errorf("no module with capability %q", capability)
 	}
 	return modules[0], nil
-}
-
-func extractRequestIP(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
 }
 
 func (h *Handler) AuthStatus(w http.ResponseWriter, r *http.Request) {

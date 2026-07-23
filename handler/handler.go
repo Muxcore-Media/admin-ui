@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"sync"
 
@@ -32,14 +33,15 @@ type LoginMetrics interface {
 }
 
 type Handler struct {
-	Core          *client.Client
-	Sessions      *session.Store
-	secure        bool
-	events        *eventRing
-	version       string
-	loginMetrics  LoginMetrics
-	coreConnected bool
-	AuthAddr      string // external URL of the auth module's login page
+	Core           *client.Client
+	Sessions       *session.Store
+	secure         bool
+	events         *eventRing
+	version        string
+	loginMetrics   LoginMetrics
+	coreConnected  bool
+	AuthAddr       string // external URL of the auth module's login page
+	TrustedProxies []net.IPNet
 
 	ResetLoginRate func(ip string)
 
@@ -50,7 +52,7 @@ type Handler struct {
 	mediaSubCancel func()
 }
 
-func New(core *client.Client, store *session.Store, secure bool, version string, lm LoginMetrics, connected bool, authAddr string, resetLoginRate func(ip string)) *Handler {
+func New(core *client.Client, store *session.Store, secure bool, version string, lm LoginMetrics, connected bool, authAddr string, resetLoginRate func(ip string), trustedProxies []net.IPNet) *Handler {
 	h := &Handler{
 		Core:           core,
 		Sessions:       store,
@@ -60,6 +62,7 @@ func New(core *client.Client, store *session.Store, secure bool, version string,
 		loginMetrics:   lm,
 		coreConnected:  connected,
 		AuthAddr:       authAddr,
+		TrustedProxies: trustedProxies,
 		ResetLoginRate: resetLoginRate,
 		mediaRefreshCh: make(chan struct{}, 1),
 	}
@@ -112,6 +115,12 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /media/{moduleID}/{id}/metadata", h.requireAuth(h.MediaLibraryUpdate))
 	mux.HandleFunc("GET /media/{moduleID}/{id}/artwork", h.requireAuth(h.MediaLibraryArtwork))
 
+	mux.HandleFunc("GET /formats", h.requireAuth(h.FormatsList))
+	mux.HandleFunc("GET /formats/new", h.requireAuth(h.FormatNew))
+	mux.HandleFunc("POST /formats", h.requireAuth(h.FormatCreate))
+	mux.HandleFunc("GET /formats/{id}", h.requireAuth(h.FormatEdit))
+	mux.HandleFunc("POST /formats/{id}", h.requireAuth(h.FormatUpdate))
+	mux.HandleFunc("POST /formats/{id}/delete", h.requireAuth(h.FormatDelete))
 	mux.HandleFunc("GET /formats/profiles", h.requireAuth(h.ProfilesList))
 	mux.HandleFunc("GET /formats/profiles/new", h.requireAuth(h.ProfileNew))
 	mux.HandleFunc("POST /formats/profiles", h.requireAuth(h.ProfileCreate))

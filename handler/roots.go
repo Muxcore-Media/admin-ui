@@ -131,6 +131,12 @@ func (h *Handler) RootCreate(w http.ResponseWriter, r *http.Request) {
 		h.render(w, r, templates.Layout("Add Root", h.nav(r.URL.Path), content))
 		return
 	}
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.root.create", "root", resp.GetRoot().GetId(), map[string]string{
+			"path": r.FormValue("path"),
+			"name": r.FormValue("name"),
+		})
+	}
 	http.Redirect(w, r, "/roots/"+resp.GetRoot().GetId(), http.StatusSeeOther)
 }
 
@@ -194,6 +200,12 @@ func (h *Handler) RootUpdate(w http.ResponseWriter, r *http.Request) {
 		h.render(w, r, templates.Layout("Edit Root", h.nav(r.URL.Path), content))
 		return
 	}
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.root.update", "root", id, map[string]string{
+			"path": r.FormValue("path"),
+			"name": r.FormValue("name"),
+		})
+	}
 	http.Redirect(w, r, "/roots/"+id, http.StatusSeeOther)
 }
 
@@ -207,6 +219,11 @@ func (h *Handler) RootDelete(w http.ResponseWriter, r *http.Request) {
 	defer closer()
 	if _, err := client.DeleteRoot(r.Context(), &rootsv1.DeleteRootRequest{Id: id}); err != nil {
 		slog.Warn("roots: DeleteRoot failed", "id", id, "error", err)
+		http.Redirect(w, r, "/roots", http.StatusSeeOther)
+		return
+	}
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.root.delete", "root", id, nil)
 	}
 	http.Redirect(w, r, "/roots", http.StatusSeeOther)
 }

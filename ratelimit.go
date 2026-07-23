@@ -2,9 +2,6 @@ package main
 
 import (
 	"log/slog"
-	"net"
-	"net/http"
-	"strings"
 	"sync"
 	"time"
 )
@@ -80,23 +77,4 @@ func (rl *rateLimiter) cleanupLoop() {
 		}
 		rl.mu.Unlock()
 	}
-}
-
-func extractIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		// X-Forwarded-For can be a comma-separated list: "client, proxy1, proxy2"
-		// The leftmost address is the original client.
-		if i := strings.IndexByte(xff, ','); i != -1 {
-			xff = xff[:i]
-		}
-		xff = strings.TrimSpace(xff)
-		if ip := net.ParseIP(xff); ip != nil {
-			return ip.String()
-		}
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
 }

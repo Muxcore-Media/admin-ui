@@ -101,12 +101,23 @@ func (h *Handler) MediaTagsPost(w http.ResponseWriter, r *http.Request) {
 
 	switch r.FormValue("action") {
 	case "create":
-		if _, err := client.CreateTag(r.Context(), &mediaadminv1.CreateTagRequest{Label: r.FormValue("label")}); err != nil {
+		label := r.FormValue("label")
+		if _, err := client.CreateTag(r.Context(), &mediaadminv1.CreateTagRequest{Label: label}); err != nil {
 			slog.Warn("media: CreateTag failed", "module", moduleID, "error", err)
+		} else if sess := SessionFromContext(r.Context()); sess != nil {
+			h.auditLog(r.Context(), sess.UserID, "admin.media.tag.create", "media_tag", moduleID, map[string]string{
+				"module": moduleID,
+				"label":  label,
+			})
 		}
 	case "delete":
-		if _, err := client.DeleteTag(r.Context(), &mediaadminv1.DeleteTagRequest{TagId: r.FormValue("tag_id")}); err != nil {
+		tagID := r.FormValue("tag_id")
+		if _, err := client.DeleteTag(r.Context(), &mediaadminv1.DeleteTagRequest{TagId: tagID}); err != nil {
 			slog.Warn("media: DeleteTag failed", "module", moduleID, "error", err)
+		} else if sess := SessionFromContext(r.Context()); sess != nil {
+			h.auditLog(r.Context(), sess.UserID, "admin.media.tag.delete", "media_tag", tagID, map[string]string{
+				"module": moduleID,
+			})
 		}
 	}
 	http.Redirect(w, r, "/media/"+moduleID+"/tags", http.StatusSeeOther)

@@ -144,6 +144,11 @@ func (h *Handler) ProfileCreate(w http.ResponseWriter, r *http.Request) {
 		h.render(w, r, templates.Layout("New Profile", h.nav(r.URL.Path), content))
 		return
 	}
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.format.profile.create", "format_profile", resp.GetProfile().GetId(), map[string]string{
+			"name": r.FormValue("name"),
+		})
+	}
 	http.Redirect(w, r, "/formats/profiles/"+resp.GetProfile().GetId(), http.StatusSeeOther)
 }
 
@@ -208,6 +213,11 @@ func (h *Handler) ProfileUpdate(w http.ResponseWriter, r *http.Request) {
 		h.render(w, r, templates.Layout("Edit Profile", h.nav(r.URL.Path), content))
 		return
 	}
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.format.profile.update", "format_profile", id, map[string]string{
+			"name": r.FormValue("name"),
+		})
+	}
 	http.Redirect(w, r, "/formats/profiles/"+id, http.StatusSeeOther)
 }
 
@@ -221,6 +231,11 @@ func (h *Handler) ProfileDelete(w http.ResponseWriter, r *http.Request) {
 	defer closer()
 	if _, err := client.DeleteProfile(r.Context(), &formatsv1.DeleteProfileRequest{Id: id}); err != nil {
 		slog.Warn("formats: DeleteProfile failed", "id", id, "error", err)
+		http.Redirect(w, r, "/formats/profiles", http.StatusSeeOther)
+		return
+	}
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.format.profile.delete", "format_profile", id, nil)
 	}
 	http.Redirect(w, r, "/formats/profiles", http.StatusSeeOther)
 }
@@ -239,4 +254,186 @@ func profileFromForm(r *http.Request) *formatsv1.QualityProfile {
 		UpgradeDelayMinutes: formInt32(r, "upgrade_delay_minutes"),
 		FormatScores:        parseFormatScores(r.FormValue("format_scores")),
 	}
+}
+
+func (h *Handler) FormatsList(w http.ResponseWriter, r *http.Request) {
+	client, closer, err := h.withFormatsClient(r.Context())
+	errMsg := ""
+	var rows []templates.FormatRow
+	if err != nil {
+		errMsg = "Formats module unavailable: " + err.Error()
+	} else {
+		defer closer()
+		resp, listErr := client.ListFormats(r.Context(), &formatsv1.ListFormatsRequest{})
+		if listErr != nil {
+			errMsg = listErr.Error()
+		} else {
+			for _, f := range resp.GetFormats() {
+				rows = append(rows, templates.FormatRow{
+					ID: f.GetId(), Name: f.GetName(),
+					Score: int(f.GetDefaultScore()), RuleCount: len(f.GetRules()),
+				})
+			}
+		}
+	}
+	content := templates.FormatsListPage(rows, errMsg)
+	h.render(w, r, templates.Layout("Custom Formats", h.nav(r.URL.Path), content))
+}
+
+func (h *Handler) FormatNew(w http.ResponseWriter, r *http.Request) {
+	content := templates.FormatEditPage(templates.FormatEdit{}, true, "")
+	h.render(w, r, templates.Layout("New Format", h.nav(r.URL.Path), content))
+}
+
+func (h *Handler) FormatCreate(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/formats/new", http.StatusSeeOther)
+		return
+	}
+	edit := formatEditFromForm(r)
+	client, closer, err := h.withFormatsClient(r.Context())
+	if err != nil {
+		content := templates.FormatEditPage(edit, true, err.Error())
+		h.render(w, r, templates.Layout("New Format", h.nav(r.URL.Path), content))
+		return
+	}
+	defer closer()
+	resp, err := client.CreateFormat(r.Context(), &formatsv1.CreateFormatRequest{
+		Name:         edit.Name,
+		DefaultScore: int32(edit.Score),
+		Rules:        parseFormatRules(edit.RulesText),
+	})
+	if err != nil {
+		content := templates.FormatEditPage(edit, true, err.Error())
+		h.render(w, r, templates.Layout("New Format", h.nav(r.URL.Path), content))
+		return
+	}
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.format.create", "format", resp.GetFormat().GetId(), map[string]string{
+			"name": edit.Name,
+		})
+	}
+	http.Redirect(w, r, "/formats/"+resp.GetFormat().GetId(), http.StatusSeeOther)
+}
+
+func (h *Handler) FormatEdit(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	client, closer, err := h.withFormatsClient(r.Context())
+	if err != nil {
+		content := templates.FormatEditPage(templates.FormatEdit{ID: id}, false, err.Error())
+		h.render(w, r, templates.Layout("Edit Format", h.nav(r.URL.Path), content))
+		return
+	}
+	defer closer()
+	resp, err := client.ListFormats(r.Context(), &formatsv1.ListFormatsRequest{})
+	if err != nil {
+		content := templates.FormatEditPage(templates.FormatEdit{ID: id}, false, err.Error())
+		h.render(w, r, templates.Layout("Edit Format", h.nav(r.URL.Path), content))
+		return
+	}
+	var found *formatsv1.CustomFormat
+	for _, f := range resp.GetFormats() {
+		if f.GetId() == id {
+			found = f
+			break
+		}
+	}
+	if found == nil {
+		http.Redirect(w, r, "/formats", http.StatusSeeOther)
+		return
+	}
+	content := templates.FormatEditPage(formatToEdit(found), false, "")
+	h.render(w, r, templates.Layout("Edit Format", h.nav(r.URL.Path), content))
+}
+
+func (h *Handler) FormatUpdate(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/formats/"+id, http.StatusSeeOther)
+		return
+	}
+	edit := formatEditFromForm(r)
+	edit.ID = id
+	client, closer, err := h.withFormatsClient(r.Context())
+	if err != nil {
+		content := templates.FormatEditPage(edit, false, err.Error())
+		h.render(w, r, templates.Layout("Edit Format", h.nav(r.URL.Path), content))
+		return
+	}
+	defer closer()
+	_, err = client.UpdateFormat(r.Context(), &formatsv1.UpdateFormatRequest{
+		Id:           id,
+		Name:         edit.Name,
+		DefaultScore: int32(edit.Score),
+		Rules:        parseFormatRules(edit.RulesText),
+	})
+	if err != nil {
+		content := templates.FormatEditPage(edit, false, err.Error())
+		h.render(w, r, templates.Layout("Edit Format", h.nav(r.URL.Path), content))
+		return
+	}
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.format.update", "format", id, map[string]string{
+			"name": edit.Name,
+		})
+	}
+	http.Redirect(w, r, "/formats/"+id, http.StatusSeeOther)
+}
+
+func (h *Handler) FormatDelete(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	client, closer, err := h.withFormatsClient(r.Context())
+	if err != nil {
+		http.Redirect(w, r, "/formats", http.StatusSeeOther)
+		return
+	}
+	defer closer()
+	if _, err := client.DeleteFormat(r.Context(), &formatsv1.DeleteFormatRequest{Id: id}); err != nil {
+		slog.Warn("formats: DeleteFormat failed", "id", id, "error", err)
+		http.Redirect(w, r, "/formats", http.StatusSeeOther)
+		return
+	}
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.format.delete", "format", id, nil)
+	}
+	http.Redirect(w, r, "/formats", http.StatusSeeOther)
+}
+
+func formatEditFromForm(r *http.Request) templates.FormatEdit {
+	return templates.FormatEdit{
+		Name:      r.FormValue("name"),
+		Score:     int(formInt32(r, "default_score")),
+		RulesText: r.FormValue("rules"),
+	}
+}
+
+func formatToEdit(f *formatsv1.CustomFormat) templates.FormatEdit {
+	var lines []string
+	for _, rule := range f.GetRules() {
+		lines = append(lines, rule.GetField()+"|"+rule.GetOp()+"|"+rule.GetValue())
+	}
+	return templates.FormatEdit{
+		ID: f.GetId(), Name: f.GetName(),
+		Score: int(f.GetDefaultScore()), RulesText: strings.Join(lines, "\n"),
+	}
+}
+
+func parseFormatRules(raw string) []*formatsv1.FormatRule {
+	var out []*formatsv1.FormatRule
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "|", 3)
+		if len(parts) < 3 {
+			continue
+		}
+		out = append(out, &formatsv1.FormatRule{
+			Field: strings.TrimSpace(parts[0]),
+			Op:    strings.TrimSpace(parts[1]),
+			Value: strings.TrimSpace(parts[2]),
+		})
+	}
+	return out
 }
