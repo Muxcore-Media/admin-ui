@@ -343,7 +343,7 @@ func AuditNoModule() templ.Component {
 			templ_7745c5c3_Var16 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500\"><div class=\"text-gray-400 mb-2\">No audit module available</div><p class=\"text-xs text-gray-600\">Query audit entries requires an audit logger module. Deploy a module implementing <code class=\"text-gray-500 bg-gray-800 px-1 rounded\">AuditLogger</code> and it will appear here.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500\"><div class=\"text-gray-400 mb-2\">Audit log unavailable</div><p class=\"text-xs text-gray-600\">Could not query the core audit service. Ensure muxcored is reachable and audit logging is enabled.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

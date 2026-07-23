@@ -83,6 +83,12 @@ func (h *Handler) PasskeyDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.user.passkey_delete", "user", userID, map[string]string{
+			"credential_id": credID,
+		})
+	}
+
 	// Re-render the passkey list.
 	h.PasskeyList(w, r)
 }
@@ -143,6 +149,10 @@ func (h *Handler) PasskeyCompleteRegister(w http.ResponseWriter, r *http.Request
 		}
 		w.Write([]byte(fmt.Sprintf(`<div class="text-xs text-red-400">%s</div>`, errMsg)))
 		return
+	}
+
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.user.passkey_register", "user", userID, nil)
 	}
 
 	w.Write([]byte(`<div class="text-xs text-green-400">Passkey registered</div>`))

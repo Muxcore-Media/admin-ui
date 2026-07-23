@@ -23,7 +23,7 @@ export ADMIN_UI_INSECURE=true
 # → Listening on :8080
 ```
 
-Open `http://localhost:8080` in a browser. If no `AuthProvider` module is registered with core, the UI shows a configuration page. Deploy an auth module first, then log in.
+Open `http://localhost:8080` in a browser. Login redirects to the auth module (`ADMIN_UI_AUTH_ADDR`); after login, the browser returns via `/auth/callback`.
 
 ---
 
@@ -31,7 +31,8 @@ Open `http://localhost:8080` in a browser. If no `AuthProvider` module is regist
 
 - Go 1.26+
 - A running `muxcored` instance (v0.1.0+)
-- An `AuthProvider` module registered with core (for login)
+- An auth module reachable at `ADMIN_UI_AUTH_ADDR` (for login)
+- An `Authorizer` module registered with core (for `admin.access`)
 - Tailwind CSS standalone CLI (for CSS builds — `make css` downloads it)
 
 ---
@@ -45,11 +46,13 @@ All configuration is via environment variables:
 | `ADMIN_UI_ADDR` | `:8080` | HTTP listen address |
 | `ADMIN_UI_CORE_ADDR` | `localhost:9090` | Core gRPC address |
 | `ADMIN_UI_INSECURE` | `false` | Disable TLS for core gRPC (dev only) |
+| `ADMIN_UI_AUTH_ADDR` | `http://localhost:9401` | Auth module base URL (login + code exchange) |
 | `ADMIN_UI_TLS_CERT` | — | TLS cert file path (enables HTTPS) |
 | `ADMIN_UI_TLS_KEY` | — | TLS key file path |
 | `ADMIN_UI_SESSION_TTL` | `30m` | Session lifetime |
 | `ADMIN_UI_LOG_LEVEL` | `info` | Log level (debug, info, warn, error) |
 | `ADMIN_UI_LOG_FORMAT` | `text` | Log format: `text` or `json` |
+| `ADMIN_UI_TRUSTED_PROXIES` | loopback | Comma-separated CIDRs whose `X-Forwarded-For` is trusted (empty → `127.0.0.0/8`, `::1/128`) |
 
 ---
 
@@ -76,7 +79,7 @@ export ADMIN_UI_TLS_KEY=/etc/ssl/key.pem
 ./admin-ui
 ```
 
-When TLS is enabled, the session and CSRF cookies are marked `Secure`. The HTTP server uses TLS 1.2+ with secure cipher suites.
+When TLS is enabled, the session and CSRF cookies are marked `Secure`.
 
 ### JSON logging (production)
 
@@ -91,15 +94,16 @@ Produces structured JSON log lines for ingestion by log aggregators (Loki, Datad
 
 | Endpoint | Purpose | Response |
 |----------|---------|----------|
-| `/health` | Liveness + readiness | `{"status":"ok"}` or `{"status":"degraded"}` (503) when core is down |
+| `/health` | Liveness + readiness | `{"status":"ok","version":"..."}` or `{"status":"degraded","version":"..."}` (503) when core is down |
 | `/metrics` | Prometheus scraping | Plain text Prometheus metrics |
 
 ### Reverse proxy
 
-When placing behind nginx or Caddy, ensure these headers are forwarded:
+When placing behind nginx or Caddy, forward:
 
-- `X-Forwarded-For` — for client IP in rate limiting and logs
-- `Host` — for CSRF origin validation
+- `X-Forwarded-For` — client IP for rate limiting (honored only when the TCP peer is in `ADMIN_UI_TRUSTED_PROXIES`; otherwise `RemoteAddr` is used)
+
+`X-Real-IP` is not used. Untrusted peers cannot spoof client IP via XFF. CSRF uses a double-submit cookie (`csrf-token` + `X-CSRF-Token`), not Origin/Host checks.
 
 ---
 
@@ -111,15 +115,16 @@ Browser ──HTTP──→ admin-ui ──gRPC──→ muxcored
 ```
 
 **Auth flow:**
-1. Browser → `POST /login` → admin-ui calls `AuthProvider.Authenticate()` via core mesh
-2. On success, server-side session created (cookie-based, in-memory store)
-3. Every subsequent request validates session cookie + optionally checks `Authorizer.Can("admin.access")`
-4. CSRF protection via double-submit cookie pattern
+1. Browser → `GET /login` → redirect to `ADMIN_UI_AUTH_ADDR/login?redirect=.../auth/callback`
+2. Auth module returns with `?code=...` → admin-ui `POST`s `{code}` to `ADMIN_UI_AUTH_ADDR/login/exchange`
+3. On success, server-side session created (cookie-based, in-memory store)
+4. Every subsequent request validates session cookie and requires `Authorizer.Can("admin.access")` on `admin.ui`
+5. CSRF protection via double-submit cookie pattern
 
 **Live updates:**
 - Dashboard health grid: HTMX polling every 5s
-- Cluster nodes: HTMX polling every 10s
-- Events: HTMX polling every 3s
+- Cluster nodes: HTMX + SSE (`/cluster/sse`, trigger `sse:cluster-update`)
+- Events: HTMX polling every 3s (stats every 10s)
 - All static assets embedded in binary (zero disk I/O at runtime)
 
 ---
