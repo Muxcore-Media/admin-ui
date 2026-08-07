@@ -77,7 +77,7 @@ func MediaMissingPage(displayName string, moduleID string, features []string, it
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var3 templ.SafeURL
-				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/media/%s/%s", moduleID, it.GetParentId())))
+				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/media/%s/item/%s", moduleID, it.GetParentId())))
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/media_library.templ`, Line: 35, Col: 89}
 				}
@@ -687,7 +687,7 @@ func MediaCalendarPage(displayName string, moduleID string, features []string, i
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var33 templ.SafeURL
-				templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/media/%s/%s", moduleID, it.GetParentId())))
+				templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/media/%s/item/%s", moduleID, it.GetParentId())))
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/media_library.templ`, Line: 189, Col: 89}
 				}
