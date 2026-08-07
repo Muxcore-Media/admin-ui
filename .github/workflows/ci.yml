@@ -17,22 +17,27 @@ jobs:
         with:
           path: core
           repository: Muxcore-Media/core
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: contracts-media-admin
           repository: Muxcore-Media/contracts-media-admin
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: media-custom-formats
           repository: Muxcore-Media/media-custom-formats
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: media-rename
           repository: Muxcore-Media/media-rename
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: media-root-folders
           repository: Muxcore-Media/media-root-folders
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: admin-ui
@@ -53,22 +58,27 @@ jobs:
         with:
           path: core
           repository: Muxcore-Media/core
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: contracts-media-admin
           repository: Muxcore-Media/contracts-media-admin
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: media-custom-formats
           repository: Muxcore-Media/media-custom-formats
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: media-rename
           repository: Muxcore-Media/media-rename
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: media-root-folders
           repository: Muxcore-Media/media-root-folders
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: admin-ui
@@ -86,22 +96,27 @@ jobs:
         with:
           path: core
           repository: Muxcore-Media/core
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: contracts-media-admin
           repository: Muxcore-Media/contracts-media-admin
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: media-custom-formats
           repository: Muxcore-Media/media-custom-formats
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: media-rename
           repository: Muxcore-Media/media-rename
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: media-root-folders
           repository: Muxcore-Media/media-root-folders
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: admin-ui
@@ -123,22 +138,27 @@ jobs:
         with:
           path: core
           repository: Muxcore-Media/core
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: contracts-media-admin
           repository: Muxcore-Media/contracts-media-admin
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: media-custom-formats
           repository: Muxcore-Media/media-custom-formats
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: media-rename
           repository: Muxcore-Media/media-rename
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: media-root-folders
           repository: Muxcore-Media/media-root-folders
+          token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/checkout@v7
         with:
           path: admin-ui
