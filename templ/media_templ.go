@@ -510,7 +510,7 @@ func MediaItemCard(item *mediaadminv1.MediaItem, moduleID string) templ.Componen
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var27 templ.SafeURL
-		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/media/%s/%s", moduleID, item.GetId())))
+		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/media/%s/item/%s", moduleID, item.GetId())))
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/media.templ`, Line: 137, Col: 75}
 		}
@@ -779,7 +779,7 @@ func MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []Ac
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var40 string
-		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/media/%s/%s/metadata", moduleID, item.GetId())))
+		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/media/%s/item/%s/metadata", moduleID, item.GetId())))
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/media.templ`, Line: 204, Col: 91}
 		}
@@ -1043,7 +1043,7 @@ func MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []Ac
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var56 string
-		templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/media/%s/%s/artwork", moduleID, item.GetId())))
+		templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/media/%s/item/%s/artwork", moduleID, item.GetId())))
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/media.templ`, Line: 271, Col: 111}
 		}
