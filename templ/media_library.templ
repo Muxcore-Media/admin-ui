@@ -32,7 +32,7 @@ templ MediaMissingPage(displayName string, moduleID string, features []string, i
 						for _, it := range items {
 							<tr class="border-t border-gray-800 hover:bg-gray-900/40">
 								<td class="px-4 py-2">
-									<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s", moduleID, it.GetParentId())) } class="text-indigo-400 hover:text-indigo-300">
+									<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s", moduleID, it.GetParentId())) } class="text-indigo-400 hover:text-indigo-300">
 										{ it.GetTitle() }
 									</a>
 								</td>
@@ -186,7 +186,7 @@ templ MediaCalendarPage(displayName string, moduleID string, features []string, 
 							<tr class="border-t border-gray-800">
 								<td class="px-4 py-2 text-gray-400">{ it.GetDate() }</td>
 								<td class="px-4 py-2">
-									<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s", moduleID, it.GetParentId())) } class="text-indigo-400 hover:text-indigo-300">
+									<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s", moduleID, it.GetParentId())) } class="text-indigo-400 hover:text-indigo-300">
 										{ it.GetTitle() }
 									</a>
 								</td>

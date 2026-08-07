@@ -134,7 +134,7 @@ templ MediaListPage(displayName string, items []*mediaadminv1.MediaItem, total, 
 
 templ MediaItemCard(item *mediaadminv1.MediaItem, moduleID string) {
 	<a
-		href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s", moduleID, item.GetId())) }
+		href={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s", moduleID, item.GetId())) }
 		class="block rounded-xl border border-gray-800 bg-gray-900/50 p-4 hover:border-gray-700 transition-colors"
 	>
 		if mediaPosterURL(item) != "" {
@@ -201,7 +201,7 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 				<div>
 					<h3 class="text-sm font-semibold text-gray-300 mb-1">Metadata</h3>
 					<form
-						hx-post={ templ.SafeURL(fmt.Sprintf("/media/%s/%s/metadata", moduleID, item.GetId())) }
+						hx-post={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s/metadata", moduleID, item.GetId())) }
 						hx-target="this"
 						hx-swap="outerHTML"
 						class="space-y-3"
@@ -268,7 +268,7 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 			</div>
 		</div>
 
-		<div id="artwork-section" hx-get={ templ.SafeURL(fmt.Sprintf("/media/%s/%s/artwork", moduleID, item.GetId())) } hx-trigger="load" hx-swap="innerHTML">
+		<div id="artwork-section" hx-get={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s/artwork", moduleID, item.GetId())) } hx-trigger="load" hx-swap="innerHTML">
 			<div class="text-sm text-gray-500">Loading artwork...</div>
 		</div>
 
