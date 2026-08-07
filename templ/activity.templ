@@ -97,7 +97,7 @@ templ ActivityTable(entries []ActivityEntry) {
 							<td class="px-3 py-2.5 whitespace-nowrap">
 								if e.ModuleID != "" && e.ItemID != "" {
 									<a
-										href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s", e.ModuleID, e.ItemID)) }
+										href={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s", e.ModuleID, e.ItemID)) }
 										class="text-indigo-400 hover:text-indigo-300"
 									>{ e.Title }</a>
 								} else {

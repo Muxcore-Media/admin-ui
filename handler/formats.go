@@ -313,7 +313,7 @@ func (h *Handler) FormatCreate(w http.ResponseWriter, r *http.Request) {
 			"name": edit.Name,
 		})
 	}
-	http.Redirect(w, r, "/formats/"+resp.GetFormat().GetId(), http.StatusSeeOther)
+	http.Redirect(w, r, "/formats/item/"+resp.GetFormat().GetId(), http.StatusSeeOther)
 }
 
 func (h *Handler) FormatEdit(w http.ResponseWriter, r *http.Request) {
@@ -349,7 +349,7 @@ func (h *Handler) FormatEdit(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) FormatUpdate(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if err := r.ParseForm(); err != nil {
-		http.Redirect(w, r, "/formats/"+id, http.StatusSeeOther)
+		http.Redirect(w, r, "/formats/item/"+id, http.StatusSeeOther)
 		return
 	}
 	edit := formatEditFromForm(r)
@@ -377,7 +377,7 @@ func (h *Handler) FormatUpdate(w http.ResponseWriter, r *http.Request) {
 			"name": edit.Name,
 		})
 	}
-	http.Redirect(w, r, "/formats/"+id, http.StatusSeeOther)
+	http.Redirect(w, r, "/formats/item/"+id, http.StatusSeeOther)
 }
 
 func (h *Handler) FormatDelete(w http.ResponseWriter, r *http.Request) {
