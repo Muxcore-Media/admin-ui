@@ -90,8 +90,92 @@ templ DashboardPage(data DashboardData) {
 					@LoadingCard()
 				</div>
 			</div>
+
+			<div>
+				<h2 class="text-lg font-semibold mb-3">Health Monitor</h2>
+				<div
+					id="monitor-summary"
+					hx-get="/dashboard/monitor"
+					hx-trigger="load, every 10s"
+					hx-target="this"
+					hx-swap="innerHTML"
+				>
+					@LoadingCard()
+				</div>
+			</div>
 		</div>
 	}
+}
+
+type MonitorSummaryData struct {
+	Status        string
+	ModuleCount   int
+	StaleCount    int64
+	DegradedCount int64
+	EventsPublish int64
+	Modules       []MonitorModuleItem
+	Recent        []MonitorEventItem
+}
+
+type MonitorModuleItem struct {
+	ID    string
+	State string
+	Stale bool
+	Error string
+}
+
+type MonitorEventItem struct {
+	Type     string
+	ModuleID string
+	Message  string
+}
+
+templ MonitorSummary(data MonitorSummaryData) {
+	<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 space-y-4" data-testid="monitor-summary" data-status={ data.Status }>
+		<div class="flex flex-wrap items-center gap-3">
+			<span class="text-sm font-medium text-gray-200">Aggregate</span>
+			@StateBadge(data.Status)
+			<span class="text-xs text-gray-500">modules={ fmt.Sprintf("%d", data.ModuleCount) } stale={ fmt.Sprintf("%d", data.StaleCount) } degraded_transitions={ fmt.Sprintf("%d", data.DegradedCount) } events={ fmt.Sprintf("%d", data.EventsPublish) }</span>
+		</div>
+		if len(data.Modules) > 0 {
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+				for _, m := range data.Modules {
+					<div class="rounded-lg border border-gray-800 bg-gray-950/40 p-3">
+						<div class="text-sm text-gray-200 truncate">{ m.ID }</div>
+						<div class="flex items-center gap-2 mt-1">
+							@StateBadge(m.State)
+							if m.Stale {
+								<span class="text-xs text-yellow-400">stale</span>
+							}
+						</div>
+						if m.Error != "" {
+							<div class="text-xs text-red-400 mt-1 truncate" title={ m.Error }>{ m.Error }</div>
+						}
+					</div>
+				}
+			</div>
+		} else {
+			<p class="text-sm text-gray-500">No modules have reported health yet.</p>
+		}
+		if len(data.Recent) > 0 {
+			<div>
+				<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Recent events</div>
+				<ul class="space-y-1">
+					for _, ev := range data.Recent {
+						<li class="text-xs text-gray-400 truncate">
+							<span class="text-gray-300">{ ev.Type }</span>
+							if ev.ModuleID != "" {
+								<span class="text-gray-500"> · { ev.ModuleID }</span>
+							}
+							if ev.Message != "" {
+								<span class="text-gray-600"> — { ev.Message }</span>
+							}
+						</li>
+					}
+				</ul>
+			</div>
+		}
+	</div>
 }
 
 templ LeaderCard(data DashboardData) {

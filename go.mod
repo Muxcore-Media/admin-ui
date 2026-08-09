@@ -6,10 +6,12 @@ require (
 	github.com/Muxcore-Media/contracts-media-admin v0.1.0
 	github.com/Muxcore-Media/core v0.5.0
 	github.com/Muxcore-Media/core/sdk/go/client v0.5.0
+	github.com/Muxcore-Media/jellyfin v0.2.1
+	github.com/Muxcore-Media/media-automation v0.1.0
 	github.com/Muxcore-Media/media-custom-formats v0.1.1
 	github.com/a-h/templ v0.3.1020
 	github.com/google/uuid v1.6.0
-	google.golang.org/grpc v1.81.1
+	google.golang.org/grpc v1.82.1
 )
 
 require (
