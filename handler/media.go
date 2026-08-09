@@ -20,7 +20,7 @@ func (h *Handler) mediaModuleAddr(ctx context.Context, moduleID string) (string,
 	if err != nil {
 		return "", fmt.Errorf("resolve %s: %w", moduleID, err)
 	}
-	addr := mod.GetHttpAddr()
+	addr := normalizeDialAddr(mod.GetId(), mod.GetHttpAddr())
 	if addr == "" {
 		return "", fmt.Errorf("module %q has no HTTPAddr", moduleID)
 	}

@@ -28,7 +28,7 @@ func (h *Handler) rootsModuleAddr(ctx context.Context) (string, error) {
 	if len(mods) == 0 {
 		return "", fmt.Errorf("no module with capability %s", capMediaRoots)
 	}
-	addr := mods[0].GetHttpAddr()
+	addr := normalizeDialAddr(mods[0].GetId(), mods[0].GetHttpAddr())
 	if addr == "" {
 		return "", fmt.Errorf("roots module has no HTTPAddr")
 	}
