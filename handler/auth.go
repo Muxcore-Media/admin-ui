@@ -44,14 +44,37 @@ type AuthStatus struct {
 }
 
 func (h *Handler) LoginPage(w http.ResponseWriter, r *http.Request) {
-	// Redirect to the auth module's login page.
-	redirectURL := h.AuthAddr + "/login?redirect=" + url.QueryEscape("http://"+r.Host+"/auth/callback")
+	// Redirect browsers to the public auth origin (Caddy), not loopback.
+	callback := h.publicOrigin(r) + "/auth/callback"
+	redirectURL := h.AuthAddr + "/login?redirect=" + url.QueryEscape(callback)
 	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	// POST /login is no longer handled by admin UI — redirect to auth-local.
 	h.LoginPage(w, r)
+}
+
+func (h *Handler) authExchangeBase() string {
+	if h.AuthInternalAddr != "" {
+		return h.AuthInternalAddr
+	}
+	return h.AuthAddr
+}
+
+func (h *Handler) publicOrigin(r *http.Request) string {
+	if h.PublicURL != "" {
+		return strings.TrimRight(h.PublicURL, "/")
+	}
+	scheme := "http"
+	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+		scheme = "https"
+	}
+	host := r.Header.Get("X-Forwarded-Host")
+	if host == "" {
+		host = r.Host
+	}
+	return scheme + "://" + host
 }
 
 func (h *Handler) AuthCallback(w http.ResponseWriter, r *http.Request) {
@@ -61,11 +84,13 @@ func (h *Handler) AuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Exchange the one-time code for a session token via auth-local's exchange endpoint.
+	// Exchange over the internal URL — browsers use AuthAddr (Caddy), but the
+	// host often cannot resolve/trust https://auth.*.
 	body, _ := json.Marshal(map[string]string{"code": code})
-	resp, err := http.Post(h.AuthAddr+"/login/exchange", "application/json", strings.NewReader(string(body)))
+	exchangeURL := h.authExchangeBase() + "/login/exchange"
+	resp, err := http.Post(exchangeURL, "application/json", strings.NewReader(string(body)))
 	if err != nil {
-		slog.Warn("auth: callback - exchange request failed", "error", err)
+		slog.Warn("auth: callback - exchange request failed", "error", err, "url", exchangeURL)
 		http.Error(w, "auth unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -107,12 +132,13 @@ func (h *Handler) AuthCallback(w http.ResponseWriter, r *http.Request) {
 		"username": result.Username,
 	})
 
+	origin := h.publicOrigin(r)
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session",
 		Value:    sessionToken,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   h.secure,
+		Secure:   h.secure || strings.HasPrefix(origin, "https://"),
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(h.Sessions.TTL().Seconds()),
 	})
