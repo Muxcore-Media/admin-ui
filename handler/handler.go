@@ -42,6 +42,9 @@ type Handler struct {
 	coreConnected  bool
 	AuthAddr       string // external URL of the auth module's login page
 	TrustedProxies []net.IPNet
+	// HealthMonitorURL is the health-monitor HTTP base (e.g. http://127.0.0.1:9203).
+	// Empty disables the dashboard monitor panel.
+	HealthMonitorURL string
 
 	ResetLoginRate func(ip string)
 
@@ -81,6 +84,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /", h.requireAuth(h.Dashboard))
 	mux.HandleFunc("GET /dashboard/health", h.requireAuth(h.HealthGrid))
+	mux.HandleFunc("GET /dashboard/monitor", h.requireAuth(h.MonitorSummary))
 
 	mux.HandleFunc("GET /modules", h.requireAuth(h.ModuleList))
 	mux.HandleFunc("GET /modules/{id}", h.requireAuth(h.ModuleDetail))
@@ -101,6 +105,10 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /audit", h.requireAuth(h.AuditPage))
 
 	mux.HandleFunc("GET /activity", h.requireAuth(h.ActivityPage))
+	mux.HandleFunc("GET /automation", h.requireAuth(h.AutomationQueuePage))
+	mux.HandleFunc("POST /automation/dispatch", h.requireAuth(h.AutomationDispatch))
+	mux.HandleFunc("GET /jellyfin", h.requireAuth(h.JellyfinStatusPage))
+	mux.HandleFunc("POST /jellyfin/sync", h.requireAuth(h.JellyfinSync))
 
 	mux.HandleFunc("GET /config", h.requireAuth(h.ConfigPage))
 
