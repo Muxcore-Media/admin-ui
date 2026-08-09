@@ -18,7 +18,12 @@ import (
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
-const capMediaAutomation = "media.automation"
+const (
+	capMediaAutomation     = "media.automation"
+	automationDialTimeout  = 3 * time.Second
+	automationReadTimeout  = 4 * time.Second
+	automationDispatchTO   = 25 * time.Second
+)
 
 func (h *Handler) automationModuleAddr(ctx context.Context) (string, string, error) {
 	if h.Core == nil {
@@ -52,7 +57,10 @@ func (h *Handler) withAutomationClient(ctx context.Context) (automationv1.Automa
 }
 
 func (h *Handler) AutomationQueuePage(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	// Bound the whole page so a stuck ImportPath / mesh dial cannot hang the admin UI.
+	pageCtx, cancel := context.WithTimeout(r.Context(), automationDialTimeout+2*automationReadTimeout+time.Second)
+	defer cancel()
+
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	if page < 1 {
 		page = 1
@@ -60,14 +68,16 @@ func (h *Handler) AutomationQueuePage(w http.ResponseWriter, r *http.Request) {
 	filter := r.URL.Query().Get("filter")
 
 	data := templates.AutomationPageData{
-		Filter:     filter,
-		Page:       page,
-		Flash:      r.URL.Query().Get("dispatched"),
+		Filter:      filter,
+		Page:        page,
+		Flash:       r.URL.Query().Get("dispatched"),
 		FlashStatus: r.URL.Query().Get("status"),
-		Error:      r.URL.Query().Get("error"),
+		Error:       r.URL.Query().Get("error"),
 	}
 
-	client, closer, err := h.withAutomationClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, automationDialTimeout)
+	client, closer, err := h.withAutomationClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		slog.Warn("automation: resolve/dial failed", "error", err)
 		data.Error = err.Error()
@@ -76,43 +86,51 @@ func (h *Handler) AutomationQueuePage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer closer()
 
-	q, err := client.GetQueue(ctx, &automationv1.GetQueueRequest{
+	qCtx, qCancel := context.WithTimeout(pageCtx, automationReadTimeout)
+	q, err := client.GetQueue(qCtx, &automationv1.GetQueueRequest{
 		Page:     int32(page),
 		PageSize: 50,
 		Filter:   filter,
 	})
+	qCancel()
 	if err != nil {
 		slog.Warn("automation: GetQueue failed", "error", err)
-		data.Error = err.Error()
-		h.renderAutomation(w, r, data)
-		return
-	}
-	data.Total = int(q.GetTotal())
-	data.PageSize = int(q.GetPageSize())
-	if data.PageSize < 1 {
-		data.PageSize = 50
-	}
-	data.TotalPages = 1
-	if data.Total > 0 {
-		data.TotalPages = (data.Total + data.PageSize - 1) / data.PageSize
-	}
-	for _, it := range q.GetItems() {
-		data.Items = append(data.Items, templates.AutomationQueueItem{
-			ID:        it.GetId(),
-			ItemID:    it.GetItemId(),
-			ItemType:  it.GetItemType(),
-			Title:     it.GetTitle(),
-			Year:      int(it.GetYear()),
-			TMDBID:    int(it.GetTmdbId()),
-			Monitored: it.GetMonitored(),
-			Missing:   it.GetMissing(),
-			UpdatedAt: it.GetUpdatedAt(),
-		})
+		if data.Error == "" {
+			data.Error = "queue unavailable: " + err.Error()
+		}
+	} else {
+		data.Total = int(q.GetTotal())
+		data.PageSize = int(q.GetPageSize())
+		if data.PageSize < 1 {
+			data.PageSize = 50
+		}
+		data.TotalPages = 1
+		if data.Total > 0 {
+			data.TotalPages = (data.Total + data.PageSize - 1) / data.PageSize
+		}
+		for _, it := range q.GetItems() {
+			data.Items = append(data.Items, templates.AutomationQueueItem{
+				ID:        it.GetId(),
+				ItemID:    it.GetItemId(),
+				ItemType:  it.GetItemType(),
+				Title:     it.GetTitle(),
+				Year:      int(it.GetYear()),
+				TMDBID:    int(it.GetTmdbId()),
+				Monitored: it.GetMonitored(),
+				Missing:   it.GetMissing(),
+				UpdatedAt: it.GetUpdatedAt(),
+			})
+		}
 	}
 
-	hist, err := client.GetHistory(ctx, &automationv1.GetHistoryRequest{Page: 1, PageSize: 20})
+	hCtx, hCancel := context.WithTimeout(pageCtx, automationReadTimeout)
+	hist, err := client.GetHistory(hCtx, &automationv1.GetHistoryRequest{Page: 1, PageSize: 20})
+	hCancel()
 	if err != nil {
 		slog.Warn("automation: GetHistory failed", "error", err)
+		if data.Error == "" {
+			data.Error = "history unavailable: " + err.Error()
+		}
 	} else {
 		for _, rec := range hist.GetRecords() {
 			src := rec.GetIndexer()
@@ -141,7 +159,9 @@ func (h *Handler) renderAutomation(w http.ResponseWriter, r *http.Request, data 
 
 // AutomationDispatch runs SearchItem → Dispatch best match, or a fixture magnet when search is empty.
 func (h *Handler) AutomationDispatch(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, cancel := context.WithTimeout(r.Context(), automationDispatchTO)
+	defer cancel()
+
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return
@@ -161,20 +181,22 @@ func (h *Handler) AutomationDispatch(w http.ResponseWriter, r *http.Request) {
 
 	client, closer, err := h.withAutomationClient(ctx)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		http.Redirect(w, r, "/automation?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
 
 	var match *automationv1.ReleaseMatch
 	if !forceFixture {
-		search, err := client.SearchItem(ctx, &automationv1.SearchItemRequest{
+		searchCtx, searchCancel := context.WithTimeout(ctx, 10*time.Second)
+		search, err := client.SearchItem(searchCtx, &automationv1.SearchItemRequest{
 			ItemType: itemType,
 			Query:    title,
 			TmdbId:   int32(tmdbID),
 			Year:     int32(year),
 			Limit:    10,
 		})
+		searchCancel()
 		if err != nil {
 			slog.Warn("automation: SearchItem failed", "error", err)
 		} else if len(search.GetMatches()) > 0 {
