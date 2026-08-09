@@ -98,9 +98,14 @@ func (h *Handler) ClusterSSE(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
+	if h.Core == nil {
+		http.Error(w, "core unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	stream, err := h.Core.Discovery.Raw().Watch(ctx, &discoveryv1.MembersRequest{})
 	if err != nil {
 		slog.Warn("cluster sse: Watch failed", "error", err)
+		http.Error(w, "cluster watch unavailable", http.StatusInternalServerError)
 		return
 	}
 

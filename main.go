@@ -31,31 +31,33 @@ var staticAssets embed.FS
 var version = "0.0.0-dev"
 
 type Config struct {
-	Addr           string
-	CoreAddr       string
-	Insecure       bool
-	TLSCert        string
-	TLSKey         string
-	SessionTTL     time.Duration
-	LogLevel       string
-	LogFormat      string
-	AuthAddr       string
-	TrustedProxies string
+	Addr              string
+	CoreAddr          string
+	Insecure          bool
+	TLSCert           string
+	TLSKey            string
+	SessionTTL        time.Duration
+	LogLevel          string
+	LogFormat         string
+	AuthAddr          string
+	TrustedProxies    string
+	HealthMonitorURL  string
 }
 
 func loadConfig() Config {
 	ttl, _ := time.ParseDuration(env("ADMIN_UI_SESSION_TTL", "30m"))
 	return Config{
-		Addr:           env("ADMIN_UI_ADDR", ":8080"),
-		CoreAddr:       env("ADMIN_UI_CORE_ADDR", "localhost:9090"),
-		Insecure:       env("ADMIN_UI_INSECURE", "") == "true",
-		TLSCert:        env("ADMIN_UI_TLS_CERT", ""),
-		TLSKey:         env("ADMIN_UI_TLS_KEY", ""),
-		SessionTTL:     ttl,
-		LogLevel:       env("ADMIN_UI_LOG_LEVEL", "info"),
-		LogFormat:      env("ADMIN_UI_LOG_FORMAT", "text"),
-		AuthAddr:       env("ADMIN_UI_AUTH_ADDR", "http://localhost:9401"),
-		TrustedProxies: env("ADMIN_UI_TRUSTED_PROXIES", ""),
+		Addr:             env("ADMIN_UI_ADDR", ":8080"),
+		CoreAddr:         env("ADMIN_UI_CORE_ADDR", "localhost:9090"),
+		Insecure:         env("ADMIN_UI_INSECURE", "") == "true",
+		TLSCert:          env("ADMIN_UI_TLS_CERT", ""),
+		TLSKey:           env("ADMIN_UI_TLS_KEY", ""),
+		SessionTTL:       ttl,
+		LogLevel:         env("ADMIN_UI_LOG_LEVEL", "info"),
+		LogFormat:        env("ADMIN_UI_LOG_FORMAT", "text"),
+		AuthAddr:         env("ADMIN_UI_AUTH_ADDR", "http://localhost:9401"),
+		TrustedProxies:   env("ADMIN_UI_TRUSTED_PROXIES", ""),
+		HealthMonitorURL: env("ADMIN_UI_HEALTH_MONITOR_URL", "http://127.0.0.1:9203"),
 	}
 }
 
@@ -116,6 +118,7 @@ func main() {
 	trustedProxies := parseTrustedProxiesCSV(cfg.TrustedProxies)
 
 	h := handler.New(coreClient, ss, cfg.TLSCert != "" || !cfg.Insecure, version, met, coreConnected, cfg.AuthAddr, loginRL.Reset, trustedProxies)
+	h.HealthMonitorURL = cfg.HealthMonitorURL
 
 	mux := http.NewServeMux()
 
@@ -253,6 +256,18 @@ type loggingResponseWriter struct {
 func (w *loggingResponseWriter) WriteHeader(code int) {
 	w.statusCode = code
 	w.ResponseWriter.WriteHeader(code)
+}
+
+// Flush preserves http.Flusher for SSE (e.g. /cluster/sse).
+func (w *loggingResponseWriter) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// Unwrap exposes the underlying writer for http.ResponseController.
+func (w *loggingResponseWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
 }
 
 func withMiddleware(next http.Handler, csrfKey string, loginRL *rateLimiter, trustedProxies []net.IPNet) http.Handler {
