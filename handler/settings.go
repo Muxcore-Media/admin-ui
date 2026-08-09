@@ -76,7 +76,7 @@ func (h *Handler) SettingsPage(w http.ResponseWriter, r *http.Request) {
 			Groups:     make(map[string][]templates.SettingField),
 		}
 
-		raw, err := h.settingsMeshCall(r.Context(), mod.GetId(), mod.GetHttpAddr(), methodGet, nil)
+		raw, err := h.settingsMeshCall(r.Context(), mod.GetId(), normalizeDialAddr(mod.GetId(), mod.GetHttpAddr()), methodGet, nil)
 		if err != nil {
 			slog.Warn("settings: mesh call failed", "module", mod.GetId(), "error", err)
 			continue
@@ -152,7 +152,7 @@ func (h *Handler) SettingsUpdate(w http.ResponseWriter, r *http.Request) {
 	if mods, err := h.Core.Discovery.FindByCapability(r.Context(), capSettings); err == nil {
 		for _, mod := range mods {
 			if mod.GetId() == moduleID {
-				httpAddr = mod.GetHttpAddr()
+				httpAddr = normalizeDialAddr(mod.GetId(), mod.GetHttpAddr())
 				break
 			}
 		}
