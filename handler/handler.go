@@ -40,8 +40,10 @@ type Handler struct {
 	version        string
 	loginMetrics   LoginMetrics
 	coreConnected  bool
-	AuthAddr       string // external URL of the auth module's login page
-	TrustedProxies []net.IPNet
+	AuthAddr         string // browser-facing auth base (e.g. https://auth.gringotts)
+	AuthInternalAddr string // server-side auth base for code exchange (defaults to AuthAddr)
+	PublicURL        string // optional public origin override for OAuth callbacks
+	TrustedProxies   []net.IPNet
 	// HealthMonitorURL is the health-monitor HTTP base (e.g. http://127.0.0.1:9203).
 	// Empty disables the dashboard monitor panel.
 	HealthMonitorURL string
