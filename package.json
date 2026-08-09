@@ -1,0 +1,24 @@
+{
+  "name": "admin-ui",
+  "version": "1.0.0",
+  "description": "[![CI](https://github.com/Muxcore-Media/admin-ui/actions/workflows/ci.yml/badge.svg)](https://github.com/Muxcore-Media/admin-ui/actions) [![Go Version](https://img.shields.io/badge/Go-1.26-blue)](https://go.dev/) [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)",
+  "main": "tailwind.config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Muxcore-Media/admin-ui.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Muxcore-Media/admin-ui/issues"
+  },
+  "homepage": "https://github.com/Muxcore-Media/admin-ui#readme",
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.6",
+    "tailwindcss": "^4.1.6"
+  }
+}
