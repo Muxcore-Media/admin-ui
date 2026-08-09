@@ -88,9 +88,9 @@ func StateBadge(state string) templ.Component {
 
 func healthColor(state string) string {
 	switch state {
-	case "running":
+	case "running", "ok", "healthy":
 		return "green"
-	case "degraded", "starting", "registered":
+	case "degraded", "starting", "registered", "stale", "idle":
 		return "yellow"
 	case "stopping", "stopped":
 		return "gray"

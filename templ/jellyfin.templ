@@ -1,0 +1,113 @@
+package templates
+
+import "fmt"
+
+type JellyfinLinkItem struct {
+	MuxID string
+	JFID  string
+	Title string
+	Path  string
+}
+
+type JellyfinPageData struct {
+	Configured   bool
+	BaseURL      string
+	ConflictMode string
+	ItemLinks    int
+	SessionsPoll bool
+	SoftNote     bool
+	Links        []JellyfinLinkItem
+	Error        string
+	Flash        string
+}
+
+templ JellyfinPage(data JellyfinPageData) {
+	<div class="space-y-6" data-testid="jellyfin-page">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Jellyfin</h1>
+				<p class="text-gray-400 text-sm mt-1">Playback bridge status and item links</p>
+			</div>
+			<form method="POST" action="/jellyfin/sync">
+				<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500" data-testid="jellyfin-sync">
+					Sync library
+				</button>
+			</form>
+		</div>
+
+		if data.Flash != "" {
+			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300" data-testid="sync-flash">{ data.Flash }</div>
+		}
+		if data.Error != "" {
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ data.Error }</div>
+		}
+
+		<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+				<div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Configured</div>
+				<div class="text-xl font-bold text-white mt-1">
+					if data.Configured {
+						<span class="text-green-400">yes</span>
+					} else {
+						<span class="text-yellow-400">no</span>
+					}
+				</div>
+				if data.SoftNote {
+					<div class="text-xs text-gray-500 mt-2">Soft OK without live Jellyfin server — set JELLYFIN_BASE_URL + JELLYFIN_API_KEY</div>
+				}
+			</div>
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+				<div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Item links</div>
+				<div class="text-xl font-bold text-white mt-1">{ fmt.Sprintf("%d", data.ItemLinks) }</div>
+				<div class="text-xs text-gray-500 mt-1">Conflict mode: { data.ConflictMode }</div>
+			</div>
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+				<div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Base URL</div>
+				<div class="text-sm font-medium text-white mt-1 truncate">
+					if data.BaseURL != "" {
+						{ data.BaseURL }
+					} else {
+						<span class="text-gray-500">(unset)</span>
+					}
+				</div>
+				<div class="text-xs text-gray-500 mt-1">
+					if data.SessionsPoll {
+						Sessions poll enabled
+					} else {
+						Sessions poll off
+					}
+				</div>
+			</div>
+		</div>
+
+		<div>
+			<h2 class="text-lg font-semibold mb-3">Item links</h2>
+			if len(data.Links) == 0 {
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">No item links stored.</div>
+			} else {
+				<div class="overflow-x-auto rounded-xl border border-gray-800">
+					<table class="min-w-full divide-y divide-gray-800 text-sm">
+						<thead class="bg-gray-900/50">
+							<tr>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Title</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">MuxCore ID</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Jellyfin ID</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Path</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, l := range data.Links {
+								<tr>
+									<td class="px-4 py-2 text-gray-200">{ l.Title }</td>
+									<td class="px-4 py-2 text-xs text-gray-400">{ l.MuxID }</td>
+									<td class="px-4 py-2 text-xs text-gray-400">{ l.JFID }</td>
+									<td class="px-4 py-2 text-xs text-gray-500 truncate max-w-[16rem]" title={ l.Path }>{ l.Path }</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+	</div>
+}

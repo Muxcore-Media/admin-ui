@@ -2,6 +2,7 @@ package templates
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -17,11 +18,55 @@ type EventSubscriptionStat struct {
 	Count     int
 }
 
-templ EventsPage(events []EventItem, subscriptionStats []EventSubscriptionStat) {
-	<div class="space-y-6">
+type EventsPageData struct {
+	Events []EventItem
+	Stats  []EventSubscriptionStat
+	Filter string
+}
+
+func eventBadgeClass(eventType string) string {
+	switch {
+	case eventType == "module.degraded", eventType == "module.stale":
+		return "bg-yellow-900/30 text-yellow-300 border-yellow-800/50"
+	case strings.HasPrefix(eventType, "health."):
+		return "bg-emerald-900/30 text-emerald-300 border-emerald-800/50"
+	case strings.HasPrefix(eventType, "download."):
+		return "bg-blue-900/30 text-blue-300 border-blue-800/50"
+	default:
+		return "bg-indigo-900/30 text-indigo-400 border-indigo-800/50"
+	}
+}
+
+func eventRowClass(eventType string) string {
+	switch eventType {
+	case "module.degraded":
+		return "bg-yellow-950/20 hover:bg-yellow-950/30"
+	case "module.stale":
+		return "bg-yellow-950/10 hover:bg-yellow-950/20"
+	default:
+		return "hover:bg-gray-800/30"
+	}
+}
+
+func filterChipClass(active bool) string {
+	if active {
+		return "rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white"
+	}
+	return "rounded-lg border border-gray-700 bg-gray-900 px-3 py-1.5 text-xs font-medium text-gray-300 hover:bg-gray-800"
+}
+
+templ EventsPage(data EventsPageData) {
+	<div class="space-y-6" data-testid="events-page" data-filter={ data.Filter }>
 		<div>
 			<h1 class="text-2xl font-bold">Events</h1>
-			<p class="text-gray-400 text-sm mt-1">Live event bus stream</p>
+			<p class="text-gray-400 text-sm mt-1">Live event bus stream (includes health-monitor mesh fan-out)</p>
+		</div>
+
+		<div class="flex flex-wrap gap-2" data-testid="events-filters">
+			<a href="/events" class={ filterChipClass(data.Filter == "" || data.Filter == "all") }>All</a>
+			<a href="/events?filter=health" class={ filterChipClass(data.Filter == "health") }>Health</a>
+			<a href="/events?filter=degraded" class={ filterChipClass(data.Filter == "degraded") }>Degraded</a>
+			<a href="/events?filter=download" class={ filterChipClass(data.Filter == "download") }>Downloads</a>
 		</div>
 
 		<div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -33,12 +78,12 @@ templ EventsPage(events []EventItem, subscriptionStats []EventSubscriptionStat) 
 
 				<div
 					id="event-table"
-					hx-get="/events/stream"
+					hx-get={ "/events/stream?filter=" + data.Filter }
 					hx-trigger="load, every 3s"
 					hx-target="this"
 					hx-swap="innerHTML"
 				>
-					@EventTable(events)
+					@EventTable(data.Events)
 				</div>
 			</div>
 
@@ -51,7 +96,7 @@ templ EventsPage(events []EventItem, subscriptionStats []EventSubscriptionStat) 
 					hx-target="this"
 					hx-swap="innerHTML"
 				>
-					@SubscriptionStatsPanel(subscriptionStats)
+					@SubscriptionStatsPanel(data.Stats)
 				</div>
 			</div>
 		</div>
@@ -60,11 +105,11 @@ templ EventsPage(events []EventItem, subscriptionStats []EventSubscriptionStat) 
 
 templ EventTable(events []EventItem) {
 	if len(events) == 0 {
-		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500" data-testid="events-empty">
 			No events yet.
 		</div>
 	} else {
-		<div class="overflow-x-auto rounded-xl border border-gray-800">
+		<div class="overflow-x-auto rounded-xl border border-gray-800" data-testid="events-table">
 			<table class="min-w-full divide-y divide-gray-800 text-sm">
 				<thead class="bg-gray-900/50">
 					<tr>
@@ -76,10 +121,10 @@ templ EventTable(events []EventItem) {
 				</thead>
 				<tbody class="divide-y divide-gray-800 font-mono text-xs">
 					for _, e := range events {
-						<tr class="hover:bg-gray-800/30 transition-colors">
+						<tr class={ "transition-colors", eventRowClass(e.Type) } data-event-type={ e.Type }>
 							<td class="px-4 py-2 whitespace-nowrap text-gray-400">{ e.Timestamp.Format("15:04:05.000") }</td>
 							<td class="px-4 py-2 whitespace-nowrap">
-								<span class="rounded-md bg-indigo-900/30 px-1.5 py-0.5 text-xs font-medium text-indigo-400 border border-indigo-800/50">{ e.Type }</span>
+								<span class={ "rounded-md px-1.5 py-0.5 text-xs font-medium border", eventBadgeClass(e.Type) }>{ e.Type }</span>
 							</td>
 							<td class="px-4 py-2 whitespace-nowrap text-gray-300">{ e.Source }</td>
 							<td class="px-4 py-2 whitespace-nowrap text-gray-500">{ e.ID }</td>

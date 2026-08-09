@@ -3,20 +3,72 @@ package handler
 import (
 	"log/slog"
 	"net/http"
+	"sort"
 	"strings"
+
+	discoveryv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/discovery/v1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
 func (h *Handler) ModuleList(w http.ResponseWriter, r *http.Request) {
+	modules := h.loadModuleList(r)
+
+	// HTMX fragment refresh (if any) — table only, never the full layout.
+	if r.Header.Get("HX-Request") == "true" {
+		w.Header().Set("Content-Type", "text/html")
+		h.render(w, r, templates.ModuleTable(modules))
+		return
+	}
+
+	content := templates.ModuleListPage(modules)
+	nav := h.nav(r.URL.Path)
+	component := templates.Layout("Modules", nav, content)
+	h.render(w, r, component)
+}
+
+func (h *Handler) loadModuleList(r *http.Request) []templates.ModuleListItem {
+	if h.Core == nil {
+		return nil
+	}
+
+	resp, err := h.Core.Discovery.Raw().ListAll(r.Context(), &discoveryv1.ListAllRequest{})
+	if err != nil {
+		slog.Warn("modules: ListAll failed, falling back to Members", "error", err)
+		return h.loadModuleListFromMembers(r)
+	}
+
+	var modules []templates.ModuleListItem
+	for _, e := range resp.GetEntries() {
+		info := e.GetInfo()
+		if info == nil {
+			continue
+		}
+		state := e.GetState()
+		if state == "" {
+			state = "running"
+		}
+		modules = append(modules, templates.ModuleListItem{
+			ID:           info.GetId(),
+			Name:         firstNonEmpty(info.GetName(), info.GetId()),
+			Version:      info.GetVersion(),
+			State:        state,
+			Roles:        info.GetRoles(),
+			Capabilities: info.GetCapabilities(),
+			Healthy:      e.GetHealthError() == "",
+		})
+	}
+	sort.Slice(modules, func(i, j int) bool {
+		return strings.ToLower(modules[i].Name) < strings.ToLower(modules[j].Name)
+	})
+	return modules
+}
+
+func (h *Handler) loadModuleListFromMembers(r *http.Request) []templates.ModuleListItem {
 	members, _, err := h.Core.Discovery.Members(r.Context())
 	if err != nil {
 		slog.Warn("modules: Members call failed", "error", err)
-		content := templates.ModuleListPage(nil)
-		nav := h.nav(r.URL.Path)
-		component := templates.Layout("Modules", nav, content)
-		h.render(w, r, component)
-		return
+		return nil
 	}
 
 	seen := make(map[string]bool)
@@ -47,7 +99,7 @@ func (h *Handler) ModuleList(w http.ResponseWriter, r *http.Request) {
 			healthErr := node.GetModuleHealth()[modID]
 			modules = append(modules, templates.ModuleListItem{
 				ID:           info.GetId(),
-				Name:         info.GetName(),
+				Name:         firstNonEmpty(info.GetName(), info.GetId()),
 				Version:      info.GetVersion(),
 				State:        "running",
 				Roles:        info.GetRoles(),
@@ -56,11 +108,19 @@ func (h *Handler) ModuleList(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
+	sort.Slice(modules, func(i, j int) bool {
+		return strings.ToLower(modules[i].Name) < strings.ToLower(modules[j].Name)
+	})
+	return modules
+}
 
-	content := templates.ModuleListPage(modules)
-	nav := h.nav(r.URL.Path)
-	component := templates.Layout("Modules", nav, content)
-	h.render(w, r, component)
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func (h *Handler) ModuleDetail(w http.ResponseWriter, r *http.Request) {
