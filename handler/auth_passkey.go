@@ -20,7 +20,7 @@ func (h *Handler) authClient(ctx context.Context) (authv1.AuthServiceClient, *gr
 	if err != nil {
 		return nil, nil, fmt.Errorf("auth module unavailable: %w", err)
 	}
-	addr := mod.GetHttpAddr()
+	addr := normalizeDialAddr(mod.GetId(), mod.GetHttpAddr())
 	if addr == "" {
 		return nil, nil, fmt.Errorf("auth module has no gRPC address")
 	}

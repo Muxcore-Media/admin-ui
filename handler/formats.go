@@ -29,7 +29,7 @@ func (h *Handler) formatsModuleAddr(ctx context.Context) (string, error) {
 	if len(mods) == 0 {
 		return "", fmt.Errorf("no module with capability %s", capMediaFormats)
 	}
-	addr := mods[0].GetHttpAddr()
+	addr := normalizeDialAddr(mods[0].GetId(), mods[0].GetHttpAddr())
 	if addr == "" {
 		return "", fmt.Errorf("formats module has no HTTPAddr")
 	}
