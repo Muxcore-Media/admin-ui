@@ -318,7 +318,7 @@ func (h *Handler) checkAuthorized(ctx context.Context, sess *session.Session) er
 		return fmt.Errorf("authorizer unavailable: %w", err)
 	}
 
-	addr := mod.GetHttpAddr()
+	addr := normalizeDialAddr(mod.GetId(), mod.GetHttpAddr())
 	if addr == "" {
 		return fmt.Errorf("authorizer has no gRPC address")
 	}
