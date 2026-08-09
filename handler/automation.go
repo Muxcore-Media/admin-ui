@@ -1,0 +1,230 @@
+package handler
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	automationv1 "github.com/Muxcore-Media/media-automation/proto/automationv1"
+
+	templates "github.com/Muxcore-Media/admin-ui/templ"
+)
+
+const capMediaAutomation = "media.automation"
+
+func (h *Handler) automationModuleAddr(ctx context.Context) (string, string, error) {
+	if h.Core == nil {
+		return "", "", fmt.Errorf("core unavailable")
+	}
+	mods, err := h.Core.Discovery.FindByCapability(ctx, capMediaAutomation)
+	if err != nil {
+		return "", "", err
+	}
+	if len(mods) == 0 {
+		return "", "", fmt.Errorf("no module with capability %s", capMediaAutomation)
+	}
+	mod := mods[0]
+	addr := normalizeDialAddr(mod.GetId(), mod.GetHttpAddr())
+	if addr == "" {
+		return "", "", fmt.Errorf("automation module has no dial address")
+	}
+	return mod.GetId(), addr, nil
+}
+
+func (h *Handler) withAutomationClient(ctx context.Context) (automationv1.AutomationServiceClient, func(), error) {
+	_, addr, err := h.automationModuleAddr(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, nil, fmt.Errorf("dial %s: %w", addr, err)
+	}
+	return automationv1.NewAutomationServiceClient(conn), func() { _ = conn.Close() }, nil
+}
+
+func (h *Handler) AutomationQueuePage(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	if page < 1 {
+		page = 1
+	}
+	filter := r.URL.Query().Get("filter")
+
+	data := templates.AutomationPageData{
+		Filter:     filter,
+		Page:       page,
+		Flash:      r.URL.Query().Get("dispatched"),
+		FlashStatus: r.URL.Query().Get("status"),
+		Error:      r.URL.Query().Get("error"),
+	}
+
+	client, closer, err := h.withAutomationClient(ctx)
+	if err != nil {
+		slog.Warn("automation: resolve/dial failed", "error", err)
+		data.Error = err.Error()
+		h.renderAutomation(w, r, data)
+		return
+	}
+	defer closer()
+
+	q, err := client.GetQueue(ctx, &automationv1.GetQueueRequest{
+		Page:     int32(page),
+		PageSize: 50,
+		Filter:   filter,
+	})
+	if err != nil {
+		slog.Warn("automation: GetQueue failed", "error", err)
+		data.Error = err.Error()
+		h.renderAutomation(w, r, data)
+		return
+	}
+	data.Total = int(q.GetTotal())
+	data.PageSize = int(q.GetPageSize())
+	if data.PageSize < 1 {
+		data.PageSize = 50
+	}
+	data.TotalPages = 1
+	if data.Total > 0 {
+		data.TotalPages = (data.Total + data.PageSize - 1) / data.PageSize
+	}
+	for _, it := range q.GetItems() {
+		data.Items = append(data.Items, templates.AutomationQueueItem{
+			ID:        it.GetId(),
+			ItemID:    it.GetItemId(),
+			ItemType:  it.GetItemType(),
+			Title:     it.GetTitle(),
+			Year:      int(it.GetYear()),
+			TMDBID:    int(it.GetTmdbId()),
+			Monitored: it.GetMonitored(),
+			Missing:   it.GetMissing(),
+			UpdatedAt: it.GetUpdatedAt(),
+		})
+	}
+
+	hist, err := client.GetHistory(ctx, &automationv1.GetHistoryRequest{Page: 1, PageSize: 20})
+	if err != nil {
+		slog.Warn("automation: GetHistory failed", "error", err)
+	} else {
+		for _, rec := range hist.GetRecords() {
+			src := rec.GetIndexer()
+			if src == "" {
+				src = rec.GetDownloadProtocol()
+			}
+			data.History = append(data.History, templates.AutomationHistoryItem{
+				ID:     rec.GetId(),
+				Status: rec.GetStatus(),
+				Title:  rec.GetTitle(),
+				Source: src,
+				At:     rec.GetCreatedAt(),
+			})
+		}
+	}
+
+	h.renderAutomation(w, r, data)
+}
+
+func (h *Handler) renderAutomation(w http.ResponseWriter, r *http.Request, data templates.AutomationPageData) {
+	content := templates.AutomationPage(data)
+	nav := h.nav(r.URL.Path)
+	component := templates.Layout("Automation", nav, content)
+	h.render(w, r, component)
+}
+
+// AutomationDispatch runs SearchItem → Dispatch best match, or a fixture magnet when search is empty.
+func (h *Handler) AutomationDispatch(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	itemType := r.FormValue("item_type")
+	if itemType == "" {
+		itemType = "movie"
+	}
+	itemID := r.FormValue("item_id")
+	title := r.FormValue("title")
+	if title == "" {
+		title = "Fight Club"
+	}
+	tmdbID, _ := strconv.Atoi(r.FormValue("tmdb_id"))
+	year, _ := strconv.Atoi(r.FormValue("year"))
+	forceFixture := r.FormValue("fixture") == "1" || r.FormValue("mode") == "fixture"
+
+	client, closer, err := h.withAutomationClient(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	defer closer()
+
+	var match *automationv1.ReleaseMatch
+	if !forceFixture {
+		search, err := client.SearchItem(ctx, &automationv1.SearchItemRequest{
+			ItemType: itemType,
+			Query:    title,
+			TmdbId:   int32(tmdbID),
+			Year:     int32(year),
+			Limit:    10,
+		})
+		if err != nil {
+			slog.Warn("automation: SearchItem failed", "error", err)
+		} else if len(search.GetMatches()) > 0 {
+			match = search.GetMatches()[0]
+			for _, m := range search.GetMatches()[1:] {
+				if m.GetScore() > match.GetScore() {
+					match = m
+				}
+			}
+		}
+	}
+
+	req := &automationv1.DispatchRequest{
+		ItemType: itemType,
+		ItemId:   itemID,
+		TmdbId:   int32(tmdbID),
+		Title:    title,
+	}
+	if match != nil {
+		req.Guid = match.GetGuid()
+		req.Title = match.GetTitle()
+		req.DownloadUrl = match.GetDownloadUrl()
+		req.DownloadProtocol = match.GetDownloadProtocol()
+		if req.DownloadProtocol == "" {
+			req.DownloadProtocol = "torrent"
+		}
+		req.Size = match.GetSize()
+		req.Score = match.GetScore()
+		req.IndexerName = match.GetIndexerName()
+	} else {
+		dn := strings.ReplaceAll(title, " ", ".")
+		if year > 0 {
+			dn = fmt.Sprintf("%s.%d.1080p.Fixture", dn, year)
+		} else {
+			dn = dn + ".Fixture"
+		}
+		req.Guid = fmt.Sprintf("fixture-%d", time.Now().UnixNano())
+		req.DownloadUrl = fmt.Sprintf("magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567&dn=%s", url.QueryEscape(dn))
+		req.DownloadProtocol = "torrent"
+		req.Size = 8192
+		req.Score = 100
+		req.IndexerName = "fixture"
+	}
+
+	disp, err := client.Dispatch(ctx, req)
+	if err != nil {
+		slog.Warn("automation: Dispatch failed", "error", err)
+		http.Redirect(w, r, "/automation?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, fmt.Sprintf("/automation?dispatched=%s&status=%s",
+		url.QueryEscape(disp.GetDownloadId()), url.QueryEscape(disp.GetStatus())), http.StatusSeeOther)
+}

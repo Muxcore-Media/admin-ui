@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -89,14 +90,15 @@ func (h *Handler) startEventSubscription(ctx context.Context) {
 }
 
 func (h *Handler) EventsPage(w http.ResponseWriter, r *http.Request) {
-	events := h.events.Snapshot()
-	for i, j := 0, len(events)-1; i < j; i, j = i+1, j-1 {
-		events[i], events[j] = events[j], events[i]
-	}
-
+	filter := normalizeEventFilter(r.URL.Query().Get("filter"))
+	events := filterEventItems(h.eventsNewestFirst(), filter)
 	stats := h.collectSubscriptionStats()
 
-	content := templates.EventsPage(events, stats)
+	content := templates.EventsPage(templates.EventsPageData{
+		Events: events,
+		Stats:  stats,
+		Filter: filter,
+	})
 	nav := h.nav(r.URL.Path)
 	component := templates.Layout("Events", nav, content)
 	h.render(w, r, component)
@@ -106,13 +108,53 @@ func (h *Handler) EventsStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.Header().Set("Cache-Control", "no-cache")
 
+	filter := normalizeEventFilter(r.URL.Query().Get("filter"))
+	events := filterEventItems(h.eventsNewestFirst(), filter)
+	component := templates.EventTable(events)
+	h.render(w, r, component)
+}
+
+func (h *Handler) eventsNewestFirst() []templates.EventItem {
 	events := h.events.Snapshot()
 	for i, j := 0, len(events)-1; i < j; i, j = i+1, j-1 {
 		events[i], events[j] = events[j], events[i]
 	}
+	return events
+}
 
-	component := templates.EventTable(events)
-	h.render(w, r, component)
+func normalizeEventFilter(filter string) string {
+	switch strings.ToLower(strings.TrimSpace(filter)) {
+	case "", "all":
+		return "all"
+	case "health", "degraded", "download":
+		return strings.ToLower(filter)
+	default:
+		return "all"
+	}
+}
+
+func filterEventItems(events []templates.EventItem, filter string) []templates.EventItem {
+	if filter == "" || filter == "all" {
+		return events
+	}
+	out := make([]templates.EventItem, 0, len(events))
+	for _, e := range events {
+		switch filter {
+		case "health":
+			if e.Type == "module.degraded" || e.Type == "module.stale" || strings.HasPrefix(e.Type, "health.") {
+				out = append(out, e)
+			}
+		case "degraded":
+			if e.Type == "module.degraded" {
+				out = append(out, e)
+			}
+		case "download":
+			if strings.HasPrefix(e.Type, "download.") {
+				out = append(out, e)
+			}
+		}
+	}
+	return out
 }
 
 func (h *Handler) EventStatsPanel(w http.ResponseWriter, r *http.Request) {
