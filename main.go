@@ -39,13 +39,16 @@ type Config struct {
 	SessionTTL        time.Duration
 	LogLevel          string
 	LogFormat         string
-	AuthAddr          string
-	TrustedProxies    string
-	HealthMonitorURL  string
+	AuthAddr         string
+	AuthInternalAddr string
+	PublicURL        string
+	TrustedProxies   string
+	HealthMonitorURL string
 }
 
 func loadConfig() Config {
 	ttl, _ := time.ParseDuration(env("ADMIN_UI_SESSION_TTL", "30m"))
+	authAddr := env("ADMIN_UI_AUTH_ADDR", "http://localhost:9401")
 	return Config{
 		Addr:             env("ADMIN_UI_ADDR", ":8080"),
 		CoreAddr:         env("ADMIN_UI_CORE_ADDR", "localhost:9090"),
@@ -55,7 +58,9 @@ func loadConfig() Config {
 		SessionTTL:       ttl,
 		LogLevel:         env("ADMIN_UI_LOG_LEVEL", "info"),
 		LogFormat:        env("ADMIN_UI_LOG_FORMAT", "text"),
-		AuthAddr:         env("ADMIN_UI_AUTH_ADDR", "http://localhost:9401"),
+		AuthAddr:         authAddr,
+		AuthInternalAddr: env("ADMIN_UI_AUTH_INTERNAL_ADDR", authAddr),
+		PublicURL:        env("ADMIN_UI_PUBLIC_URL", ""),
 		TrustedProxies:   env("ADMIN_UI_TRUSTED_PROXIES", ""),
 		HealthMonitorURL: env("ADMIN_UI_HEALTH_MONITOR_URL", "http://127.0.0.1:9203"),
 	}
@@ -118,6 +123,8 @@ func main() {
 	trustedProxies := parseTrustedProxiesCSV(cfg.TrustedProxies)
 
 	h := handler.New(coreClient, ss, cfg.TLSCert != "" || !cfg.Insecure, version, met, coreConnected, cfg.AuthAddr, loginRL.Reset, trustedProxies)
+	h.AuthInternalAddr = cfg.AuthInternalAddr
+	h.PublicURL = cfg.PublicURL
 	h.HealthMonitorURL = cfg.HealthMonitorURL
 
 	mux := http.NewServeMux()
