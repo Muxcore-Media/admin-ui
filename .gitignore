@@ -2,15 +2,13 @@
 /admin-ui
 /admin-ui.exe
 
-# Tailwind output
-/assets/dist/styles.css
-
 # Tailwind standalone binary
 /tailwindcss
 /tailwindcss.exe
 
 # Dependencies
 vendor/
+node_modules/
 
 # IDE
 .idea/
