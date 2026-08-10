@@ -3,22 +3,24 @@ package templates
 import "fmt"
 
 type JellyfinLinkItem struct {
-	MuxID string
-	JFID  string
-	Title string
-	Path  string
+	MuxID   string
+	JFID    string
+	Title   string
+	Path    string
+	PlayURL string
 }
 
 type JellyfinPageData struct {
-	Configured   bool
-	BaseURL      string
-	ConflictMode string
-	ItemLinks    int
-	SessionsPoll bool
-	SoftNote     bool
-	Links        []JellyfinLinkItem
-	Error        string
-	Flash        string
+	Configured    bool
+	BaseURL       string
+	ConflictMode  string
+	ItemLinks     int
+	SessionsPoll  bool
+	SoftNote      bool
+	Links         []JellyfinLinkItem
+	Error         string
+	Flash         string
+	RefreshStatus string
 }
 
 templ JellyfinPage(data JellyfinPageData) {
@@ -28,11 +30,22 @@ templ JellyfinPage(data JellyfinPageData) {
 				<h1 class="text-2xl font-bold">Jellyfin</h1>
 				<p class="text-gray-400 text-sm mt-1">Playback bridge status and item links</p>
 			</div>
-			<form method="POST" action="/jellyfin/sync">
-				<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500" data-testid="jellyfin-sync">
-					Sync library
-				</button>
-			</form>
+			<div class="flex flex-wrap gap-2">
+				<form method="POST" action="/jellyfin/refresh">
+					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm font-medium text-gray-200 hover:bg-gray-800" data-testid="jellyfin-refresh-library">
+						Refresh JF library
+					</button>
+				</form>
+				<form method="POST" action="/jellyfin/sync">
+					<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500" data-testid="jellyfin-sync">
+						Sync library
+					</button>
+				</form>
+			</div>
+		</div>
+
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3 text-sm text-gray-300" data-testid="jellyfin-refresh-status">
+			{ data.RefreshStatus }
 		</div>
 
 		if data.Flash != "" {
@@ -93,6 +106,7 @@ templ JellyfinPage(data JellyfinPageData) {
 								<th class="px-4 py-2 text-left text-xs text-gray-500">MuxCore ID</th>
 								<th class="px-4 py-2 text-left text-xs text-gray-500">Jellyfin ID</th>
 								<th class="px-4 py-2 text-left text-xs text-gray-500">Path</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Play</th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-gray-800">
@@ -102,6 +116,13 @@ templ JellyfinPage(data JellyfinPageData) {
 									<td class="px-4 py-2 text-xs text-gray-400">{ l.MuxID }</td>
 									<td class="px-4 py-2 text-xs text-gray-400">{ l.JFID }</td>
 									<td class="px-4 py-2 text-xs text-gray-500 truncate max-w-[16rem]" title={ l.Path }>{ l.Path }</td>
+									<td class="px-4 py-2 text-xs">
+										if l.PlayURL != "" {
+											<a href={ templ.SafeURL(l.PlayURL) } target="_blank" rel="noopener noreferrer" class="text-indigo-400 hover:text-indigo-300" data-testid="jellyfin-play-link">Open</a>
+										} else {
+											<span class="text-gray-600">—</span>
+										}
+									</td>
 								</tr>
 							}
 						</tbody>
