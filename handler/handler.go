@@ -47,6 +47,8 @@ type Handler struct {
 	// HealthMonitorURL is the health-monitor HTTP base (e.g. http://127.0.0.1:9203).
 	// Empty disables the dashboard monitor panel.
 	HealthMonitorURL string
+	// RequestMediaURL is optional HTTP base for request-media (empty = mesh only).
+	RequestMediaURL string
 
 	ResetLoginRate func(ip string)
 

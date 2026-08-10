@@ -155,7 +155,7 @@ templ MonitorSummary(data MonitorSummaryData) {
 				}
 			</div>
 		} else {
-			<p class="text-sm text-gray-500">No modules have reported health yet.</p>
+			<p class="text-sm text-gray-500" data-testid="monitor-empty-modules">No modules have reported health yet.</p>
 		}
 		if len(data.Recent) > 0 {
 			<div>
