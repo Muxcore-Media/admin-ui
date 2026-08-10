@@ -14,8 +14,9 @@ import (
 func (h *Handler) ModuleList(w http.ResponseWriter, r *http.Request) {
 	modules := h.loadModuleList(r)
 
-	// HTMX fragment refresh (if any) — table only, never the full layout.
-	if r.Header.Get("HX-Request") == "true" {
+	// HTMX fragment refresh (table only). Boosted full-page navigations
+	// (hx-boost on <body>) must still get the layout + sidebar.
+	if r.Header.Get("HX-Request") == "true" && r.Header.Get("HX-Boosted") != "true" {
 		w.Header().Set("Content-Type", "text/html")
 		h.render(w, r, templates.ModuleTable(modules))
 		return
