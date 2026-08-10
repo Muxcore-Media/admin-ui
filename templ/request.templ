@@ -1,0 +1,118 @@
+package templates
+
+import "fmt"
+
+type RequestRow struct {
+	ID       string
+	ItemType string
+	Title    string
+	Year     int
+	Status   string
+	TMDBID   int
+}
+
+type RequestPageData struct {
+	ModuleID   string
+	ModuleName string
+	BaseURL    string
+	Query      string
+	MediaType  string
+	Results    []RequestSearchHit
+	Requests   []RequestRow
+	Message    string
+	Error      string
+	SoftEmpty  bool
+}
+
+type RequestSearchHit struct {
+	ID       int
+	Title    string
+	Year     int
+	Overview string
+	Poster   string
+	Type     string
+}
+
+templ RequestPage(data RequestPageData) {
+	<div class="space-y-6" data-testid="request-page">
+		<div>
+			<h1 class="text-2xl font-bold">Request Media</h1>
+			<p class="text-gray-400 text-sm mt-1">
+				Search TMDB via request-media (offline with TMDB_FIXTURE) and add wanted movies/TV
+				if data.ModuleID != "" {
+					<span class="text-gray-600">({ data.ModuleID })</span>
+				}
+			</p>
+		</div>
+
+		if data.Error != "" {
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" data-testid="request-soft-error">{ data.Error }</div>
+		}
+		if data.SoftEmpty {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400" data-testid="request-soft-empty">
+				Soft OK without request-media — configure ADMIN_UI_REQUEST_MEDIA_URL or register media.request.
+			</div>
+		}
+		if data.Message != "" {
+			<div class="rounded-xl border border-indigo-900/40 bg-indigo-950/20 p-4 text-sm text-indigo-200" data-testid="request-message">{ data.Message }</div>
+		}
+
+		if !data.SoftEmpty {
+			<form class="flex flex-wrap gap-3 items-end" method="get" action="/request" data-testid="request-search-form">
+				<div>
+					<label class="block text-xs font-medium text-gray-500 mb-1">Type</label>
+					<select name="type" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white">
+						<option value="movie" selected?={ data.MediaType != "tv" }>Movie</option>
+						<option value="tv" selected?={ data.MediaType == "tv" }>TV</option>
+					</select>
+				</div>
+				<div class="flex-1 min-w-[12rem]">
+					<label class="block text-xs font-medium text-gray-500 mb-1">Search</label>
+					<input type="search" name="q" value={ data.Query } placeholder="Fight Club / Breaking Bad" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500"/>
+				</div>
+				<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Search</button>
+			</form>
+
+			if len(data.Results) > 0 {
+				<section class="space-y-3" data-testid="request-search-results">
+					<h2 class="text-lg font-semibold">Search results</h2>
+					<ul class="space-y-2">
+						for _, hit := range data.Results {
+							<li class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-800 bg-gray-900/50 p-3">
+								<div>
+									<div class="font-medium">{ hit.Title } <span class="text-gray-500 text-sm">({ fmt.Sprintf("%d", hit.Year) })</span></div>
+									<div class="text-xs text-gray-500">TMDB { fmt.Sprintf("%d", hit.ID) } · { hit.Type }</div>
+								</div>
+								<form method="post" action="/request">
+									<input type="hidden" name="tmdb_id" value={ fmt.Sprintf("%d", hit.ID) }/>
+									<input type="hidden" name="title" value={ hit.Title }/>
+									<input type="hidden" name="year" value={ fmt.Sprintf("%d", hit.Year) }/>
+									<input type="hidden" name="overview" value={ hit.Overview }/>
+									<input type="hidden" name="poster" value={ hit.Poster }/>
+									<input type="hidden" name="type" value={ hit.Type }/>
+									<button type="submit" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:border-indigo-500">Request</button>
+								</form>
+							</li>
+						}
+					</ul>
+				</section>
+			}
+
+			<section class="space-y-3" data-testid="request-history">
+				<h2 class="text-lg font-semibold">Recent requests</h2>
+				if len(data.Requests) == 0 {
+					<p class="text-sm text-gray-500">No requests yet.</p>
+				} else {
+					<ul class="divide-y divide-gray-800 rounded-xl border border-gray-800">
+						for _, rec := range data.Requests {
+							<li class="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+								<span>{ rec.Title } <span class="text-gray-500">({ fmt.Sprintf("%d", rec.Year) })</span></span>
+								<span class="text-xs text-gray-400">{ rec.ItemType } · { rec.Status }</span>
+							</li>
+						}
+					</ul>
+				}
+			</section>
+		}
+	</div>
+}

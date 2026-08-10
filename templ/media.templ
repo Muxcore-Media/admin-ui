@@ -94,7 +94,7 @@ templ MediaSubnav(moduleID string, displayName string, features []string, active
 }
 
 templ MediaListPage(displayName string, items []*mediaadminv1.MediaItem, total, page, pageSize int, moduleID string, features []string, search, tagID string) {
-	<div class="space-y-6">
+	<div class="space-y-6" data-testid="media-list-page">
 		@MediaSubnav(moduleID, displayName, features, "browse")
 
 		<div class="flex flex-col sm:flex-row sm:items-end gap-3">
@@ -109,16 +109,16 @@ templ MediaListPage(displayName string, items []*mediaadminv1.MediaItem, total, 
 				<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Search</button>
 			</form>
 			if items != nil {
-				<p class="text-gray-400 text-sm">{ strconv.Itoa(total) } items</p>
+				<p class="text-gray-400 text-sm" data-testid="media-item-count">{ strconv.Itoa(total) } items</p>
 			}
 		</div>
 
 		if items == nil {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
-				<p class="text-gray-400">No media library module found, or the module returned no data.</p>
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center" data-testid="media-soft-empty">
+				<p class="text-gray-400">Soft OK without this library module — empty until it is registered or reachable.</p>
 			</div>
 		} else if len(items) == 0 {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center" data-testid="media-empty">
 				<p class="text-gray-400">No items found.</p>
 			</div>
 		} else {

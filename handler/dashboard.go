@@ -95,7 +95,7 @@ func (h *Handler) MonitorSummary(w http.ResponseWriter, r *http.Request) {
 
 	base := strings.TrimRight(h.HealthMonitorURL, "/")
 	if base == "" {
-		w.Write([]byte(`<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-500">Health monitor URL not configured (ADMIN_UI_HEALTH_MONITOR_URL).</div>`))
+		w.Write([]byte(`<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-500" data-testid="monitor-unconfigured">Health monitor URL not configured (ADMIN_UI_HEALTH_MONITOR_URL).</div>`))
 		return
 	}
 
