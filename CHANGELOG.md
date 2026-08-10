@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- List Sync operator UI (`/list-sync`, history, add/remove sources, sync now) via `media.listsync`
 - Project scaffold: Go module, build system, directory layout
 - Tailwind CSS asset pipeline via standalone CLI
 - Static asset embedding via `//go:embed`
