@@ -41,6 +41,9 @@ func itemTMDBID(item *mediaadminv1.MediaItem) int32 {
 }
 
 func (h *Handler) mediaModuleAddr(ctx context.Context, moduleID string) (string, error) {
+	if h.Core == nil {
+		return "", fmt.Errorf("core unavailable")
+	}
 	mod, err := h.Core.Discovery.Resolve(ctx, moduleID)
 	if err != nil {
 		return "", fmt.Errorf("resolve %s: %w", moduleID, err)
@@ -67,7 +70,7 @@ func (h *Handler) MediaLibraryList(w http.ResponseWriter, r *http.Request) {
 	addr, err := h.mediaModuleAddr(ctx, moduleID)
 	if err != nil {
 		slog.Warn("media: resolve failed", "module", moduleID, "error", err)
-		content := templates.MediaListPage("Error", nil, 0, 0, 0, moduleID, nil, "", "")
+		content := templates.MediaListPage(moduleID, nil, 0, 0, 0, moduleID, nil, "", "")
 		nav := h.nav(r.URL.Path)
 		component := templates.Layout("Media", nav, content)
 		h.render(w, r, component)
@@ -77,7 +80,7 @@ func (h *Handler) MediaLibraryList(w http.ResponseWriter, r *http.Request) {
 	conn, client, err := h.dialMediaModule(addr)
 	if err != nil {
 		slog.Warn("media: dial failed", "module", moduleID, "error", err)
-		content := templates.MediaListPage("Error", nil, 0, 0, 0, moduleID, nil, "", "")
+		content := templates.MediaListPage(moduleID, nil, 0, 0, 0, moduleID, nil, "", "")
 		nav := h.nav(r.URL.Path)
 		component := templates.Layout("Media", nav, content)
 		h.render(w, r, component)
@@ -117,7 +120,11 @@ func (h *Handler) MediaLibraryList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	content := templates.MediaListPage(displayName, resp.GetItems(), int(resp.GetTotal()), int(resp.GetPage()), int(resp.GetPageSize()), moduleID, features, search, tagID)
+	items := resp.GetItems()
+	if items == nil {
+		items = []*mediaadminv1.MediaItem{}
+	}
+	content := templates.MediaListPage(displayName, items, int(resp.GetTotal()), int(resp.GetPage()), int(resp.GetPageSize()), moduleID, features, search, tagID)
 	nav := h.nav(r.URL.Path)
 	component := templates.Layout(displayName, nav, content)
 	h.render(w, r, component)
