@@ -19,10 +19,13 @@ import (
 )
 
 const (
-	capMediaAutomation     = "media.automation"
-	automationDialTimeout  = 3 * time.Second
-	automationReadTimeout  = 4 * time.Second
-	automationDispatchTO   = 25 * time.Second
+	capMediaAutomation    = "media.automation"
+	capIndexer            = "indexer"
+	capDownloader         = "downloader"
+	automationDialTimeout = 3 * time.Second
+	automationReadTimeout = 4 * time.Second
+	automationDispatchTO  = 25 * time.Second
+	automationPeerTimeout = 1500 * time.Millisecond
 )
 
 func (h *Handler) automationModuleAddr(ctx context.Context) (string, string, error) {
@@ -81,6 +84,9 @@ func (h *Handler) AutomationQueuePage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Warn("automation: resolve/dial failed", "error", err)
 		data.Error = err.Error()
+		peerCtx, peerCancel := context.WithTimeout(pageCtx, automationPeerTimeout)
+		data.Indexers, data.Downloaders = h.acquisitionPeers(peerCtx)
+		peerCancel()
 		h.renderAutomation(w, r, data)
 		return
 	}
@@ -147,7 +153,41 @@ func (h *Handler) AutomationQueuePage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	peerCtx, peerCancel := context.WithTimeout(pageCtx, automationPeerTimeout)
+	data.Indexers, data.Downloaders = h.acquisitionPeers(peerCtx)
+	peerCancel()
+
 	h.renderAutomation(w, r, data)
+}
+
+func (h *Handler) acquisitionPeers(ctx context.Context) (indexers, downloaders []templates.AutomationPeerItem) {
+	if h.Core == nil {
+		return nil, nil
+	}
+	indexers = peerItemsByCapability(ctx, h, capIndexer, "indexer")
+	downloaders = peerItemsByCapability(ctx, h, capDownloader, "downloader")
+	return indexers, downloaders
+}
+
+func peerItemsByCapability(ctx context.Context, h *Handler, capability, kind string) []templates.AutomationPeerItem {
+	mods, err := h.Core.Discovery.FindByCapability(ctx, capability)
+	if err != nil {
+		slog.Debug("automation: acquisition peer discovery", "capability", capability, "error", err)
+		return nil
+	}
+	out := make([]templates.AutomationPeerItem, 0, len(mods))
+	for _, mod := range mods {
+		name := mod.GetName()
+		if name == "" {
+			name = mod.GetId()
+		}
+		out = append(out, templates.AutomationPeerItem{
+			ID:   mod.GetId(),
+			Name: name,
+			Kind: kind,
+		})
+	}
+	return out
 }
 
 func (h *Handler) renderAutomation(w http.ResponseWriter, r *http.Request, data templates.AutomationPageData) {

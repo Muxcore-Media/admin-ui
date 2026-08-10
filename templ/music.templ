@@ -1,0 +1,190 @@
+package templates
+
+import "fmt"
+
+type MusicArtistRow struct {
+	ID            string
+	Name          string
+	MusicBrainzID string
+	Monitored     bool
+	Path          string
+}
+
+type MusicAlbumRow struct {
+	ID            string
+	ArtistID      string
+	Title         string
+	MusicBrainzID string
+	Year          int
+	Monitored     bool
+}
+
+type MusicPageData struct {
+	ModuleID   string
+	ModuleName string
+	Query      string
+	Artists    []MusicArtistRow
+	Error      string
+	SoftEmpty  bool
+}
+
+type MusicDetailData struct {
+	ModuleID   string
+	ModuleName string
+	Artist     MusicArtistRow
+	Albums     []MusicAlbumRow
+	Error      string
+}
+
+templ MusicListPage(data MusicPageData) {
+	<div class="space-y-6" data-testid="music-page">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Music</h1>
+				<p class="text-gray-400 text-sm mt-1">
+					Artist library from media-music
+					if data.ModuleID != "" {
+						<span class="text-gray-600">({ data.ModuleID })</span>
+					}
+				</p>
+			</div>
+		</div>
+
+		if data.Error != "" {
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" data-testid="music-soft-error">{ data.Error }</div>
+		}
+		if data.SoftEmpty {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400" data-testid="music-soft-empty">
+				Soft OK without media-music — empty library until the module is registered.
+			</div>
+		}
+
+		<form class="flex flex-wrap gap-3 items-end" method="get" action="/music">
+			<div>
+				<label class="block text-xs font-medium text-gray-500 mb-1">Search</label>
+				<input
+					type="search"
+					name="q"
+					value={ data.Query }
+					placeholder="Artist name"
+					class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"
+					data-testid="music-search"
+				/>
+			</div>
+			<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Search</button>
+		</form>
+
+		<div>
+			<h2 class="text-lg font-semibold mb-3">Artists <span class="text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", len(data.Artists)) })</span></h2>
+			if len(data.Artists) == 0 {
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500" data-testid="music-empty">No artists.</div>
+			} else {
+				<div class="overflow-x-auto rounded-xl border border-gray-800">
+					<table class="min-w-full divide-y divide-gray-800 text-sm" data-testid="music-artist-table">
+						<thead class="bg-gray-900/50">
+							<tr>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Name</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Path</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Monitored</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">MusicBrainz</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, a := range data.Artists {
+								<tr class="hover:bg-gray-900/40">
+									<td class="px-4 py-2">
+										<a href={ templ.SafeURL(fmt.Sprintf("/music/%s", a.ID)) } class="text-indigo-300 hover:text-indigo-200">{ a.Name }</a>
+									</td>
+									<td class="px-4 py-2 text-gray-400 font-mono text-xs">{ a.Path }</td>
+									<td class="px-4 py-2 text-xs">
+										if a.Monitored {
+											<span class="text-green-400">yes</span>
+										} else {
+											<span class="text-gray-500">no</span>
+										}
+									</td>
+									<td class="px-4 py-2 text-gray-500 font-mono text-xs">{ a.MusicBrainzID }</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+	</div>
+}
+
+templ MusicDetailPage(data MusicDetailData) {
+	<div class="space-y-6" data-testid="music-detail-page">
+		<div>
+			<a href="/music" class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Music</a>
+			<h1 class="text-2xl font-bold mt-2">{ data.Artist.Name }</h1>
+			<p class="text-gray-400 text-sm mt-1">Artist detail from media-music</p>
+		</div>
+
+		if data.Error != "" {
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ data.Error }</div>
+		}
+
+		<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+				<div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Path</div>
+				<div class="text-sm text-white mt-1 font-mono break-all">{ data.Artist.Path }</div>
+			</div>
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+				<div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Monitored</div>
+				<div class="text-sm text-white mt-1">
+					if data.Artist.Monitored {
+						<span class="text-green-400">yes</span>
+					} else {
+						<span class="text-gray-500">no</span>
+					}
+				</div>
+			</div>
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+				<div class="text-xs font-medium text-gray-500 uppercase tracking-wider">MusicBrainz</div>
+				<div class="text-sm text-gray-300 mt-1 font-mono">{ data.Artist.MusicBrainzID }</div>
+			</div>
+		</div>
+
+		<div>
+			<h2 class="text-lg font-semibold mb-3">Albums <span class="text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", len(data.Albums)) })</span></h2>
+			if len(data.Albums) == 0 {
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">No albums.</div>
+			} else {
+				<div class="overflow-x-auto rounded-xl border border-gray-800">
+					<table class="min-w-full divide-y divide-gray-800 text-sm">
+						<thead class="bg-gray-900/50">
+							<tr>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Title</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Year</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Monitored</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, al := range data.Albums {
+								<tr class="hover:bg-gray-900/40">
+									<td class="px-4 py-2 text-gray-200">{ al.Title }</td>
+									<td class="px-4 py-2 text-gray-400">
+										if al.Year > 0 {
+											{ fmt.Sprintf("%d", al.Year) }
+										} else {
+											<span class="text-gray-600">—</span>
+										}
+									</td>
+									<td class="px-4 py-2 text-xs">
+										if al.Monitored {
+											<span class="text-green-400">yes</span>
+										} else {
+											<span class="text-gray-500">no</span>
+										}
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+	</div>
+}

@@ -1,0 +1,185 @@
+package templates
+
+type TaggingTagRow struct {
+	ID       string
+	Name     string
+	Category string
+	Color    string
+}
+
+type TaggingRuleRow struct {
+	ID      string
+	TagID   string
+	TagName string
+	Field   string
+	Match   string
+	Pattern string
+	Enabled bool
+}
+
+type TaggingPageData struct {
+	ModuleID   string
+	ModuleName string
+	Tags       []TaggingTagRow
+	Rules      []TaggingRuleRow
+	Error      string
+	SoftEmpty  bool
+	Flash      string
+}
+
+templ TaggingRulesPage(data TaggingPageData) {
+	<div class="space-y-6" data-testid="tagging-page">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Tagging rules</h1>
+				<p class="text-gray-400 text-sm mt-1">
+					Classification rules from media-tagging
+					if data.ModuleID != "" {
+						<span class="text-gray-600">({ data.ModuleID })</span>
+					}
+				</p>
+			</div>
+		</div>
+
+		if data.Error != "" {
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" data-testid="tagging-soft-error">{ data.Error }</div>
+		}
+		if data.SoftEmpty {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400" data-testid="tagging-soft-empty">
+				Soft OK without media-tagging — rules UI idle until the module is registered.
+			</div>
+		}
+		if data.Flash != "" {
+			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300" data-testid="tagging-flash">{ data.Flash }</div>
+		}
+
+		<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+			<section class="space-y-3">
+				<h2 class="text-lg font-semibold">Tags</h2>
+				<form method="post" action="/tagging/tags" class="rounded-xl border border-gray-800 bg-gray-900/40 p-4 space-y-3" data-testid="tagging-create-tag">
+					<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+						<div>
+							<label class="block text-xs font-medium text-gray-500 mb-1">Name</label>
+							<input name="name" required class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white" placeholder="anime"/>
+						</div>
+						<div>
+							<label class="block text-xs font-medium text-gray-500 mb-1">Category</label>
+							<input name="category" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white" placeholder="genre"/>
+						</div>
+						<div>
+							<label class="block text-xs font-medium text-gray-500 mb-1">Color</label>
+							<input name="color" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white" placeholder="#7c3aed"/>
+						</div>
+					</div>
+					<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Create tag</button>
+				</form>
+				if len(data.Tags) == 0 {
+					<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-500" data-testid="tagging-tags-empty">No tags yet.</div>
+				} else {
+					<ul class="rounded-xl border border-gray-800 divide-y divide-gray-800" data-testid="tagging-tag-list">
+						for _, t := range data.Tags {
+							<li class="flex items-center justify-between gap-3 px-4 py-2 text-sm">
+								<div>
+									<span class="font-medium text-white">{ t.Name }</span>
+									<span class="text-gray-500 ml-2">{ t.Category }</span>
+								</div>
+								<span class="font-mono text-xs text-gray-500">{ t.ID }</span>
+							</li>
+						}
+					</ul>
+				}
+			</section>
+
+			<section class="space-y-3">
+				<h2 class="text-lg font-semibold">Rules</h2>
+				<form method="post" action="/tagging/rules" class="rounded-xl border border-gray-800 bg-gray-900/40 p-4 space-y-3" data-testid="tagging-create-rule">
+					<div>
+						<label class="block text-xs font-medium text-gray-500 mb-1">Tag</label>
+						<select name="tag_id" required class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white">
+							<option value="">Select tag…</option>
+							for _, t := range data.Tags {
+								<option value={ t.ID }>{ t.Name }</option>
+							}
+						</select>
+					</div>
+					<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+						<div>
+							<label class="block text-xs font-medium text-gray-500 mb-1">Field</label>
+							<select name="field" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white">
+								<option value="title">title</option>
+								<option value="genre">genre</option>
+								<option value="path">path</option>
+								<option value="media_type">media_type</option>
+							</select>
+						</div>
+						<div>
+							<label class="block text-xs font-medium text-gray-500 mb-1">Match</label>
+							<select name="match" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white">
+								<option value="contains">contains</option>
+								<option value="equals">equals</option>
+								<option value="prefix">prefix</option>
+								<option value="regex">regex</option>
+							</select>
+						</div>
+						<div>
+							<label class="block text-xs font-medium text-gray-500 mb-1">Pattern</label>
+							<input name="pattern" required class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white" placeholder="naruto"/>
+						</div>
+					</div>
+					<label class="inline-flex items-center gap-2 text-sm text-gray-300">
+						<input type="checkbox" name="enabled" value="1" checked class="rounded border-gray-600 bg-gray-800"/>
+						Enabled
+					</label>
+					<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Create rule</button>
+				</form>
+
+				if len(data.Rules) == 0 {
+					<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-500" data-testid="tagging-rules-empty">No rules yet.</div>
+				} else {
+					<div class="overflow-x-auto rounded-xl border border-gray-800">
+						<table class="min-w-full divide-y divide-gray-800 text-sm" data-testid="tagging-rule-table">
+							<thead class="bg-gray-900/50">
+								<tr>
+									<th class="px-4 py-2 text-left text-xs text-gray-500">Tag</th>
+									<th class="px-4 py-2 text-left text-xs text-gray-500">Field</th>
+									<th class="px-4 py-2 text-left text-xs text-gray-500">Match</th>
+									<th class="px-4 py-2 text-left text-xs text-gray-500">Pattern</th>
+									<th class="px-4 py-2 text-left text-xs text-gray-500">Enabled</th>
+									<th class="px-4 py-2 text-left text-xs text-gray-500"></th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-gray-800">
+								for _, r := range data.Rules {
+									<tr class="hover:bg-gray-900/40">
+										<td class="px-4 py-2 text-gray-200">
+											if r.TagName != "" {
+												{ r.TagName }
+											} else {
+												<span class="font-mono text-xs text-gray-500">{ r.TagID }</span>
+											}
+										</td>
+										<td class="px-4 py-2 text-gray-400">{ r.Field }</td>
+										<td class="px-4 py-2 text-gray-400">{ r.Match }</td>
+										<td class="px-4 py-2 font-mono text-xs text-gray-300">{ r.Pattern }</td>
+										<td class="px-4 py-2 text-xs">
+											if r.Enabled {
+												<span class="text-green-400">yes</span>
+											} else {
+												<span class="text-gray-500">no</span>
+											}
+										</td>
+										<td class="px-4 py-2 text-right">
+											<form method="post" action={ templ.SafeURL("/tagging/rules/" + r.ID + "/delete") }>
+												<button type="submit" class="text-xs text-red-400 hover:text-red-300">Delete</button>
+											</form>
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</section>
+		</div>
+	</div>
+}
