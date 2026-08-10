@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sort"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	discoveryv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/discovery/v1"
 	meshv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/mesh/v1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
@@ -62,11 +64,61 @@ func (h *Handler) settingsMeshCall(ctx context.Context, moduleID, httpAddr, meth
 	return h.Core.Mesh.Call(ctx, moduleID, method, payload)
 }
 
-func (h *Handler) SettingsPage(w http.ResponseWriter, r *http.Request) {
-	modules, err := h.Core.Discovery.FindByCapability(r.Context(), capSettings)
-	if err != nil {
+// settingsCandidates returns modules that may expose SettingsProvider.
+// Prefers the "settings" capability, then probes ListAll for modules that
+// respond to Settings (covers peers that implement SettingsProvider without advertising the cap).
+func (h *Handler) settingsCandidates(ctx context.Context) []*discoveryv1.ModuleInfoProto {
+	byID := map[string]*discoveryv1.ModuleInfoProto{}
+	if mods, err := h.Core.Discovery.FindByCapability(ctx, capSettings); err == nil {
+		for _, mod := range mods {
+			if mod.GetId() != "" {
+				byID[mod.GetId()] = mod
+			}
+		}
+	} else {
 		slog.Warn("settings: FindByCapability failed", "error", err)
 	}
+
+	if resp, err := h.Core.Discovery.Raw().ListAll(ctx, &discoveryv1.ListAllRequest{}); err == nil {
+		for _, e := range resp.GetEntries() {
+			info := e.GetInfo()
+			if info == nil || info.GetId() == "" {
+				continue
+			}
+			if _, ok := byID[info.GetId()]; ok {
+				continue
+			}
+			addr := normalizeDialAddr(info.GetId(), info.GetHttpAddr())
+			raw, err := h.settingsMeshCall(ctx, info.GetId(), addr, methodGet, nil)
+			if err != nil || len(raw) == 0 {
+				continue
+			}
+			var defs []settingDefJSON
+			if err := json.Unmarshal(raw, &defs); err != nil || len(defs) == 0 {
+				continue
+			}
+			byID[info.GetId()] = info
+		}
+	} else {
+		slog.Debug("settings: ListAll probe skipped", "error", err)
+	}
+
+	out := make([]*discoveryv1.ModuleInfoProto, 0, len(byID))
+	for _, mod := range byID {
+		out = append(out, mod)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		ni, nj := out[i].GetName(), out[j].GetName()
+		if ni == nj {
+			return out[i].GetId() < out[j].GetId()
+		}
+		return ni < nj
+	})
+	return out
+}
+
+func (h *Handler) SettingsPage(w http.ResponseWriter, r *http.Request) {
+	modules := h.settingsCandidates(r.Context())
 
 	var groups []templates.SettingsModuleGroup
 	for _, mod := range modules {
@@ -85,6 +137,9 @@ func (h *Handler) SettingsPage(w http.ResponseWriter, r *http.Request) {
 		var defs []settingDefJSON
 		if err := json.Unmarshal(raw, &defs); err != nil {
 			slog.Warn("settings: unmarshal failed", "module", mod.GetId(), "error", err)
+			continue
+		}
+		if len(defs) == 0 {
 			continue
 		}
 
@@ -149,13 +204,8 @@ func (h *Handler) SettingsUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpAddr := ""
-	if mods, err := h.Core.Discovery.FindByCapability(r.Context(), capSettings); err == nil {
-		for _, mod := range mods {
-			if mod.GetId() == moduleID {
-				httpAddr = normalizeDialAddr(mod.GetId(), mod.GetHttpAddr())
-				break
-			}
-		}
+	if info, err := h.Core.Discovery.Resolve(r.Context(), moduleID); err == nil && info != nil {
+		httpAddr = normalizeDialAddr(info.GetId(), info.GetHttpAddr())
 	}
 
 	_, err = h.settingsMeshCall(r.Context(), moduleID, httpAddr, methodUpdate, payload)
