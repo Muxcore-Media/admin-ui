@@ -64,47 +64,20 @@ func (h *Handler) settingsMeshCall(ctx context.Context, moduleID, httpAddr, meth
 	return h.Core.Mesh.Call(ctx, moduleID, method, payload)
 }
 
-// settingsCandidates returns modules that may expose SettingsProvider.
-// Prefers the "settings" capability, then probes ListAll for modules that
-// respond to Settings (covers peers that implement SettingsProvider without advertising the cap).
+// settingsCandidates returns modules that advertise the "settings" capability.
+// Peers that implement SettingsProvider must register that capability (catalog
+// SettingsProviders do as of spool 2.4.58+).
 func (h *Handler) settingsCandidates(ctx context.Context) []*discoveryv1.ModuleInfoProto {
-	byID := map[string]*discoveryv1.ModuleInfoProto{}
-	if mods, err := h.Core.Discovery.FindByCapability(ctx, capSettings); err == nil {
-		for _, mod := range mods {
-			if mod.GetId() != "" {
-				byID[mod.GetId()] = mod
-			}
-		}
-	} else {
+	mods, err := h.Core.Discovery.FindByCapability(ctx, capSettings)
+	if err != nil {
 		slog.Warn("settings: FindByCapability failed", "error", err)
+		return nil
 	}
-
-	if resp, err := h.Core.Discovery.Raw().ListAll(ctx, &discoveryv1.ListAllRequest{}); err == nil {
-		for _, e := range resp.GetEntries() {
-			info := e.GetInfo()
-			if info == nil || info.GetId() == "" {
-				continue
-			}
-			if _, ok := byID[info.GetId()]; ok {
-				continue
-			}
-			addr := normalizeDialAddr(info.GetId(), info.GetHttpAddr())
-			raw, err := h.settingsMeshCall(ctx, info.GetId(), addr, methodGet, nil)
-			if err != nil || len(raw) == 0 {
-				continue
-			}
-			var defs []settingDefJSON
-			if err := json.Unmarshal(raw, &defs); err != nil || len(defs) == 0 {
-				continue
-			}
-			byID[info.GetId()] = info
+	out := make([]*discoveryv1.ModuleInfoProto, 0, len(mods))
+	for _, mod := range mods {
+		if mod.GetId() == "" {
+			continue
 		}
-	} else {
-		slog.Debug("settings: ListAll probe skipped", "error", err)
-	}
-
-	out := make([]*discoveryv1.ModuleInfoProto, 0, len(byID))
-	for _, mod := range byID {
 		out = append(out, mod)
 	}
 	sort.Slice(out, func(i, j int) bool {
