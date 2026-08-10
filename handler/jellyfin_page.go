@@ -42,6 +42,12 @@ func (h *Handler) JellyfinStatusPage(w http.ResponseWriter, r *http.Request) {
 		Flash: r.URL.Query().Get("synced"),
 		Error: r.URL.Query().Get("error"),
 	}
+	if refreshed := r.URL.Query().Get("refreshed"); refreshed != "" {
+		data.Flash = refreshed
+		data.RefreshStatus = refreshed
+	} else {
+		data.RefreshStatus = "Ready — Refresh JF library asks Jellyfin to rescan; Sync library rebuilds MuxCore item links."
+	}
 
 	_, addr, err := h.jellyfinModuleAddr(ctx)
 	if err != nil {
@@ -81,12 +87,16 @@ func (h *Handler) JellyfinStatusPage(w http.ResponseWriter, r *http.Request) {
 			if i >= 25 {
 				break
 			}
-			data.Links = append(data.Links, templates.JellyfinLinkItem{
-				MuxID:  link.GetMuxcoreId(),
-				JFID:   link.GetJellyfinId(),
-				Title:  link.GetTitle(),
-				Path:   link.GetPath(),
-			})
+			item := templates.JellyfinLinkItem{
+				MuxID: link.GetMuxcoreId(),
+				JFID:  link.GetJellyfinId(),
+				Title: link.GetTitle(),
+				Path:  link.GetPath(),
+			}
+			if data.BaseURL != "" && item.JFID != "" {
+				item.PlayURL = fmt.Sprintf("%s/web/index.html#!/details?id=%s", data.BaseURL, item.JFID)
+			}
+			data.Links = append(data.Links, item)
 		}
 	}
 
@@ -125,4 +135,31 @@ func (h *Handler) JellyfinSync(w http.ResponseWriter, r *http.Request) {
 		msg += " note=" + resp.GetErrors()[0]
 	}
 	http.Redirect(w, r, "/jellyfin?synced="+url.QueryEscape(msg), http.StatusSeeOther)
+}
+
+// JellyfinRefresh asks the live Jellyfin server to rescan its library.
+func (h *Handler) JellyfinRefresh(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	_, addr, err := h.jellyfinModuleAddr(ctx)
+	if err != nil {
+		http.Redirect(w, r, "/jellyfin?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		http.Redirect(w, r, "/jellyfin?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	defer conn.Close()
+	client := jellyfinv1.NewJellyfinBridgeClient(conn)
+	resp, err := client.RefreshLibrary(ctx, &jellyfinv1.RefreshLibraryRequest{})
+	if err != nil {
+		http.Redirect(w, r, "/jellyfin?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	msg := "Refresh JF library requested"
+	if resp.GetOk() {
+		msg = "Refresh JF library ok"
+	}
+	http.Redirect(w, r, "/jellyfin?refreshed="+url.QueryEscape(msg), http.StatusSeeOther)
 }

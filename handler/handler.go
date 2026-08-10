@@ -111,6 +111,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /automation/dispatch", h.requireAuth(h.AutomationDispatch))
 	mux.HandleFunc("GET /jellyfin", h.requireAuth(h.JellyfinStatusPage))
 	mux.HandleFunc("POST /jellyfin/sync", h.requireAuth(h.JellyfinSync))
+	mux.HandleFunc("POST /jellyfin/refresh", h.requireAuth(h.JellyfinRefresh))
+
 
 	mux.HandleFunc("GET /list-sync", h.requireAuth(h.ListSyncPage))
 	mux.HandleFunc("GET /list-sync/history", h.requireAuth(h.ListSyncHistoryPage))
