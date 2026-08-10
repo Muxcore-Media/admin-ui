@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -14,6 +16,29 @@ import (
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
+
+func automationItemType(moduleID, displayName string) string {
+	s := strings.ToLower(moduleID + " " + displayName)
+	switch {
+	case strings.Contains(s, "movie"):
+		return "movie"
+	case strings.Contains(s, "tv") || strings.Contains(s, "show"):
+		return "tv"
+	default:
+		return "movie"
+	}
+}
+
+func itemTMDBID(item *mediaadminv1.MediaItem) int32 {
+	if item == nil {
+		return 0
+	}
+	if v := item.GetMetadata()["tmdb_id"]; v != "" {
+		id, _ := strconv.Atoi(v)
+		return int32(id)
+	}
+	return 0
+}
 
 func (h *Handler) mediaModuleAddr(ctx context.Context, moduleID string) (string, error) {
 	mod, err := h.Core.Discovery.Resolve(ctx, moduleID)
@@ -157,10 +182,113 @@ func (h *Handler) MediaLibraryItem(w http.ResponseWriter, r *http.Request) {
 	profiles := h.listProfileOptions(ctx)
 	roots := h.listRootOptions(ctx, mediaKindFromModule(moduleID, displayName))
 
-	content := templates.MediaDetailPage(item.GetItem(), moduleID, history, profiles, roots, features, displayName)
+	var releases []*mediaadminv1.IndexerResult
+	if searchResp, err := client.SearchIndexers(ctx, &mediaadminv1.SearchIndexersRequest{
+		ItemId: itemID,
+		Limit:  20,
+	}); err != nil {
+		slog.Warn("media: SearchIndexers failed", "module", moduleID, "id", itemID, "error", err)
+	} else {
+		releases = searchResp.GetResults()
+	}
+
+	content := templates.MediaDetailPage(
+		item.GetItem(), moduleID, history, profiles, roots, features, displayName,
+		releases,
+		r.URL.Query().Get("dispatched"),
+		r.URL.Query().Get("status"),
+		r.URL.Query().Get("error"),
+	)
 	nav := h.nav(r.URL.Path)
 	component := templates.Layout(item.GetItem().GetTitle()+" — "+displayName, nav, content)
 	h.render(w, r, component)
+}
+
+func (h *Handler) MediaItemDispatch(w http.ResponseWriter, r *http.Request) {
+	moduleID := r.PathValue("moduleID")
+	itemID := r.PathValue("id")
+	ctx, cancel := context.WithTimeout(r.Context(), automationDispatchTO)
+	defer cancel()
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+
+	redirectBase := fmt.Sprintf("/media/%s/item/%s", moduleID, itemID)
+	redirectErr := func(msg string) {
+		http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(msg), http.StatusSeeOther)
+	}
+
+	title := r.FormValue("title")
+	itemType := r.FormValue("item_type")
+	tmdbID, _ := strconv.Atoi(r.FormValue("tmdb_id"))
+	year, _ := strconv.Atoi(r.FormValue("year"))
+	forceFixture := r.FormValue("fixture") == "1" || r.FormValue("mode") == "fixture"
+	searchBest := r.FormValue("mode") == "best"
+
+	if title == "" || itemType == "" {
+		addr, err := h.mediaModuleAddr(ctx, moduleID)
+		if err != nil {
+			redirectErr(err.Error())
+			return
+		}
+		conn, client, err := h.dialMediaModule(addr)
+		if err != nil {
+			redirectErr(err.Error())
+			return
+		}
+		defer conn.Close()
+
+		info, _ := client.GetMediaTypeInfo(ctx, &mediaadminv1.GetMediaTypeInfoRequest{})
+		displayName := moduleID
+		if info != nil {
+			displayName = info.GetDisplayName()
+		}
+		if itemType == "" {
+			itemType = automationItemType(moduleID, displayName)
+		}
+
+		got, err := client.GetItem(ctx, &mediaadminv1.GetItemRequest{Id: itemID})
+		if err != nil {
+			slog.Warn("media: GetItem for dispatch failed", "module", moduleID, "id", itemID, "error", err)
+			redirectErr("item unavailable")
+			return
+		}
+		it := got.GetItem()
+		if title == "" {
+			title = it.GetTitle()
+		}
+		if tmdbID == 0 {
+			tmdbID = int(itemTMDBID(it))
+		}
+		if year == 0 && it.GetYear() > 0 {
+			year = int(it.GetYear())
+		}
+	}
+
+	var release *automationRelease
+	if !forceFixture && !searchBest {
+		release = releaseFromForm(r)
+	}
+
+	disp, err := h.dispatchAutomation(ctx, itemType, itemID, title, int32(tmdbID), int32(year), release, forceFixture)
+	if err != nil {
+		slog.Warn("media: dispatch failed", "module", moduleID, "id", itemID, "error", err)
+		redirectErr(err.Error())
+		return
+	}
+
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.media.item.dispatch", "media_item", itemID, map[string]string{
+			"module":      moduleID,
+			"download_id": disp.GetDownloadId(),
+			"status":      disp.GetStatus(),
+		})
+	}
+
+	http.Redirect(w, r, fmt.Sprintf("%s?dispatched=%s&status=%s",
+		redirectBase, url.QueryEscape(disp.GetDownloadId()), url.QueryEscape(disp.GetStatus())), http.StatusSeeOther)
 }
 
 func (h *Handler) MediaLibraryUpdate(w http.ResponseWriter, r *http.Request) {
