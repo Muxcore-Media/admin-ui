@@ -28,6 +28,7 @@ var staticNavLinks = []templates.NavLink{
 	{Label: "Activity", Path: "/activity", Icon: "#"},
 	{Label: "Automation", Path: "/automation", Icon: "#"},
 	{Label: "Jellyfin", Path: "/jellyfin", Icon: "#"},
+	{Label: "List Sync", Path: "/list-sync", Icon: "#"},
 	{Label: "Formats", Path: "/formats", Icon: "#"},
 	{Label: "Profiles", Path: "/formats/profiles", Icon: "#"},
 	{Label: "Root Folders", Path: "/roots", Icon: "#"},
