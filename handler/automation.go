@@ -157,6 +157,110 @@ func (h *Handler) renderAutomation(w http.ResponseWriter, r *http.Request, data 
 	h.render(w, r, component)
 }
 
+type automationRelease struct {
+	Guid             string
+	Title            string
+	DownloadURL      string
+	DownloadProtocol string
+	Size             int64
+	Score            int32
+	IndexerName      string
+}
+
+func releaseFromForm(r *http.Request) *automationRelease {
+	guid := r.FormValue("guid")
+	if guid == "" {
+		return nil
+	}
+	size, _ := strconv.ParseInt(r.FormValue("size"), 10, 64)
+	score, _ := strconv.Atoi(r.FormValue("score"))
+	return &automationRelease{
+		Guid:             guid,
+		Title:            r.FormValue("release_title"),
+		DownloadURL:      r.FormValue("download_url"),
+		DownloadProtocol: r.FormValue("download_protocol"),
+		Size:             size,
+		Score:            int32(score),
+		IndexerName:      r.FormValue("indexer"),
+	}
+}
+
+func (h *Handler) dispatchAutomation(ctx context.Context, itemType, itemID, title string, tmdbID, year int32, release *automationRelease, forceFixture bool) (*automationv1.DispatchResponse, error) {
+	client, closer, err := h.withAutomationClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer closer()
+
+	var match *automationRelease
+	if release != nil {
+		match = release
+	} else if !forceFixture {
+		searchCtx, searchCancel := context.WithTimeout(ctx, 10*time.Second)
+		search, err := client.SearchItem(searchCtx, &automationv1.SearchItemRequest{
+			ItemType: itemType,
+			Query:    title,
+			TmdbId:   tmdbID,
+			Year:     year,
+			Limit:    10,
+		})
+		searchCancel()
+		if err != nil {
+			slog.Warn("automation: SearchItem failed", "error", err)
+		} else if len(search.GetMatches()) > 0 {
+			best := search.GetMatches()[0]
+			for _, m := range search.GetMatches()[1:] {
+				if m.GetScore() > best.GetScore() {
+					best = m
+				}
+			}
+			match = &automationRelease{
+				Guid:             best.GetGuid(),
+				Title:            best.GetTitle(),
+				DownloadURL:      best.GetDownloadUrl(),
+				DownloadProtocol: best.GetDownloadProtocol(),
+				Size:             best.GetSize(),
+				Score:            best.GetScore(),
+				IndexerName:      best.GetIndexerName(),
+			}
+		}
+	}
+
+	req := &automationv1.DispatchRequest{
+		ItemType: itemType,
+		ItemId:   itemID,
+		TmdbId:   tmdbID,
+		Title:    title,
+	}
+	if match != nil {
+		req.Guid = match.Guid
+		req.Title = match.Title
+		req.DownloadUrl = match.DownloadURL
+		req.DownloadProtocol = match.DownloadProtocol
+		if req.DownloadProtocol == "" {
+			req.DownloadProtocol = "torrent"
+		}
+		req.Size = match.Size
+		req.Score = match.Score
+		req.IndexerName = match.IndexerName
+	} else {
+		dn := strings.ReplaceAll(title, " ", ".")
+		if year > 0 {
+			dn = fmt.Sprintf("%s.%d.1080p.Fixture", dn, year)
+		} else {
+			dn = dn + ".Fixture"
+		}
+		req.Guid = fmt.Sprintf("fixture-%d", time.Now().UnixNano())
+		req.DownloadUrl = fmt.Sprintf("magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567&dn=%s", url.QueryEscape(dn))
+		req.DownloadProtocol = "torrent"
+		req.Size = 8192
+		req.Score = 100
+		req.IndexerName = "fixture"
+	}
+
+	return client.Dispatch(ctx, req)
+}
+
 // AutomationDispatch runs SearchItem → Dispatch best match, or a fixture magnet when search is empty.
 func (h *Handler) AutomationDispatch(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), automationDispatchTO)
@@ -179,69 +283,12 @@ func (h *Handler) AutomationDispatch(w http.ResponseWriter, r *http.Request) {
 	year, _ := strconv.Atoi(r.FormValue("year"))
 	forceFixture := r.FormValue("fixture") == "1" || r.FormValue("mode") == "fixture"
 
-	client, closer, err := h.withAutomationClient(ctx)
-	if err != nil {
-		http.Redirect(w, r, "/automation?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
-		return
-	}
-	defer closer()
-
-	var match *automationv1.ReleaseMatch
-	if !forceFixture {
-		searchCtx, searchCancel := context.WithTimeout(ctx, 10*time.Second)
-		search, err := client.SearchItem(searchCtx, &automationv1.SearchItemRequest{
-			ItemType: itemType,
-			Query:    title,
-			TmdbId:   int32(tmdbID),
-			Year:     int32(year),
-			Limit:    10,
-		})
-		searchCancel()
-		if err != nil {
-			slog.Warn("automation: SearchItem failed", "error", err)
-		} else if len(search.GetMatches()) > 0 {
-			match = search.GetMatches()[0]
-			for _, m := range search.GetMatches()[1:] {
-				if m.GetScore() > match.GetScore() {
-					match = m
-				}
-			}
-		}
+	var release *automationRelease
+	if !forceFixture && r.FormValue("mode") != "best" {
+		release = releaseFromForm(r)
 	}
 
-	req := &automationv1.DispatchRequest{
-		ItemType: itemType,
-		ItemId:   itemID,
-		TmdbId:   int32(tmdbID),
-		Title:    title,
-	}
-	if match != nil {
-		req.Guid = match.GetGuid()
-		req.Title = match.GetTitle()
-		req.DownloadUrl = match.GetDownloadUrl()
-		req.DownloadProtocol = match.GetDownloadProtocol()
-		if req.DownloadProtocol == "" {
-			req.DownloadProtocol = "torrent"
-		}
-		req.Size = match.GetSize()
-		req.Score = match.GetScore()
-		req.IndexerName = match.GetIndexerName()
-	} else {
-		dn := strings.ReplaceAll(title, " ", ".")
-		if year > 0 {
-			dn = fmt.Sprintf("%s.%d.1080p.Fixture", dn, year)
-		} else {
-			dn = dn + ".Fixture"
-		}
-		req.Guid = fmt.Sprintf("fixture-%d", time.Now().UnixNano())
-		req.DownloadUrl = fmt.Sprintf("magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567&dn=%s", url.QueryEscape(dn))
-		req.DownloadProtocol = "torrent"
-		req.Size = 8192
-		req.Score = 100
-		req.IndexerName = "fixture"
-	}
-
-	disp, err := client.Dispatch(ctx, req)
+	disp, err := h.dispatchAutomation(ctx, itemType, itemID, title, int32(tmdbID), int32(year), release, forceFixture)
 	if err != nil {
 		slog.Warn("automation: Dispatch failed", "error", err)
 		http.Redirect(w, r, "/automation?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)

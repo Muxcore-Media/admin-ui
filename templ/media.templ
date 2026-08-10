@@ -43,6 +43,22 @@ func mediaListQuery(q, tagID string, page int) string {
 	return "?" + strings.Join(parts, "&")
 }
 
+func itemDispatchAction(moduleID, itemID string) string {
+	return fmt.Sprintf("/media/%s/item/%s/dispatch", moduleID, itemID)
+}
+
+func automationItemTypeForTemplate(moduleID, displayName string) string {
+	s := strings.ToLower(moduleID + " " + displayName)
+	switch {
+	case strings.Contains(s, "movie"):
+		return "movie"
+	case strings.Contains(s, "tv") || strings.Contains(s, "show"):
+		return "tv"
+	default:
+		return "movie"
+	}
+}
+
 templ MediaSubnav(moduleID string, displayName string, features []string, active string) {
 	<div class="flex flex-wrap items-center gap-2 border-b border-gray-800 pb-3">
 		<span class="text-sm font-semibold text-gray-300 mr-2">{ displayName }</span>
@@ -163,10 +179,22 @@ templ MediaItemCard(item *mediaadminv1.MediaItem, moduleID string) {
 	</a>
 }
 
-templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []ActivityEntry, profiles []ProfileOption, roots []RootOption, features []string, displayName string) {
+templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []ActivityEntry, profiles []ProfileOption, roots []RootOption, features []string, displayName string, releases []*mediaadminv1.IndexerResult, flash, flashStatus, errorMsg string) {
 	<div class="space-y-6">
 		@MediaSubnav(moduleID, displayName, features, "")
 		<a href={ templ.SafeURL(fmt.Sprintf("/media/%s", moduleID)) } class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Back</a>
+
+		if flash != "" {
+			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300" data-testid="dispatch-flash">
+				Dispatched download_id={ flash }
+				if flashStatus != "" {
+					<span class="text-gray-400"> status={ flashStatus }</span>
+				}
+			</div>
+		}
+		if errorMsg != "" {
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ errorMsg }</div>
+		}
 
 		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 			<div class="lg:col-span-1">
@@ -270,6 +298,95 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 
 		<div id="artwork-section" hx-get={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s/artwork", moduleID, item.GetId())) } hx-trigger="load" hx-swap="innerHTML">
 			<div class="text-sm text-gray-500">Loading artwork...</div>
+		</div>
+
+		<div data-testid="indexer-releases">
+			<div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+				<h2 class="text-lg font-semibold">Indexer releases</h2>
+				<div class="flex flex-wrap gap-2">
+					<a
+						href={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s", moduleID, item.GetId())) }
+						class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800"
+					>Refresh</a>
+					<form method="POST" action={ templ.SafeURL(itemDispatchAction(moduleID, item.GetId())) } class="inline">
+						<input type="hidden" name="title" value={ item.GetTitle() }/>
+						<input type="hidden" name="item_type" value={ automationItemTypeForTemplate(moduleID, displayName) }/>
+						if item.GetMetadata()["tmdb_id"] != "" {
+							<input type="hidden" name="tmdb_id" value={ item.GetMetadata()["tmdb_id"] }/>
+						}
+						if item.GetYear() > 0 {
+							<input type="hidden" name="year" value={ strconv.FormatInt(item.GetYear(), 10) }/>
+						}
+						<button type="submit" name="mode" value="best" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500">Search &amp; grab best</button>
+					</form>
+					<form method="POST" action={ templ.SafeURL(itemDispatchAction(moduleID, item.GetId())) } class="inline">
+						<input type="hidden" name="title" value={ item.GetTitle() }/>
+						<input type="hidden" name="item_type" value={ automationItemTypeForTemplate(moduleID, displayName) }/>
+						if item.GetMetadata()["tmdb_id"] != "" {
+							<input type="hidden" name="tmdb_id" value={ item.GetMetadata()["tmdb_id"] }/>
+						}
+						if item.GetYear() > 0 {
+							<input type="hidden" name="year" value={ strconv.FormatInt(item.GetYear(), 10) }/>
+						}
+						<button type="submit" name="fixture" value="1" class="rounded-lg bg-gray-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-600" title="Dispatch fixture magnet (offline)">Fixture</button>
+					</form>
+				</div>
+			</div>
+			if len(releases) == 0 {
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">No indexer results. Try Refresh or Search &amp; grab best.</div>
+			} else {
+				<div class="overflow-x-auto rounded-xl border border-gray-800">
+					<table class="min-w-full divide-y divide-gray-800 text-sm">
+						<thead class="bg-gray-900/50">
+							<tr>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Title</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Indexer</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Size</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Seeders</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Quality</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Approved</th>
+								<th class="px-4 py-2 text-right text-xs text-gray-500">Actions</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, rel := range releases {
+								<tr class="hover:bg-gray-900/40">
+									<td class="px-4 py-2 text-gray-200 max-w-[20rem] truncate" title={ rel.GetTitle() }>{ rel.GetTitle() }</td>
+									<td class="px-4 py-2 text-gray-400">{ rel.GetIndexer() }</td>
+									<td class="px-4 py-2 text-gray-400 whitespace-nowrap">{ formatBytes(rel.GetSize()) }</td>
+									<td class="px-4 py-2 text-gray-400">{ strconv.Itoa(int(rel.GetSeeders())) }</td>
+									<td class="px-4 py-2 text-gray-400">{ rel.GetQuality() }</td>
+									<td class="px-4 py-2 text-xs">
+										if rel.GetApproved() {
+											<span class="text-green-400">yes</span>
+										} else {
+											<span class="text-yellow-400">no</span>
+										}
+									</td>
+									<td class="px-4 py-2 text-right whitespace-nowrap">
+										<form method="POST" action={ templ.SafeURL(itemDispatchAction(moduleID, item.GetId())) } class="inline">
+											<input type="hidden" name="title" value={ item.GetTitle() }/>
+											<input type="hidden" name="item_type" value={ automationItemTypeForTemplate(moduleID, displayName) }/>
+											if item.GetMetadata()["tmdb_id"] != "" {
+												<input type="hidden" name="tmdb_id" value={ item.GetMetadata()["tmdb_id"] }/>
+											}
+											if item.GetYear() > 0 {
+												<input type="hidden" name="year" value={ strconv.FormatInt(item.GetYear(), 10) }/>
+											}
+											<input type="hidden" name="guid" value={ rel.GetGuid() }/>
+											<input type="hidden" name="release_title" value={ rel.GetTitle() }/>
+											<input type="hidden" name="download_url" value={ rel.GetDownloadUrl() }/>
+											<input type="hidden" name="indexer" value={ rel.GetIndexer() }/>
+											<input type="hidden" name="size" value={ strconv.FormatInt(rel.GetSize(), 10) }/>
+											<button type="submit" class="rounded bg-indigo-600 px-2 py-1 text-xs text-white hover:bg-indigo-500">Grab</button>
+										</form>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
 		</div>
 
 		@ItemHistorySection(history)

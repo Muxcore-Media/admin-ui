@@ -130,6 +130,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /media/{moduleID}/collections/{collectionID}", h.requireAuth(h.MediaCollectionDetail))
 	mux.HandleFunc("GET /media/{moduleID}/calendar", h.requireAuth(h.MediaCalendar))
 	mux.HandleFunc("GET /media/{moduleID}/item/{id}", h.requireAuth(h.MediaLibraryItem))
+	mux.HandleFunc("POST /media/{moduleID}/item/{id}/dispatch", h.requireAuth(h.MediaItemDispatch))
 	mux.HandleFunc("POST /media/{moduleID}/item/{id}/metadata", h.requireAuth(h.MediaLibraryUpdate))
 	mux.HandleFunc("GET /media/{moduleID}/item/{id}/artwork", h.requireAuth(h.MediaLibraryArtwork))
 
