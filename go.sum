@@ -10,6 +10,8 @@ github.com/Muxcore-Media/media-automation v0.1.0 h1:k/tPEEXoOtqR9a1OcNUuAUku38J8
 github.com/Muxcore-Media/media-automation v0.1.0/go.mod h1:IyxvjFgA1A8x6pehcIRDNM1LRSu9gMCWhTJo1/MfxcE=
 github.com/Muxcore-Media/media-custom-formats v0.1.1 h1:7SqwWNTkRZWhauCPEwc5hPB3adf4Tw6WaEQTOlIgn6M=
 github.com/Muxcore-Media/media-custom-formats v0.1.1/go.mod h1:u2CkqtGF6XngMni0mk0Tq5R4AQEdPMWRUj/DFO0MSxY=
+github.com/Muxcore-Media/media-list-sync v0.1.1 h1:jvHU9t3rZi6KMV2ZiBiYOt16WUvJQfTQyw6eq3BX33g=
+github.com/Muxcore-Media/media-list-sync v0.1.1/go.mod h1:p1t10PJkyeDUWJl1OEtms0riBqYWURkH7MkKKYtNqJ8=
 github.com/Muxcore-Media/media-rename v0.2.1 h1:n+h4MDIesLTQMi7Fk8wI8AB4P8HU3aUFaVs0uiY9Dq0=
 github.com/Muxcore-Media/media-rename v0.2.1/go.mod h1:q4dy1R3WZRbF+3cT+RfxdO3HAeGI4cpkrsv5gBzgL5g=
 github.com/Muxcore-Media/media-root-folders v0.1.1 h1:1uQh1GdsRif6GE+7Jpk3zEFtpO4ZUsHeqX8UGvkFUr8=

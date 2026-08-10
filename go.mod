@@ -14,6 +14,8 @@ require (
 	google.golang.org/grpc v1.82.1
 )
 
+require github.com/Muxcore-Media/media-list-sync v0.1.1
+
 require (
 	github.com/Muxcore-Media/media-rename v0.2.1
 	github.com/Muxcore-Media/media-root-folders v0.1.1
