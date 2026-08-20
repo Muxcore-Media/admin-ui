@@ -21,8 +21,15 @@ func totpBadge(enabled bool) string {
 	return "Off"
 }
 
-templ UsersPage(users []*authv1.UserInfo, errorMsg string) {
-	<div class="space-y-6">
+type PasswordResetRow struct {
+	ID        string
+	Username  string
+	Note      string
+	CreatedAt string
+}
+
+templ UsersPage(users []*authv1.UserInfo, errorMsg string, resets []PasswordResetRow) {
+	<div class="space-y-6" data-testid="users-page">
 		<div class="flex items-center justify-between">
 			<div>
 				<h1 class="text-2xl font-bold">Users</h1>
@@ -35,6 +42,26 @@ templ UsersPage(users []*authv1.UserInfo, errorMsg string) {
 				class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
 			>Add User</button>
 		</div>
+
+		if len(resets) > 0 {
+			<div class="rounded-xl border border-amber-800/40 bg-amber-950/20 p-4 space-y-2" data-testid="password-reset-requests">
+				<h2 class="text-sm font-semibold text-amber-200">Pending password reset requests</h2>
+				<p class="text-xs text-gray-400">From consumer /forgot-password (ADMIN_UI_PASSWORD_RESET_FILE). Open the user below and set a new password.</p>
+				<ul class="divide-y divide-amber-900/40 text-sm">
+					for _, r := range resets {
+						<li class="flex flex-wrap items-center justify-between gap-2 py-2">
+							<div>
+								<span class="font-medium text-gray-200">{ r.Username }</span>
+								if r.Note != "" {
+									<span class="text-xs text-gray-500 ml-2">{ r.Note }</span>
+								}
+								<div class="text-xs text-gray-500">{ r.CreatedAt }</div>
+							</div>
+						</li>
+					}
+				</ul>
+			</div>
+		}
 
 		<div id="create-form"></div>
 
@@ -207,6 +234,14 @@ templ UserDetailPage(user *authv1.UserInfo) {
 					>
 						<span class="text-xs text-gray-500">Loading...</span>
 					</div>
+				</div>
+
+				<div
+					hx-get={ templ.SafeURL(fmt.Sprintf("/users/%s/parental", user.GetId())) }
+					hx-trigger="load"
+					hx-swap="innerHTML"
+				>
+					<span class="text-xs text-gray-500">Loading parental…</span>
 				</div>
 			</div>
 		</div>

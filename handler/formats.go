@@ -45,6 +45,9 @@ func (h *Handler) dialFormatsModule(addr string) (*grpc.ClientConn, formatsv1.Fo
 }
 
 func (h *Handler) withFormatsClient(ctx context.Context) (formatsv1.FormatServiceClient, func(), error) {
+	if h.FormatsClient != nil {
+		return h.FormatsClient, func() {}, nil
+	}
 	addr, err := h.formatsModuleAddr(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -257,27 +260,105 @@ func profileFromForm(r *http.Request) *formatsv1.QualityProfile {
 }
 
 func (h *Handler) FormatsList(w http.ResponseWriter, r *http.Request) {
+	data := templates.FormatsListPageData{
+		ScoreSet:       "default",
+		Services:       []string{"radarr", "sonarr"},
+		ImportProfiles: false,
+	}
 	client, closer, err := h.withFormatsClient(r.Context())
-	errMsg := ""
-	var rows []templates.FormatRow
 	if err != nil {
-		errMsg = "Formats module unavailable: " + err.Error()
+		data.Error = "Formats module unavailable: " + err.Error()
 	} else {
 		defer closer()
 		resp, listErr := client.ListFormats(r.Context(), &formatsv1.ListFormatsRequest{})
 		if listErr != nil {
-			errMsg = listErr.Error()
+			data.Error = listErr.Error()
 		} else {
 			for _, f := range resp.GetFormats() {
-				rows = append(rows, templates.FormatRow{
+				data.Formats = append(data.Formats, templates.FormatRow{
 					ID: f.GetId(), Name: f.GetName(),
 					Score: int(f.GetDefaultScore()), RuleCount: len(f.GetRules()),
 				})
 			}
 		}
 	}
-	content := templates.FormatsListPage(rows, errMsg)
+	content := templates.FormatsListPage(data)
 	h.render(w, r, templates.Layout("Custom Formats", h.nav(r.URL.Path), content))
+}
+
+func (h *Handler) FormatsSyncTrash(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/formats", http.StatusSeeOther)
+		return
+	}
+	scoreSet := strings.TrimSpace(r.FormValue("score_set"))
+	if scoreSet == "" {
+		scoreSet = "default"
+	}
+	importProfiles := r.FormValue("import_profiles") == "1"
+	var services []string
+	if r.FormValue("service_radarr") == "1" {
+		services = append(services, "radarr")
+	}
+	if r.FormValue("service_sonarr") == "1" {
+		services = append(services, "sonarr")
+	}
+
+	data := templates.FormatsListPageData{
+		ScoreSet:       scoreSet,
+		Services:       services,
+		ImportProfiles: importProfiles,
+	}
+
+	client, closer, err := h.withFormatsClient(r.Context())
+	if err != nil {
+		data.Error = "Formats module unavailable: " + err.Error()
+		data.SyncResult = &templates.TrashSyncResult{Error: data.Error}
+		content := templates.FormatsListPage(data)
+		h.render(w, r, templates.Layout("Custom Formats", h.nav("/formats"), content))
+		return
+	}
+	defer closer()
+
+	resp, syncErr := client.SyncTrashGuides(r.Context(), &formatsv1.SyncTrashGuidesRequest{
+		ScoreSet:        scoreSet,
+		ImportProfiles:  importProfiles,
+		Services:        services,
+	})
+	if syncErr != nil {
+		data.SyncResult = &templates.TrashSyncResult{Error: syncErr.Error()}
+	} else {
+		data.SyncResult = &templates.TrashSyncResult{
+			FormatsUpserted:  int(resp.GetFormatsUpserted()),
+			FormatsSkipped:   int(resp.GetFormatsSkipped()),
+			ProfilesUpserted: int(resp.GetProfilesUpserted()),
+			GuidesPath:       resp.GetGuidesPath(),
+			Warnings:         resp.GetWarnings(),
+		}
+		if sess := SessionFromContext(r.Context()); sess != nil {
+			h.auditLog(r.Context(), sess.UserID, "admin.format.sync_trash", "format", "", map[string]string{
+				"score_set":        scoreSet,
+				"import_profiles":  strconv.FormatBool(importProfiles),
+				"formats_upserted": strconv.Itoa(int(resp.GetFormatsUpserted())),
+			})
+		}
+	}
+
+	listResp, listErr := client.ListFormats(r.Context(), &formatsv1.ListFormatsRequest{})
+	if listErr != nil {
+		if data.Error == "" {
+			data.Error = listErr.Error()
+		}
+	} else {
+		for _, f := range listResp.GetFormats() {
+			data.Formats = append(data.Formats, templates.FormatRow{
+				ID: f.GetId(), Name: f.GetName(),
+				Score: int(f.GetDefaultScore()), RuleCount: len(f.GetRules()),
+			})
+		}
+	}
+	content := templates.FormatsListPage(data)
+	h.render(w, r, templates.Layout("Custom Formats", h.nav("/formats"), content))
 }
 
 func (h *Handler) FormatNew(w http.ResponseWriter, r *http.Request) {

@@ -1,0 +1,224 @@
+package templates
+
+import "fmt"
+
+type SubtitlesMediaDetailData struct {
+	Item       SubtitlesMediaDetailItem
+	Subtitles  []SubtitlesFileItem
+	Episodes   []SubtitlesMediaItem
+	Wanted     []SubtitlesWantedItem
+	Profiles   []SubtitlesProfileItem
+	SearchHits []SubtitlesSearchHit
+	Error      string
+	Flash      string
+}
+
+type SubtitlesMediaDetailItem struct {
+	ID        string
+	Title     string
+	Type      string
+	ImdbID    string
+	TmdbID    int
+	Year      int
+	SeriesID  string
+	Series    string
+	Season    int
+	Episode   int
+	VideoPath string
+	FileID    string
+	ProfileID string
+	Monitored bool
+	HasFile   bool
+}
+
+type SubtitlesFileItem struct {
+	ID       string
+	Language string
+	Provider string
+	Format   string
+	Score    int
+	Forced   bool
+	HI       bool
+	Path     string
+}
+
+templ SubtitlesMediaDetailPage(data SubtitlesMediaDetailData) {
+	<div class="space-y-6" data-testid="subtitles-media-detail">
+		<div class="flex flex-wrap items-start justify-between gap-4">
+			<div>
+				<a href="/subtitles" class="text-sm text-gray-500 hover:text-gray-300">← Subtitles</a>
+				<h1 class="text-2xl font-bold mt-1">{ data.Item.Title }</h1>
+				<p class="text-gray-400 text-sm mt-1">
+					{ data.Item.Type }
+					if data.Item.Season > 0 || data.Item.Episode > 0 {
+						· { fmt.Sprintf("S%02dE%02d", data.Item.Season, data.Item.Episode) }
+					}
+					if data.Item.ImdbID != "" {
+						· { data.Item.ImdbID }
+					}
+					if data.Item.Year > 0 {
+						· { fmt.Sprintf("%d", data.Item.Year) }
+					}
+				</p>
+			</div>
+			<div class="flex flex-wrap gap-2">
+				<form method="post" action={ templ.SafeURL(fmt.Sprintf("/subtitles/media/%s/search-wanted", data.Item.ID)) }>
+					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Search wanted</button>
+				</form>
+				<form method="get" action={ templ.SafeURL(fmt.Sprintf("/subtitles/media/%s", data.Item.ID)) }>
+					<input type="hidden" name="q" value="1"/>
+					<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Manual search</button>
+				</form>
+			</div>
+		</div>
+
+		if data.Flash != "" {
+			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300">{ data.Flash }</div>
+		}
+		if data.Error != "" {
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ data.Error }</div>
+		}
+
+		<div class="grid gap-4 lg:grid-cols-2">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4 space-y-3">
+				<h2 class="text-sm font-semibold text-gray-300">Details</h2>
+				<dl class="text-sm space-y-1 text-gray-400">
+					<div>Monitored: <span class="text-gray-200">{ monitoredLabel(data.Item.Monitored) }</span></div>
+					<div>Has file: <span class="text-gray-200">{ monitoredLabel(data.Item.HasFile) }</span></div>
+					if data.Item.VideoPath != "" {
+						<div class="break-all">Path: <span class="text-gray-300">{ data.Item.VideoPath }</span></div>
+					}
+					if data.Item.SeriesID != "" {
+						<div>
+							Series:
+							<a class="text-indigo-300 hover:underline" href={ templ.SafeURL(fmt.Sprintf("/subtitles/series/%s", data.Item.SeriesID)) }>{ firstNonEmptyDetail(data.Item.Series, data.Item.SeriesID) }</a>
+						</div>
+					}
+				</dl>
+				<form method="post" action={ templ.SafeURL(fmt.Sprintf("/subtitles/media/%s/profile", data.Item.ID)) } class="flex flex-wrap gap-2 items-center">
+					<select name="profile_id" class="rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200">
+						<option value="">No profile</option>
+						for _, p := range data.Profiles {
+							<option value={ p.ID } selected?={ p.ID == data.Item.ProfileID }>{ p.Name }</option>
+						}
+					</select>
+					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-800">Set profile</button>
+				</form>
+			</div>
+
+			<div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
+				<h2 class="text-sm font-semibold text-gray-300 mb-3">Wanted languages</h2>
+				if len(data.Wanted) == 0 {
+					<p class="text-sm text-gray-500">None missing for this item.</p>
+				} else {
+					<ul class="space-y-1 text-sm text-gray-300">
+						for _, w := range data.Wanted {
+							<li>{ w.Language }</li>
+						}
+					</ul>
+				}
+			</div>
+		</div>
+
+		<div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
+			<h2 class="text-sm font-semibold text-gray-300 mb-3">Downloaded subtitles</h2>
+			if len(data.Subtitles) == 0 {
+				<p class="text-sm text-gray-500">No subtitle files yet.</p>
+			} else {
+				<ul class="space-y-2 text-sm">
+					for _, s := range data.Subtitles {
+						<li class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-800/80 py-2">
+							<div>
+								<span class="text-gray-200">{ s.Language }</span>
+								<span class="text-gray-500 ml-2">{ s.Provider } · { s.Format }</span>
+								if s.HI {
+									<span class="text-xs text-indigo-300 ml-1">HI</span>
+								}
+								if s.Forced {
+									<span class="text-xs text-amber-300 ml-1">forced</span>
+								}
+								if s.Score > 0 {
+									<span class="text-gray-600 ml-2">score { fmt.Sprintf("%d", s.Score) }</span>
+								}
+							</div>
+							<form method="post" action={ templ.SafeURL(fmt.Sprintf("/subtitles/files/%s/delete", s.ID)) }>
+								<input type="hidden" name="media_id" value={ data.Item.ID }/>
+								<button type="submit" class="text-xs text-red-400 hover:text-red-300">Delete</button>
+							</form>
+						</li>
+					}
+				</ul>
+			}
+		</div>
+
+		if len(data.SearchHits) > 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
+				<h2 class="text-sm font-semibold text-gray-300 mb-3">Search results</h2>
+				<ul class="space-y-2 text-sm max-h-96 overflow-y-auto">
+					for _, hit := range data.SearchHits {
+						<li class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-800/80 py-2">
+							<div>
+								<div class="text-gray-200">{ hit.Release }</div>
+								<div class="text-gray-500">{ hit.Provider } · { hit.Language } · score { fmt.Sprintf("%d", hit.Score) }</div>
+							</div>
+							<form method="post" action="/subtitles/download">
+								<input type="hidden" name="provider" value={ hit.Provider }/>
+								<input type="hidden" name="file_id" value={ hit.FileID }/>
+								<input type="hidden" name="language" value={ hit.Language }/>
+								<input type="hidden" name="release" value={ hit.Release }/>
+								<input type="hidden" name="score" value={ fmt.Sprintf("%d", hit.Score) }/>
+								<input type="hidden" name="media_file_id" value={ data.Item.FileID }/>
+								<input type="hidden" name="return_to" value={ fmt.Sprintf("/subtitles/media/%s", data.Item.ID) }/>
+								<button type="submit" class="rounded px-2 py-1 text-xs bg-indigo-900/50 text-indigo-200 hover:bg-indigo-800/60">Download</button>
+							</form>
+						</li>
+					}
+				</ul>
+			</div>
+		}
+
+		if len(data.Episodes) > 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
+				<h2 class="text-sm font-semibold text-gray-300 mb-3">Episodes ({ len(data.Episodes) })</h2>
+				<div class="overflow-x-auto max-h-96 overflow-y-auto">
+					<table class="w-full text-sm">
+						<thead class="text-xs uppercase text-gray-500 sticky top-0 bg-gray-900">
+							<tr>
+								<th class="text-left py-2">S/E</th>
+								<th class="text-left py-2">Title</th>
+								<th class="text-left py-2">Monitored</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, ep := range data.Episodes {
+								<tr>
+									<td class="py-2 text-gray-400">{ fmt.Sprintf("S%02dE%02d", ep.Season, ep.Episode) }</td>
+									<td class="py-2">
+										<a class="text-indigo-300 hover:underline" href={ templ.SafeURL(fmt.Sprintf("/subtitles/media/%s", ep.ID)) }>{ ep.Title }</a>
+									</td>
+									<td class="py-2 text-gray-400">{ monitoredLabel(ep.Monitored) }</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		}
+	</div>
+}
+
+func monitoredLabel(b bool) string {
+	if b {
+		return "yes"
+	}
+	return "no"
+}
+
+func firstNonEmptyDetail(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}

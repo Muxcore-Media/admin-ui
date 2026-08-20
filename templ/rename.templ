@@ -2,9 +2,30 @@ package templates
 
 import (
 	"fmt"
+	"strconv"
 
 	renamev1 "github.com/Muxcore-Media/media-rename/proto/renamev1"
 )
+
+// OrganizePageData drives the interactive BatchRename operator page.
+type OrganizePageData struct {
+	Directory string
+	MediaType string
+	Flash     string
+	Error     string
+	Results   []OrganizeResultRow
+	Total     int
+	Renamed   int
+	Errors    int
+}
+
+// OrganizeResultRow is one BatchRename result line.
+type OrganizeResultRow struct {
+	Original  string
+	RenamedTo string
+	Success   bool
+	Error     string
+}
 
 templ NamingTemplatesListPage(items []*renamev1.NamingTemplate, errMsg string) {
 	<div class="space-y-6">
@@ -13,7 +34,10 @@ templ NamingTemplatesListPage(items []*renamev1.NamingTemplate, errMsg string) {
 				<h1 class="text-2xl font-bold">Naming Templates</h1>
 				<p class="text-gray-400 text-sm mt-1">Patterns from media-rename</p>
 			</div>
-			<a href="/rename/templates/new" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">New template</a>
+			<div class="flex flex-wrap gap-2">
+				<a href="/rename/organize" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Organize</a>
+				<a href="/rename/templates/new" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">New template</a>
+			</div>
 		</div>
 		if errMsg != "" {
 			<div class="rounded-xl border border-amber-800 bg-amber-950/40 p-4 text-sm text-amber-200">{ errMsg }</div>
@@ -100,5 +124,84 @@ templ NamingTemplateEditPage(tpl *renamev1.NamingTemplate, isNew bool, errMsg st
 			</label>
 			<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Save</button>
 		</form>
+	</div>
+}
+
+templ OrganizePage(data OrganizePageData) {
+	<div class="space-y-6 max-w-3xl">
+		<a href="/rename/templates" class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Templates</a>
+		<div>
+			<h1 class="text-2xl font-bold">Organize / rename</h1>
+			<p class="text-gray-400 text-sm mt-1">Preview or apply naming templates to a directory (media-rename BatchRename).</p>
+		</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-red-800 bg-red-950/40 p-4 text-sm text-red-200">{ data.Error }</div>
+		}
+		if data.Flash != "" {
+			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300">{ data.Flash }</div>
+		}
+		<form method="post" action="/rename/organize" class="space-y-4 rounded-xl border border-gray-800 bg-gray-900/40 p-4">
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">Directory</label>
+				<input type="text" name="directory" required value={ data.Directory }
+					placeholder="/data/media/movies" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-mono"/>
+			</div>
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">Media type</label>
+				<select name="media_type" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+					if data.MediaType == "tv" {
+						<option value="movie">movie</option>
+						<option value="tv" selected>tv</option>
+					} else {
+						<option value="movie" selected>movie</option>
+						<option value="tv">tv</option>
+					}
+				</select>
+			</div>
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">Import mode</label>
+				<select name="import_mode" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+					<option value="hardlink">hardlink</option>
+					<option value="copy">copy</option>
+					<option value="move">move</option>
+				</select>
+			</div>
+			<div class="flex flex-wrap gap-2">
+				<button type="submit" name="dry_run" value="1" class="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-200 hover:bg-gray-800" data-testid="organize-preview">Preview</button>
+				<button type="submit" name="dry_run" value="0" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500" data-testid="organize-apply"
+					onclick="return confirm('Apply renames to disk?');">Apply</button>
+			</div>
+		</form>
+		if len(data.Results) > 0 {
+			<div class="rounded-xl border border-gray-800 overflow-hidden" data-testid="organize-results">
+				<div class="px-4 py-2 text-xs text-gray-500 bg-gray-900/50">
+					total { strconv.Itoa(data.Total) } · renamed { strconv.Itoa(data.Renamed) } · errors { strconv.Itoa(data.Errors) }
+				</div>
+				<table class="w-full text-sm">
+					<thead class="text-xs text-gray-500 text-left">
+						<tr>
+							<th class="px-3 py-2">Original</th>
+							<th class="px-3 py-2">New path</th>
+							<th class="px-3 py-2">Status</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-800">
+						for _, r := range data.Results {
+							<tr>
+								<td class="px-3 py-2 text-gray-400 font-mono text-xs truncate max-w-[16rem]" title={ r.Original }>{ r.Original }</td>
+								<td class="px-3 py-2 text-gray-300 font-mono text-xs truncate max-w-[16rem]" title={ r.RenamedTo }>{ r.RenamedTo }</td>
+								<td class="px-3 py-2 text-xs">
+									if r.Success {
+										<span class="text-green-400">ok</span>
+									} else {
+										<span class="text-red-400">{ r.Error }</span>
+									}
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
 	</div>
 }

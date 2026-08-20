@@ -23,19 +23,41 @@ const (
 var staticNavLinks = []templates.NavLink{
 	{Label: "Dashboard", Path: "/", Icon: "#"},
 	{Label: "Modules", Path: "/modules", Icon: "#"},
+	{Label: "Marketplace", Path: "/marketplace", Icon: "#"},
+	{Label: "Plugins", Path: "/plugins", Icon: "#"},
 	{Label: "Cluster", Path: "/cluster", Icon: "#"},
 	{Label: "Events", Path: "/events", Icon: "#"},
 	{Label: "Activity", Path: "/activity", Icon: "#"},
+	{Label: "Calendar", Path: "/calendar", Icon: "#"},
+	{Label: "Queue", Path: "/queue", Icon: "#"},
 	{Label: "Automation", Path: "/automation", Icon: "#"},
+	{Label: "Subtitles", Path: "/subtitles", Icon: "#"},
+	{Label: "Request", Path: "/request", Icon: "#"},
+	{Label: "Import", Path: "/import", Icon: "#"},
+	{Label: "Migrate", Path: "/migrate", Icon: "#"},
 	{Label: "Jellyfin", Path: "/jellyfin", Icon: "#"},
 	{Label: "List Sync", Path: "/list-sync", Icon: "#"},
+	{Label: "Libraries", Path: "/libraries", Icon: "#"},
+	{Label: "Devices", Path: "/devices", Icon: "#"},
+	{Label: "Tasks", Path: "/tasks", Icon: "#"},
+	{Label: "Playback", Path: "/playback", Icon: "#"},
+	{Label: "Logs", Path: "/logs", Icon: "#"},
+	{Label: "Branding", Path: "/branding", Icon: "#"},
+	{Label: "Networking", Path: "/networking", Icon: "#"},
+	{Label: "API Keys", Path: "/keys", Icon: "#"},
+	{Label: "Backups", Path: "/backups", Icon: "#"},
+	{Label: "Live TV", Path: "/livetv", Icon: "#"},
 	{Label: "Formats", Path: "/formats", Icon: "#"},
 	{Label: "Profiles", Path: "/formats/profiles", Icon: "#"},
+	{Label: "Release Profiles", Path: "/formats/release-profiles", Icon: "#"},
 	{Label: "Root Folders", Path: "/roots", Icon: "#"},
 	{Label: "Naming", Path: "/rename/templates", Icon: "#"},
 	{Label: "Storage", Path: "/storage", Icon: "#"},
 	{Label: "Users", Path: "/users", Icon: "#"},
+	{Label: "Invites", Path: "/invites", Icon: "#"},
+	{Label: "Auth / SSO", Path: "/auth", Icon: "#"},
 	{Label: "Settings", Path: "/settings", Icon: "#"},
+	{Label: "Metadata", Path: "/metadata", Icon: "#"},
 	{Label: "Audit", Path: "/audit", Icon: "#"},
 }
 
@@ -103,10 +125,12 @@ func (h *Handler) AuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var result struct {
-		Token    string   `json:"token"`
-		UserID   string   `json:"user_id"`
-		Username string   `json:"username"`
-		Roles    []string `json:"roles"`
+		Token    string         `json:"token"`
+		UserID   string         `json:"user_id"`
+		Username string         `json:"username"`
+		Roles    []string       `json:"roles"`
+		TenantID string         `json:"tenant_id"`
+		Claims   map[string]any `json:"claims"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		http.Error(w, "invalid response", http.StatusInternalServerError)
@@ -117,8 +141,15 @@ func (h *Handler) AuthCallback(w http.ResponseWriter, r *http.Request) {
 		h.ResetLoginRate(extractClientIP(r, h.TrustedProxies))
 	}
 
+	tenantID := strings.TrimSpace(result.TenantID)
+	if tenantID == "" && result.Claims != nil {
+		if v, ok := result.Claims["tenant_id"].(string); ok {
+			tenantID = strings.TrimSpace(v)
+		}
+	}
+
 	// Create local session.
-	sessionToken, err := h.Sessions.Create(result.UserID, result.Username, result.Roles, nil)
+	sessionToken, err := h.Sessions.CreateWithTenant(result.UserID, result.Username, tenantID, result.Roles, nil)
 	if err != nil {
 		slog.Error("auth: callback - session create failed", "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)

@@ -1,0 +1,225 @@
+package templates
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/Muxcore-Media/admin-ui/session"
+)
+
+templ DevicesLivePage(sessions []session.SessionInfo) {
+	<div class="space-y-6 max-w-4xl" data-testid="devices-page">
+		<div>
+			<h1 class="text-2xl font-bold">Devices</h1>
+			<p class="text-gray-400 text-sm mt-1">
+				Active admin-ui sessions (Jellyfin Devices stand-in). Revoke ends that browser’s cookie.
+			</p>
+		</div>
+
+		if len(sessions) == 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500">
+				No active admin sessions.
+			</div>
+		} else {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800">
+				for _, s := range sessions {
+					<div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+						<div class="min-w-0">
+							<div class="text-sm font-medium text-gray-200">{ s.Username }</div>
+							<div class="text-xs text-gray-500 font-mono truncate">
+								{ s.UserID } · { shortToken(s.Token) }
+							</div>
+							<div class="text-xs text-gray-500 mt-1">
+								Created { s.CreatedAt.Format(time.RFC822) } · expires { s.ExpiresAt.Format(time.RFC822) }
+							</div>
+						</div>
+						<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/devices/%s/revoke", s.Token)) }>
+							<button type="submit" class="rounded-lg border border-red-800/60 bg-red-950/40 px-3 py-1.5 text-xs font-medium text-red-300 hover:bg-red-900/40">
+								Revoke
+							</button>
+						</form>
+					</div>
+				}
+			</div>
+		}
+	</div>
+}
+
+func shortToken(tok string) string {
+	if len(tok) <= 12 {
+		return tok
+	}
+	return tok[:8] + "…"
+}
+
+type LogFileInfo struct {
+	Name    string
+	Size    int64
+	ModTime string
+}
+
+type LogsPageData struct {
+	LogDir   string
+	Files    []LogFileInfo
+	Selected string
+	Tail     string
+	Error    string
+	Events   []EventItem
+}
+
+templ LogTailPanel(name string, content string, errMsg string) {
+	<div data-testid="log-tail" data-file={ name }>
+		if errMsg != "" {
+			<div class="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-2 text-sm text-red-300">{ errMsg }</div>
+		} else if content == "" {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-500">Empty log file.</div>
+		} else {
+			<pre class="max-h-[28rem] overflow-auto rounded-xl border border-gray-800 bg-gray-950 p-4 text-xs text-gray-300 whitespace-pre-wrap font-mono">{ content }</pre>
+		}
+	</div>
+}
+
+templ LogsLivePage(data LogsPageData) {
+	<div class="space-y-6" data-testid="logs-page">
+		<div class="flex flex-wrap items-end justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Logs</h1>
+				<p class="text-gray-400 text-sm mt-1">
+					Module log files from ADMIN_UI_LOG_DIR / MVP_RUN (Jellyfin log viewer). Mesh event ring below.
+				</p>
+			</div>
+			<a href="/events" class="text-sm text-indigo-400 hover:text-indigo-300">Open live Events →</a>
+		</div>
+
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 space-y-3" data-testid="log-files">
+			<div class="text-xs text-gray-500 font-mono truncate">{ data.LogDir }</div>
+			if len(data.Files) == 0 {
+				<div class="text-sm text-gray-500" data-testid="log-files-empty">
+					No .log / .jsonl files found. Point ADMIN_UI_LOG_DIR at MVP_RUN (e.g. _mvp/run) or logging-file output.
+				</div>
+			} else {
+				<ul class="divide-y divide-gray-800 rounded-lg border border-gray-800 overflow-hidden">
+					for _, f := range data.Files {
+						<li class="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
+							<div class="min-w-0">
+								<span class="font-mono text-gray-200">{ f.Name }</span>
+								<span class="text-xs text-gray-500 ml-2">{ formatLogSize(f.Size) } · { f.ModTime }</span>
+							</div>
+							<a
+								href={ templ.SafeURL("/logs?file=" + f.Name) }
+								class="text-xs text-indigo-400 hover:text-indigo-300"
+								data-testid={ "log-open-" + f.Name }
+							>Tail</a>
+						</li>
+					}
+				</ul>
+			}
+			if data.Selected != "" {
+				<div class="space-y-2">
+					<div class="flex items-center justify-between gap-2">
+						<h2 class="text-sm font-semibold text-gray-300">Tail · { data.Selected }</h2>
+						<a
+							href={ templ.SafeURL("/logs/partial?file=" + data.Selected) }
+							hx-get={ templ.SafeURL("/logs/partial?file=" + data.Selected) }
+							hx-trigger="every 5s"
+							hx-target="#log-tail-live"
+							hx-swap="innerHTML"
+							class="text-xs text-gray-500"
+						>auto-refresh</a>
+					</div>
+					if data.Error != "" {
+						<div class="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-2 text-sm text-red-300">{ data.Error }</div>
+					}
+					<div id="log-tail-live">
+						@LogTailPanel(data.Selected, data.Tail, data.Error)
+					</div>
+				</div>
+			}
+		</div>
+
+		<div>
+			<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Mesh event ring</h2>
+			<div
+				id="log-table"
+				hx-get="/logs/partial"
+				hx-trigger="load, every 5s"
+				hx-target="this"
+				hx-swap="innerHTML"
+			>
+				@EventTable(data.Events)
+			</div>
+		</div>
+	</div>
+}
+
+func formatLogSize(n int64) string {
+	switch {
+	case n < 1024:
+		return fmt.Sprintf("%d B", n)
+	case n < 1024*1024:
+		return fmt.Sprintf("%.1f KiB", float64(n)/1024)
+	default:
+		return fmt.Sprintf("%.1f MiB", float64(n)/(1024*1024))
+	}
+}
+
+type BrandingData struct {
+	ServerName  string
+	LoginBanner string
+	CustomCSS   string
+	SplashURL   string
+	Saved       bool
+	Error       string
+}
+
+templ BrandingEditPage(data BrandingData) {
+	<div class="space-y-6 max-w-3xl" data-testid="branding-page">
+		<div>
+			<h1 class="text-2xl font-bold">Branding</h1>
+			<p class="text-gray-400 text-sm mt-1">
+				Server name, login banner, splash URL, and custom CSS (Jellyfin branding).
+			</p>
+		</div>
+
+		if data.Saved {
+			<div class="rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300">Saved.</div>
+		}
+		if data.Error != "" {
+			<div class="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-2 text-sm text-red-300">{ data.Error }</div>
+		}
+
+		<form method="POST" action="/branding" class="space-y-4 rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+			<label class="block space-y-1 text-sm">
+				<span class="text-gray-400">Server name</span>
+				<input name="server_name" value={ data.ServerName } class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm"/>
+			</label>
+			<label class="block space-y-1 text-sm">
+				<span class="text-gray-400">Login banner / disclaimer</span>
+				<textarea name="login_banner" rows="3" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm">{ data.LoginBanner }</textarea>
+			</label>
+			<label class="block space-y-1 text-sm">
+				<span class="text-gray-400">Splash image URL</span>
+				<input name="splash_url" value={ data.SplashURL } class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm"/>
+			</label>
+			<label class="block space-y-1 text-sm">
+				<span class="text-gray-400">Custom CSS</span>
+				<textarea name="custom_css" rows="10" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-xs">{ data.CustomCSS }</textarea>
+			</label>
+			<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+				Save branding
+			</button>
+		</form>
+
+		if data.CustomCSS != "" {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400">
+				{ "Custom CSS saved (" + cssBytes(data.CustomCSS) + " bytes). Served at " }
+				<a href="/branding.css" class="text-indigo-400">/branding.css</a>
+				{ " for consumer/admin theming." }
+			</div>
+		}
+	</div>
+}
+
+func cssBytes(s string) string {
+	return fmt.Sprintf("%d", len(s))
+}

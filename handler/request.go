@@ -9,10 +9,12 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/Muxcore-Media/admin-ui/session"
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
@@ -25,12 +27,14 @@ const (
 )
 
 type requestMediaJSON struct {
-	ID       string `json:"id"`
-	ItemType string `json:"itemType"`
-	TMDBID   int    `json:"tmdbId"`
-	Title    string `json:"title"`
-	Year     int    `json:"year"`
-	Status   string `json:"status"`
+	ID          string `json:"id"`
+	ItemType    string `json:"itemType"`
+	TMDBID      int    `json:"tmdbId"`
+	Title       string `json:"title"`
+	Year        int    `json:"year"`
+	Status      string `json:"status"`
+	RequestedBy string `json:"requestedBy"`
+	ApprovedBy  string `json:"approvedBy"`
 }
 
 type requestSearchHitJSON struct {
@@ -73,6 +77,7 @@ func (h *Handler) requestGET(ctx context.Context, base, path string) ([]byte, in
 	if err != nil {
 		return nil, 0, err
 	}
+	h.applyTenantHeaders(req, SessionFromContext(ctx))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, 0, err
@@ -80,6 +85,25 @@ func (h *Handler) requestGET(ctx context.Context, base, path string) ([]byte, in
 	defer resp.Body.Close()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	return body, resp.StatusCode, err
+}
+
+// applyTenantHeaders forwards session tenant + claim headers to downstream modules.
+func (h *Handler) applyTenantHeaders(req *http.Request, sess *session.Session) {
+	if req == nil {
+		return
+	}
+	tid := ""
+	if sess != nil {
+		tid = strings.TrimSpace(sess.TenantID)
+	}
+	if tid == "" && os.Getenv("TENANT_MODE") == "1" {
+		tid = "default"
+	}
+	if tid == "" {
+		return
+	}
+	req.Header.Set("X-Tenant-ID", tid)
+	req.Header.Set("X-Auth-Claims-Tenant", tid)
 }
 
 func (h *Handler) RequestPage(w http.ResponseWriter, r *http.Request) {
@@ -115,10 +139,15 @@ func (h *Handler) RequestPage(w http.ResponseWriter, r *http.Request) {
 			data.Error = "invalid request list JSON"
 		} else {
 			for _, row := range rows {
-				data.Requests = append(data.Requests, templates.RequestRow{
+				rr := templates.RequestRow{
 					ID: row.ID, ItemType: row.ItemType, Title: row.Title,
 					Year: row.Year, Status: row.Status, TMDBID: row.TMDBID,
-				})
+					RequestedBy: row.RequestedBy, ApprovedBy: row.ApprovedBy,
+				}
+				data.Requests = append(data.Requests, rr)
+				if strings.EqualFold(row.Status, "pending") {
+					data.Pending = append(data.Pending, rr)
+				}
 			}
 		}
 	}
@@ -180,13 +209,28 @@ func (h *Handler) RequestCreate(w http.ResponseWriter, r *http.Request) {
 	if itemType == "" {
 		itemType = "movie"
 	}
+
+	sess := SessionFromContext(r.Context())
+	requestedBy := ""
+	isAdmin := true // admin-ui operators are admins; still send identity
+	if sess != nil {
+		requestedBy = sess.Username
+		if requestedBy == "" {
+			requestedBy = sess.UserID
+		}
+		isAdmin = false
+		for _, role := range sess.Roles {
+			if strings.EqualFold(role, "admin") {
+				isAdmin = true
+				break
+			}
+		}
+	}
+
 	payload, _ := json.Marshal(map[string]any{
-		"tmdbId":   tmdbID,
-		"title":    r.FormValue("title"),
-		"year":     year,
-		"overview": r.FormValue("overview"),
-		"poster":   r.FormValue("poster"),
-		"type":     itemType,
+		"tmdbId": tmdbID, "title": r.FormValue("title"), "year": year,
+		"overview": r.FormValue("overview"), "poster": r.FormValue("poster"),
+		"type": itemType, "requestedBy": requestedBy, "isAdmin": isAdmin,
 	})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+requestHTTPCreate, bytes.NewReader(payload))
 	if err != nil {
@@ -194,6 +238,13 @@ func (h *Handler) RequestCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
+	h.applyTenantHeaders(req, sess)
+	if requestedBy != "" {
+		req.Header.Set("X-MuxCore-User", requestedBy)
+	}
+	if isAdmin {
+		req.Header.Set("X-MuxCore-Roles", "admin")
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		slog.Warn("request-media create failed", "error", err)
@@ -208,6 +259,65 @@ func (h *Handler) RequestCreate(w http.ResponseWriter, r *http.Request) {
 		redir += "&q=" + url.QueryEscape(title)
 	}
 	http.Redirect(w, r, redir, http.StatusSeeOther)
+}
+
+func (h *Handler) RequestApprove(w http.ResponseWriter, r *http.Request) {
+	h.requestDecide(w, r, "approve")
+}
+
+func (h *Handler) RequestDeny(w http.ResponseWriter, r *http.Request) {
+	h.requestDecide(w, r, "deny")
+}
+
+func (h *Handler) requestDecide(w http.ResponseWriter, r *http.Request, action string) {
+	ctx, cancel := context.WithTimeout(r.Context(), requestPageTimeout)
+	defer cancel()
+	id := r.PathValue("id")
+	if id == "" {
+		http.Redirect(w, r, "/request", http.StatusSeeOther)
+		return
+	}
+	_, base, _, err := h.requestMediaBase(ctx)
+	if err != nil {
+		http.Redirect(w, r, "/request", http.StatusSeeOther)
+		return
+	}
+	by := "admin"
+	var sess *session.Session
+	if sess = SessionFromContext(r.Context()); sess != nil {
+		by = sess.Username
+		if by == "" {
+			by = sess.UserID
+		}
+	}
+	payload, _ := json.Marshal(map[string]string{"by": by})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/requests/"+url.PathEscape(id)+"/"+action, bytes.NewReader(payload))
+	if err != nil {
+		http.Redirect(w, r, "/request", http.StatusSeeOther)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	h.applyTenantHeaders(req, sess)
+	if sess != nil {
+		roles := "user"
+		for _, role := range sess.Roles {
+			if strings.EqualFold(role, "admin") {
+				roles = "admin"
+				break
+			}
+		}
+		req.Header.Set("X-MuxCore-Roles", roles)
+		req.Header.Set("X-MuxCore-User", by)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		slog.Warn("request-media "+action+" failed", "error", err)
+		http.Redirect(w, r, "/request", http.StatusSeeOther)
+		return
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
+	http.Redirect(w, r, "/request", http.StatusSeeOther)
 }
 
 func (h *Handler) renderRequest(w http.ResponseWriter, r *http.Request, data templates.RequestPageData) {

@@ -1,0 +1,173 @@
+package templates
+
+import "fmt"
+
+type UnifiedQueueWanted struct {
+	ID        string
+	ItemID    string
+	ItemType  string
+	Title     string
+	Year      int
+	TMDBID    int
+	Monitored bool
+	Missing   bool
+	UpdatedAt string
+}
+
+type UnifiedQueueHistory struct {
+	ID           string
+	WantedItemID string
+	GUID         string
+	Status       string
+	Title        string
+	Source       string
+	At           string
+	DownloadID   string
+	Warning      bool
+	Stuck        bool
+}
+
+type UnifiedQueueData struct {
+	Wanted     []UnifiedQueueWanted
+	History    []UnifiedQueueHistory
+	Filter     string
+	Page       int
+	PageSize   int
+	Total      int
+	TotalPages int
+	Error      string
+	Flash      string
+}
+
+templ UnifiedQueuePage(data UnifiedQueueData) {
+	<div
+		class="space-y-6"
+		data-testid="unified-queue-page"
+		hx-get="/queue"
+		hx-trigger="every 15s"
+		hx-select="[data-testid='unified-queue-page']"
+		hx-swap="outerHTML"
+		hx-include="[name='filter']"
+	>
+		<div>
+			<h1 class="text-2xl font-bold">Queue</h1>
+			<p class="text-gray-400 text-sm mt-1">Wanted items and download history with stuck/warning actions</p>
+		</div>
+		if data.Flash != "" {
+			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300" data-testid="queue-flash">{ data.Flash }</div>
+		}
+		if data.Error != "" {
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" data-testid="queue-error">{ data.Error }</div>
+		}
+
+		<form class="flex flex-wrap gap-3 items-end" method="get" action="/queue">
+			<div>
+				<label class="block text-xs font-medium text-gray-500 mb-1">Filter</label>
+				<select name="filter" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white">
+					<option value="" selected?={ data.Filter == "" }>All</option>
+					<option value="movie" selected?={ data.Filter == "movie" }>Movies</option>
+					<option value="tv" selected?={ data.Filter == "tv" }>TV</option>
+				</select>
+			</div>
+			<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Apply</button>
+		</form>
+		<form method="POST" action="/queue/retry-import" class="inline">
+			<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800" title="Retry all import_failed">Retry imports</button>
+		</form>
+
+		<div>
+			<h2 class="text-lg font-semibold mb-3">Wanted <span class="text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", data.Total) })</span></h2>
+			if len(data.Wanted) == 0 {
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500" data-testid="queue-wanted-empty">Queue is empty.</div>
+			} else {
+				<div class="overflow-x-auto rounded-xl border border-gray-800" data-testid="queue-wanted-table">
+					<table class="min-w-full divide-y divide-gray-800 text-sm">
+						<thead class="bg-gray-900/50">
+							<tr>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Title</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Type</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Flags</th>
+								<th class="px-4 py-2 text-right text-xs text-gray-500">Actions</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, it := range data.Wanted {
+								<tr class="hover:bg-gray-900/40">
+									<td class="px-4 py-2 text-gray-200">
+										{ it.Title }
+										if it.Year > 0 {
+											<span class="text-gray-500"> ({ fmt.Sprintf("%d", it.Year) })</span>
+										}
+									</td>
+									<td class="px-4 py-2 text-gray-400">{ it.ItemType }</td>
+									<td class="px-4 py-2 text-xs text-gray-400">
+										if it.Missing {
+											<span class="text-yellow-400" data-testid="wanted-missing">missing</span>
+										}
+										if it.Monitored {
+											<span class="text-green-400 ml-1">monitored</span>
+										}
+									</td>
+									<td class="px-4 py-2 text-right whitespace-nowrap">
+										<form method="POST" action="/queue/remove" class="inline">
+											<input type="hidden" name="queue_id" value={ it.ID }/>
+											<button type="submit" class="rounded border border-red-900/50 px-2 py-1 text-xs text-red-300 hover:bg-red-950/30" data-testid="queue-remove">Remove</button>
+										</form>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+
+		<div>
+			<h2 class="text-lg font-semibold mb-3">Download history</h2>
+			if len(data.History) == 0 {
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500" data-testid="queue-history-empty">No download history yet.</div>
+			} else {
+				<ul class="space-y-2" data-testid="queue-history-list">
+					for _, h := range data.History {
+						<li class={ "rounded-lg border px-3 py-2 text-sm", templ.KV("border-amber-800/60 bg-amber-950/20", h.Stuck), templ.KV("border-red-900/40 bg-red-950/10", h.Warning && !h.Stuck), templ.KV("border-gray-800 bg-gray-900/40", !h.Warning) }>
+							<div class="flex flex-wrap items-center gap-2">
+								<span class="text-gray-200">{ h.Title }</span>
+								if h.Stuck {
+									<span class="rounded bg-amber-900/50 px-1.5 py-0.5 text-xs text-amber-200" data-testid="stuck-badge">{ h.Status }</span>
+								} else if h.Warning {
+									<span class="rounded bg-red-900/40 px-1.5 py-0.5 text-xs text-red-200" data-testid="warn-badge">{ h.Status }</span>
+								} else {
+									<span class="text-gray-500"> · { h.Status }</span>
+								}
+								if h.Source != "" {
+									<span class="text-gray-600"> — { h.Source }</span>
+								}
+								if h.At != "" {
+									<span class="text-xs text-gray-600 ml-auto">{ h.At }</span>
+								}
+							</div>
+							if h.Stuck || h.Warning {
+								<div class="mt-2 flex flex-wrap gap-2">
+									if h.Status == "import_failed" || h.Status == "stalled" {
+										<form method="POST" action="/queue/retry-import" class="inline">
+											<input type="hidden" name="history_id" value={ h.ID }/>
+											<button type="submit" class="rounded bg-indigo-600 px-2 py-1 text-xs text-white hover:bg-indigo-500" data-testid="retry-import">Retry import</button>
+										</form>
+									}
+									if h.WantedItemID != "" && h.GUID != "" {
+										<form method="POST" action="/queue/blocklist" class="inline">
+											<input type="hidden" name="wanted_item_id" value={ h.WantedItemID }/>
+											<input type="hidden" name="guid" value={ h.GUID }/>
+											<button type="submit" class="rounded border border-gray-700 px-2 py-1 text-xs text-gray-300 hover:bg-gray-800" data-testid="blocklist-release">Blocklist</button>
+										</form>
+									}
+								</div>
+							}
+						</li>
+					}
+				</ul>
+			}
+		</div>
+		<p class="text-xs text-gray-600">Full automation controls also live on <a href="/automation" class="text-indigo-400 hover:underline">Automation</a>.</p>
+	</div>
+}

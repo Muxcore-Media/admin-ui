@@ -30,9 +30,19 @@ Per library module (`media.library`):
 | `GET /media/{moduleID}/collections` | `collections` |
 | `GET /media/{moduleID}/collections/{collectionID}` | `collections` |
 | `GET /media/{moduleID}/calendar` | `calendar` |
-| `GET /media/{moduleID}/{id}` | item detail |
-| `POST /media/{moduleID}/{id}/metadata` | update metadata |
+| `GET /media/{moduleID}/{id}` | item detail (releases, history, seasons for TV) |
+| `POST /media/{moduleID}/{id}/metadata` | update metadata (incl. monitored, series_type, profile, root) |
+| `POST /media/{moduleID}/{id}/refresh` | metadata refresh |
+| `POST /media/{moduleID}/{id}/delete` | delete item (optional delete_files) |
+| `POST /media/{moduleID}/{id}/season/{seasonID}/monitor` | TV season monitor |
+| `POST /media/{moduleID}/{id}/episode/{episodeID}/monitor` | TV episode monitor |
+| `POST /media/{moduleID}/item/{id}/episode/{episodeID}/files/delete` | TV episode file remove |
+| `POST /media/{moduleID}/item/{id}/titles` | add alternate title |
+| `POST /media/{moduleID}/item/{id}/titles/{titleID}/delete` | remove alternate title |
+| `POST /media/{moduleID}/collections/{collectionID}/monitor` | collection monitor |
+| `POST /media/{moduleID}/collections/{collectionID}/sync` | sync missing collection parts |
 | `GET /media/{moduleID}/{id}/artwork` | artwork partial |
+| `GET|POST /request` | TMDB search & add via `request-media` |
 
 Custom formats (`media.formats` → `FormatService`):
 
@@ -70,6 +80,7 @@ Naming templates (`media.renamer` → `RenameService`):
 | `GET /rename/templates/new` + `POST /rename/templates` | create |
 | `GET|POST /rename/templates/{id}` | edit |
 | `POST /rename/templates/{id}/delete` | delete |
+| `GET|POST /rename/organize` | BatchRename preview / apply |
 
 Item detail binds `quality_profile_id` via a select when profiles are available,
 and `root_folder_path` via a select when roots are available (falls back to text
@@ -78,9 +89,11 @@ the metadata map.
 
 ## Smoke checklist
 
-1. Movies: Browse → Missing → Tags → Collections → open collection
-2. TV: Browse → Missing → Tags → Calendar (date range)
-3. Profiles: create / edit / delete; bind profile on a movie/series detail page
-4. Root Folders: add path via browser; confirm free-space badge; bind root on item detail
-5. Naming Templates: create alternate movie/TV pattern; assign on a root
-6. Subnav hides unsupported tabs (no Calendar on movies, no Collections on TV)
+1. Request: Search movie/TV → add → appears in library / request history
+2. Movies: Browse → Missing → Tags → Collections → open collection
+3. TV: Browse → Missing → Tags → Calendar (date range) → season monitor toggles
+4. Item detail: Refresh metadata, toggle monitored, Delete (DB only)
+5. Profiles: create / edit / delete; bind profile on a movie/series detail page
+6. Root Folders: add path via browser; confirm free-space badge; bind root on item detail
+7. Naming Templates: create alternate movie/TV pattern; assign on a root
+8. Subnav hides unsupported tabs (no Calendar on movies, no Collections on TV)

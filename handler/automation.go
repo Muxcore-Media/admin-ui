@@ -157,6 +157,50 @@ func (h *Handler) AutomationQueuePage(w http.ResponseWriter, r *http.Request) {
 	data.Indexers, data.Downloaders = h.acquisitionPeers(peerCtx)
 	peerCancel()
 
+	bCtx, bCancel := context.WithTimeout(pageCtx, automationReadTimeout)
+	if bl, err := client.ListBlocklist(bCtx, &automationv1.ListBlocklistRequest{Page: 1, PageSize: 50}); err != nil {
+		slog.Debug("automation: ListBlocklist failed", "error", err)
+	} else {
+		for _, e := range bl.GetEntries() {
+			data.Blocklist = append(data.Blocklist, templates.AutomationBlocklistItem{
+				WantedItemID: e.GetWantedItemId(),
+				GUID:         e.GetGuid(),
+				Loop:         int(e.GetLoop()),
+				Reason:       e.GetReason(),
+				Title:        e.GetTitle(),
+				CreatedAt:   e.GetCreatedAt(),
+			})
+		}
+	}
+	bCancel()
+
+	dCtx, dCancel := context.WithTimeout(pageCtx, automationReadTimeout)
+	if dp, err := client.ListDelayProfiles(dCtx, &automationv1.ListDelayProfilesRequest{}); err != nil {
+		slog.Debug("automation: ListDelayProfiles failed", "error", err)
+	} else {
+		for _, p := range dp.GetProfiles() {
+			data.DelayProfiles = append(data.DelayProfiles, templates.AutomationDelayProfile{
+				Protocol: p.GetProtocol(), WaitMinutes: int(p.GetWaitMinutes()),
+			})
+		}
+	}
+	dCancel()
+
+	cCtx, cCancel := context.WithTimeout(pageCtx, automationReadTimeout)
+	if cu, err := client.ListCutoffUnmet(cCtx, &automationv1.ListCutoffUnmetRequest{Page: 1, PageSize: 50}); err != nil {
+		slog.Debug("automation: ListCutoffUnmet failed", "error", err)
+	} else {
+		for _, it := range cu.GetItems() {
+			data.Cutoff = append(data.Cutoff, templates.AutomationCutoffItem{
+				QueueID: it.GetQueueId(), ItemID: it.GetItemId(), ItemType: it.GetItemType(),
+				Title: it.GetTitle(), Year: int(it.GetYear()),
+				CurrentScore: int(it.GetCurrentScore()), CutoffScore: int(it.GetCutoffScore()),
+				ProfileID: it.GetQualityProfileId(),
+			})
+		}
+	}
+	cCancel()
+
 	h.renderAutomation(w, r, data)
 }
 
@@ -336,4 +380,72 @@ func (h *Handler) AutomationDispatch(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Redirect(w, r, fmt.Sprintf("/automation?dispatched=%s&status=%s",
 		url.QueryEscape(disp.GetDownloadId()), url.QueryEscape(disp.GetStatus())), http.StatusSeeOther)
+}
+
+func (h *Handler) AutomationQueueRemove(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), automationReadTimeout)
+	defer cancel()
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/automation", http.StatusSeeOther)
+		return
+	}
+	client, closer, err := h.withAutomationClient(ctx)
+	if err != nil {
+		http.Redirect(w, r, "/automation?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	defer closer()
+	if _, err := client.RemoveFromQueue(ctx, &automationv1.RemoveFromQueueRequest{QueueId: r.FormValue("queue_id")}); err != nil {
+		http.Redirect(w, r, "/automation?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/automation?status=removed", http.StatusSeeOther)
+}
+
+func (h *Handler) AutomationBlocklistClear(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), automationReadTimeout)
+	defer cancel()
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/automation", http.StatusSeeOther)
+		return
+	}
+	client, closer, err := h.withAutomationClient(ctx)
+	if err != nil {
+		http.Redirect(w, r, "/automation?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	defer closer()
+	req := &automationv1.ClearBlocklistRequest{
+		WantedItemId: r.FormValue("wanted_item_id"),
+		Guid:          r.FormValue("guid"),
+		ClearAll:      r.FormValue("clear_all") == "1",
+	}
+	if _, err := client.ClearBlocklist(ctx, req); err != nil {
+		http.Redirect(w, r, "/automation?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/automation?status=blocklist_cleared", http.StatusSeeOther)
+}
+
+func (h *Handler) AutomationDelayUpdate(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), automationReadTimeout)
+	defer cancel()
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/automation", http.StatusSeeOther)
+		return
+	}
+	mins, _ := strconv.Atoi(r.FormValue("wait_minutes"))
+	client, closer, err := h.withAutomationClient(ctx)
+	if err != nil {
+		http.Redirect(w, r, "/automation?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	defer closer()
+	if _, err := client.UpsertDelayProfile(ctx, &automationv1.UpsertDelayProfileRequest{
+		Protocol: r.FormValue("protocol"), WaitMinutes: int32(mins),
+	}); err != nil {
+		http.Redirect(w, r, "/automation?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/automation?status=delay_saved", http.StatusSeeOther)
 }

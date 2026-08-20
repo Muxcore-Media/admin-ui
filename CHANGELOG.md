@@ -5,6 +5,13 @@ All notable changes to the MuxCore Admin UI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.12] — 2026-08-20
+
+### Added
+
+- **TRaSH Guides sync UX** — `POST /formats/sync-trash` on Formats list (score set, radarr/sonarr, import profiles; shows upserted/skipped/profile counts). Manual sync; schedule via `FORMATS_TRASH_SYNC` / module settings or external cron (scheduler-cron not wired).
+- **Arr migrate wizard** — `/migrate` imports Sonarr/Radarr libraries into media-movies / media-tvshows (dry-run + progress/error summary). HTTP Arr client in `arrmigrate` (httptest fixtures only).
+
 ## [0.1.10] — 2026-08-10
 
 ### Changed
@@ -21,6 +28,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Request approval queue on `/request` (Approve/Deny pending via request-media)
+- Invite links admin page `/invites` (create/copy/revoke via auth-local)
+- Organize / rename UI (`/rename/organize`) via media-rename `BatchRename`
+- Alternate titles panel on library detail (movies + TV)
+- TV episode file remove on season tree; movie trailers panel; minimum availability select
+- Collection monitor + Sync missing from TMDB
+- Backup CreateBackup includes library DB dirs when `MOVIES_DB_PATH` / `TVSHOWS_DB_PATH` set
+- Request Media search/add (`GET|POST /request`) in nav — Radarr/Sonarr-style add via `request-media`
+- Library item Refresh metadata / Delete (optional delete files) on detail pages
+- Monitored checkbox + TV series type selector on item metadata form
+- TV season/episode monitor tree on series detail (`TvManagementService`)
+- Automation: remove from wanted queue, release blocklist list/clear, delay profile edit, cutoff unmet
+- Movie file panel on detail (list + remove; optional delete from disk)
+- Manual import (`/import`) via scanner `ListImportCandidates` + `ImportPath`
+- Release profiles CRUD at `/formats/release-profiles`
 - List Sync operator UI (`/list-sync`, history, add/remove sources, sync now) via `media.listsync`
 - Project scaffold: Go module, build system, directory layout
 - Tailwind CSS asset pipeline via standalone CLI

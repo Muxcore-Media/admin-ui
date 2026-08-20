@@ -65,10 +65,11 @@ func (h *Handler) UsersTOTPStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UsersPage(w http.ResponseWriter, r *http.Request) {
+	resets := loadPasswordResetRequests()
 	client, conn, err := h.authClient(r.Context())
 	if err != nil {
 		slog.Warn("users: auth client failed", "error", err)
-		content := templates.UsersPage(nil, "")
+		content := templates.UsersPage(nil, "", resets)
 		nav := h.nav(r.URL.Path)
 		component := templates.Layout("Users", nav, content)
 		h.render(w, r, component)
@@ -79,14 +80,14 @@ func (h *Handler) UsersPage(w http.ResponseWriter, r *http.Request) {
 	resp, err := client.ListUsers(r.Context(), &authv1.ListUsersRequest{})
 	if err != nil {
 		slog.Warn("users: ListUsers failed", "error", err)
-		content := templates.UsersPage(nil, "")
+		content := templates.UsersPage(nil, "", resets)
 		nav := h.nav(r.URL.Path)
 		component := templates.Layout("Users", nav, content)
 		h.render(w, r, component)
 		return
 	}
 
-	content := templates.UsersPage(resp.GetUsers(), "")
+	content := templates.UsersPage(resp.GetUsers(), "", resets)
 	nav := h.nav(r.URL.Path)
 	component := templates.Layout("Users", nav, content)
 	h.render(w, r, component)

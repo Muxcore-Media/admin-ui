@@ -16,8 +16,11 @@ import (
 	discoveryv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/discovery/v1"
 	"github.com/Muxcore-Media/core/sdk/go/client"
 
+	"github.com/Muxcore-Media/admin-ui/arrmigrate"
 	"github.com/Muxcore-Media/admin-ui/session"
 	"github.com/a-h/templ"
+
+	formatsv1 "github.com/Muxcore-Media/media-custom-formats/proto/formatsv1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
@@ -49,6 +52,22 @@ type Handler struct {
 	HealthMonitorURL string
 	// RequestMediaURL is optional HTTP base for request-media (empty = mesh only).
 	RequestMediaURL string
+	// APIRestURL is optional api-rest base for SpoolService HTTP proxy fallback.
+	APIRestURL string
+	// Spool is the marketplace DeployTag client (gRPC, HTTP proxy, or test stub).
+	Spool SpoolAPI
+	// AuditHook, when set, receives audit events (tests).
+	AuditHook func(actor, action, resource, resourceID string, details map[string]string)
+
+	// FormatsClient, when set, bypasses mesh discovery (tests).
+	FormatsClient formatsv1.FormatServiceClient
+	// ArrHTTPClient overrides the Arr migrate HTTP client (tests).
+	ArrHTTPClient *http.Client
+	// MigrateMovies / MigrateTV inject library Add RPCs for Arr migrate tests.
+	MigrateMovies arrmigrate.MovieImporter
+	MigrateTV     arrmigrate.TVImporter
+	// ResolveProfileID maps quality profile name → MuxCore id (tests / optional).
+	ResolveProfileID func(ctx context.Context, name string) string
 
 	ResetLoginRate func(ip string)
 
@@ -92,6 +111,12 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /modules", h.requireAuth(h.ModuleList))
 	mux.HandleFunc("GET /modules/{id}", h.requireAuth(h.ModuleDetail))
+	mux.HandleFunc("GET /marketplace", h.requireAuth(h.MarketplacePage))
+	mux.HandleFunc("POST /marketplace/deploy", h.requireAuth(h.MarketplaceDeploy))
+	mux.HandleFunc("GET /marketplace/trust", h.requireAuth(h.MarketplaceTrustPage))
+	mux.HandleFunc("POST /marketplace/trust/settings", h.requireAuth(h.MarketplaceTrustSaveSettings))
+	mux.HandleFunc("POST /marketplace/trust/keys", h.requireAuth(h.MarketplaceTrustAddKey))
+	mux.HandleFunc("POST /marketplace/trust/keys/{id}/revoke", h.requireAuth(h.MarketplaceTrustRevokeKey))
 
 	mux.HandleFunc("GET /cluster", h.requireAuth(h.ClusterPage))
 	mux.HandleFunc("GET /cluster/nodes", h.requireAuth(h.ClusterNodes))
@@ -109,12 +134,49 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /audit", h.requireAuth(h.AuditPage))
 
 	mux.HandleFunc("GET /activity", h.requireAuth(h.ActivityPage))
+	mux.HandleFunc("GET /calendar", h.requireAuth(h.UnifiedCalendarPage))
+	mux.HandleFunc("GET /queue", h.requireAuth(h.UnifiedQueuePage))
+	mux.HandleFunc("POST /queue/remove", h.requireAuth(h.UnifiedQueueRemove))
+	mux.HandleFunc("POST /queue/retry-import", h.requireAuth(h.UnifiedQueueRetryImport))
+	mux.HandleFunc("POST /queue/blocklist", h.requireAuth(h.UnifiedQueueBlocklist))
 	mux.HandleFunc("GET /automation", h.requireAuth(h.AutomationQueuePage))
 	mux.HandleFunc("POST /automation/dispatch", h.requireAuth(h.AutomationDispatch))
+	mux.HandleFunc("POST /automation/queue/remove", h.requireAuth(h.AutomationQueueRemove))
+	mux.HandleFunc("POST /automation/blocklist/clear", h.requireAuth(h.AutomationBlocklistClear))
+	mux.HandleFunc("POST /automation/delay", h.requireAuth(h.AutomationDelayUpdate))
+
+	mux.HandleFunc("GET /subtitles", h.requireAuth(h.SubtitlesPage))
+	mux.HandleFunc("POST /subtitles/sync", h.requireAuth(h.SubtitlesSync))
+	mux.HandleFunc("POST /subtitles/search-wanted", h.requireAuth(h.SubtitlesSearchWanted))
+	mux.HandleFunc("POST /subtitles/upgrade", h.requireAuth(h.SubtitlesUpgrade))
+	mux.HandleFunc("POST /subtitles/providers/{id}", h.requireAuth(h.SubtitlesProviderToggle))
+	mux.HandleFunc("POST /subtitles/blacklist/{id}/delete", h.requireAuth(h.SubtitlesBlacklistRemove))
+	mux.HandleFunc("POST /subtitles/mass-edit", h.requireAuth(h.SubtitlesMassEdit))
+	mux.HandleFunc("POST /subtitles/history/clear", h.requireAuth(h.SubtitlesClearHistory))
+	mux.HandleFunc("POST /subtitles/download", h.requireAuth(h.SubtitlesDownload))
+	mux.HandleFunc("POST /subtitles/profiles", h.requireAuth(h.SubtitlesUpsertProfile))
+	mux.HandleFunc("GET /subtitles/media/{id}", h.requireAuth(h.SubtitlesMediaDetail))
+	mux.HandleFunc("GET /subtitles/series/{id}", h.requireAuth(h.SubtitlesSeriesDetail))
+	mux.HandleFunc("POST /subtitles/media/{id}/search-wanted", h.requireAuth(h.SubtitlesMediaSearchWanted))
+	mux.HandleFunc("POST /subtitles/media/{id}/profile", h.requireAuth(h.SubtitlesMediaSetProfile))
+	mux.HandleFunc("POST /subtitles/files/{id}/delete", h.requireAuth(h.SubtitlesFileDelete))
+	mux.HandleFunc("POST /subtitles/test-arr", h.requireAuth(h.SubtitlesTestArr))
 	mux.HandleFunc("GET /jellyfin", h.requireAuth(h.JellyfinStatusPage))
 	mux.HandleFunc("POST /jellyfin/sync", h.requireAuth(h.JellyfinSync))
 	mux.HandleFunc("POST /jellyfin/refresh", h.requireAuth(h.JellyfinRefresh))
 
+	mux.HandleFunc("GET /request", h.requireAuth(h.RequestPage))
+	mux.HandleFunc("POST /request", h.requireAuth(h.RequestCreate))
+	mux.HandleFunc("POST /request/{id}/approve", h.requireAuth(h.RequestApprove))
+	mux.HandleFunc("POST /request/{id}/deny", h.requireAuth(h.RequestDeny))
+	mux.HandleFunc("GET /invites", h.requireAuth(h.InvitesPage))
+	mux.HandleFunc("POST /invites", h.requireAuth(h.InvitesCreate))
+	mux.HandleFunc("POST /invites/{id}/revoke", h.requireAuth(h.InvitesRevoke))
+	mux.HandleFunc("GET /import", h.requireAuth(h.ManualImportPage))
+	mux.HandleFunc("POST /import", h.requireAuth(h.ManualImportPost))
+
+	mux.HandleFunc("GET /migrate", h.requireAuth(h.MigratePage))
+	mux.HandleFunc("POST /migrate", h.requireAuth(h.MigratePost))
 
 	mux.HandleFunc("GET /list-sync", h.requireAuth(h.ListSyncPage))
 	mux.HandleFunc("GET /list-sync/history", h.requireAuth(h.ListSyncHistoryPage))
@@ -130,13 +192,24 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /media/{moduleID}/tags", h.requireAuth(h.MediaTagsPost))
 	mux.HandleFunc("GET /media/{moduleID}/collections", h.requireAuth(h.MediaCollections))
 	mux.HandleFunc("GET /media/{moduleID}/collections/{collectionID}", h.requireAuth(h.MediaCollectionDetail))
+	mux.HandleFunc("POST /media/{moduleID}/collections/{collectionID}/monitor", h.requireAuth(h.MediaCollectionMonitor))
+	mux.HandleFunc("POST /media/{moduleID}/collections/{collectionID}/sync", h.requireAuth(h.MediaCollectionSync))
 	mux.HandleFunc("GET /media/{moduleID}/calendar", h.requireAuth(h.MediaCalendar))
 	mux.HandleFunc("GET /media/{moduleID}/item/{id}", h.requireAuth(h.MediaLibraryItem))
 	mux.HandleFunc("POST /media/{moduleID}/item/{id}/dispatch", h.requireAuth(h.MediaItemDispatch))
 	mux.HandleFunc("POST /media/{moduleID}/item/{id}/metadata", h.requireAuth(h.MediaLibraryUpdate))
+	mux.HandleFunc("POST /media/{moduleID}/item/{id}/refresh", h.requireAuth(h.MediaItemRefresh))
+	mux.HandleFunc("POST /media/{moduleID}/item/{id}/delete", h.requireAuth(h.MediaItemDelete))
+	mux.HandleFunc("POST /media/{moduleID}/item/{id}/files/{fileID}/delete", h.requireAuth(h.MediaFileDelete))
+	mux.HandleFunc("POST /media/{moduleID}/item/{id}/season/{seasonID}/monitor", h.requireAuth(h.MediaSeasonMonitor))
+	mux.HandleFunc("POST /media/{moduleID}/item/{id}/episode/{episodeID}/monitor", h.requireAuth(h.MediaEpisodeMonitor))
+	mux.HandleFunc("POST /media/{moduleID}/item/{id}/episode/{episodeID}/files/delete", h.requireAuth(h.MediaEpisodeFileDelete))
+	mux.HandleFunc("POST /media/{moduleID}/item/{id}/titles", h.requireAuth(h.MediaAlternateTitleAdd))
+	mux.HandleFunc("POST /media/{moduleID}/item/{id}/titles/{titleID}/delete", h.requireAuth(h.MediaAlternateTitleDelete))
 	mux.HandleFunc("GET /media/{moduleID}/item/{id}/artwork", h.requireAuth(h.MediaLibraryArtwork))
 
 	mux.HandleFunc("GET /formats", h.requireAuth(h.FormatsList))
+	mux.HandleFunc("POST /formats/sync-trash", h.requireAuth(h.FormatsSyncTrash))
 	mux.HandleFunc("GET /formats/new", h.requireAuth(h.FormatNew))
 	mux.HandleFunc("POST /formats", h.requireAuth(h.FormatCreate))
 	mux.HandleFunc("GET /formats/profiles", h.requireAuth(h.ProfilesList))
@@ -145,6 +218,9 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /formats/profiles/{id}", h.requireAuth(h.ProfileEdit))
 	mux.HandleFunc("POST /formats/profiles/{id}", h.requireAuth(h.ProfileUpdate))
 	mux.HandleFunc("POST /formats/profiles/{id}/delete", h.requireAuth(h.ProfileDelete))
+	mux.HandleFunc("GET /formats/release-profiles", h.requireAuth(h.ReleaseProfilesList))
+	mux.HandleFunc("POST /formats/release-profiles", h.requireAuth(h.ReleaseProfileUpsert))
+	mux.HandleFunc("POST /formats/release-profiles/{id}/delete", h.requireAuth(h.ReleaseProfileDelete))
 	mux.HandleFunc("GET /formats/item/{id}", h.requireAuth(h.FormatEdit))
 	mux.HandleFunc("POST /formats/item/{id}", h.requireAuth(h.FormatUpdate))
 	mux.HandleFunc("POST /formats/item/{id}/delete", h.requireAuth(h.FormatDelete))
@@ -163,6 +239,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /rename/templates/{id}", h.requireAuth(h.NamingTemplateEdit))
 	mux.HandleFunc("POST /rename/templates/{id}", h.requireAuth(h.NamingTemplateUpdate))
 	mux.HandleFunc("POST /rename/templates/{id}/delete", h.requireAuth(h.NamingTemplateDelete))
+	mux.HandleFunc("GET /rename/organize", h.requireAuth(h.OrganizePage))
+	mux.HandleFunc("POST /rename/organize", h.requireAuth(h.OrganizePost))
 
 	mux.HandleFunc("GET /users", h.requireAuth(h.UsersPage))
 	mux.HandleFunc("GET /users/create-form", h.requireAuth(h.UsersCreateForm))
@@ -180,6 +258,34 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /users/{id}/passkeys/{credId}", h.requireAuth(h.PasskeyDelete))
 	mux.HandleFunc("GET /api/auth/passkey/register/{id}/begin", h.requireAuth(h.PasskeyBeginRegister))
 	mux.HandleFunc("POST /api/auth/passkey/register/{id}/complete", h.requireAuth(h.PasskeyCompleteRegister))
+
+	mux.HandleFunc("GET /devices", h.requireAuth(h.DevicesPage))
+	mux.HandleFunc("POST /devices/{token}/revoke", h.requireAuth(h.DevicesRevoke))
+	mux.HandleFunc("GET /logs", h.requireAuth(h.LogsPage))
+	mux.HandleFunc("GET /logs/partial", h.requireAuth(h.LogsPartial))
+	mux.HandleFunc("GET /branding", h.requireAuth(h.BrandingPage))
+	mux.HandleFunc("POST /branding", h.requireAuth(h.BrandingSave))
+	mux.HandleFunc("GET /branding.css", h.BrandingCSS)
+	mux.HandleFunc("GET /networking", h.requireAuth(h.NetworkingPage))
+	mux.HandleFunc("POST /networking", h.requireAuth(h.NetworkingSave))
+	mux.HandleFunc("GET /keys", h.requireAuth(h.APIKeysPage))
+	mux.HandleFunc("POST /keys/{id}/revoke", h.requireAuth(h.APIKeysRevoke))
+	mux.HandleFunc("GET /backups", h.requireAuth(h.BackupsPage))
+	mux.HandleFunc("POST /backups/create", h.requireAuth(h.BackupsCreate))
+	mux.HandleFunc("POST /backups/{id}/delete", h.requireAuth(h.BackupsDelete))
+	mux.HandleFunc("POST /backups/{id}/restore", h.requireAuth(h.BackupsRestore))
+	mux.HandleFunc("GET /tasks", h.requireAuth(h.TasksPage))
+	mux.HandleFunc("POST /tasks/{id}/cancel", h.requireAuth(h.TasksCancel))
+	mux.HandleFunc("GET /playback", h.requireAuth(h.PlaybackAdminPage))
+	mux.HandleFunc("POST /playback", h.requireAuth(h.PlaybackAdminSave))
+	mux.HandleFunc("GET /libraries", h.requireAuth(h.LibrariesAdminPage))
+	mux.HandleFunc("GET /plugins", h.requireAuth(h.PluginsPage))
+	mux.HandleFunc("GET /metadata", h.requireAuth(h.MetadataManagerPage))
+	mux.HandleFunc("GET /auth", h.requireAuth(h.AuthSSOPage))
+	mux.HandleFunc("GET /livetv", h.requireAuth(h.LiveTVAdminPage))
+	mux.HandleFunc("POST /livetv", h.requireAuth(h.LiveTVAdminSave))
+	mux.HandleFunc("GET /users/{id}/parental", h.requireAuth(h.UsersParental))
+	mux.HandleFunc("POST /users/{id}/parental", h.requireAuth(h.UsersParental))
 
 	mux.HandleFunc("GET /auth/callback", h.AuthCallback)
 	mux.HandleFunc("GET /auth/status", h.AuthStatus)
@@ -399,6 +505,9 @@ func SessionFromContext(ctx context.Context) *session.Session {
 // auditLog writes an audit entry asynchronously. Errors are logged but not returned
 // to avoid blocking the request flow.
 func (h *Handler) auditLog(ctx context.Context, actor, action, resource, resourceID string, details map[string]string) {
+	if h.AuditHook != nil {
+		h.AuditHook(actor, action, resource, resourceID, details)
+	}
 	if h.Core == nil || h.Core.Audit == nil {
 		return
 	}

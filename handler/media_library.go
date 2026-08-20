@@ -1,12 +1,15 @@
 package handler
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
 	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
+	mgmntv1 "github.com/Muxcore-Media/media-movies/proto/mgmntv1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
@@ -161,8 +164,82 @@ func (h *Handler) MediaCollectionDetail(w http.ResponseWriter, r *http.Request) 
 		http.Redirect(w, r, "/media/"+moduleID+"/collections", http.StatusSeeOther)
 		return
 	}
-	content := templates.MediaCollectionDetailPage(displayName, moduleID, features, resp.GetName(), collectionID, resp.GetItems())
+	monitored := false
+	if id, err := strconv.Atoi(collectionID); err == nil && id > 0 {
+		if addr, err := h.mediaModuleAddr(r.Context(), moduleID); err == nil {
+			if conn, movieClient, err := h.dialMovieModule(addr); err == nil {
+				defer conn.Close()
+				if prefs, err := movieClient.GetCollectionPrefs(r.Context(), &mgmntv1.GetCollectionPrefsRequest{CollectionId: int32(id)}); err == nil {
+					monitored = prefs.GetMonitored()
+				}
+			}
+		}
+	}
+	content := templates.MediaCollectionDetailPage(displayName, moduleID, features, resp.GetName(), collectionID, resp.GetItems(), monitored, r.URL.Query().Get("status"))
 	h.render(w, r, templates.Layout(resp.GetName()+" — Collections", h.nav(r.URL.Path), content))
+}
+
+func (h *Handler) MediaCollectionMonitor(w http.ResponseWriter, r *http.Request) {
+	moduleID := r.PathValue("moduleID")
+	collectionID := r.PathValue("collectionID")
+	redirectBase := fmt.Sprintf("/media/%s/collections/%s", moduleID, collectionID)
+	_ = r.ParseForm()
+	monitored := r.FormValue("monitored") == "true" || r.FormValue("monitored") == "1"
+	id, err := strconv.Atoi(collectionID)
+	if err != nil || id == 0 {
+		http.Redirect(w, r, "/media/"+moduleID+"/collections", http.StatusSeeOther)
+		return
+	}
+	addr, err := h.mediaModuleAddr(r.Context(), moduleID)
+	if err != nil {
+		http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	conn, client, err := h.dialMovieModule(addr)
+	if err != nil {
+		http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	defer conn.Close()
+	if _, err := client.SetCollectionMonitored(r.Context(), &mgmntv1.SetCollectionMonitoredRequest{
+		CollectionId: int32(id), Monitored: monitored, SearchOnAdd: true,
+	}); err != nil {
+		http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, redirectBase+"?status=collection_updated", http.StatusSeeOther)
+}
+
+func (h *Handler) MediaCollectionSync(w http.ResponseWriter, r *http.Request) {
+	moduleID := r.PathValue("moduleID")
+	collectionID := r.PathValue("collectionID")
+	redirectBase := fmt.Sprintf("/media/%s/collections/%s", moduleID, collectionID)
+	_ = r.ParseForm()
+	id, err := strconv.Atoi(collectionID)
+	if err != nil || id == 0 {
+		http.Redirect(w, r, "/media/"+moduleID+"/collections", http.StatusSeeOther)
+		return
+	}
+	addr, err := h.mediaModuleAddr(r.Context(), moduleID)
+	if err != nil {
+		http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	conn, client, err := h.dialMovieModule(addr)
+	if err != nil {
+		http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	defer conn.Close()
+	resp, err := client.SyncCollection(r.Context(), &mgmntv1.SyncCollectionRequest{
+		CollectionId: int32(id), AddMissing: r.FormValue("add_missing") != "0",
+	})
+	if err != nil {
+		http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	msg := fmt.Sprintf("synced added=%d present=%d", resp.GetAdded(), resp.GetAlreadyPresent())
+	http.Redirect(w, r, redirectBase+"?status="+url.QueryEscape(msg), http.StatusSeeOther)
 }
 
 func (h *Handler) MediaCalendar(w http.ResponseWriter, r *http.Request) {

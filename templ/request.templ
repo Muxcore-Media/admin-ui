@@ -3,12 +3,14 @@ package templates
 import "fmt"
 
 type RequestRow struct {
-	ID       string
-	ItemType string
-	Title    string
-	Year     int
-	Status   string
-	TMDBID   int
+	ID          string
+	ItemType    string
+	Title       string
+	Year        int
+	Status      string
+	TMDBID      int
+	RequestedBy string
+	ApprovedBy  string
 }
 
 type RequestPageData struct {
@@ -19,6 +21,7 @@ type RequestPageData struct {
 	MediaType  string
 	Results    []RequestSearchHit
 	Requests   []RequestRow
+	Pending    []RequestRow
 	Message    string
 	Error      string
 	SoftEmpty  bool
@@ -58,6 +61,30 @@ templ RequestPage(data RequestPageData) {
 		}
 
 		if !data.SoftEmpty {
+			if len(data.Pending) > 0 {
+				<section class="space-y-3" data-testid="request-pending-queue">
+					<h2 class="text-lg font-semibold">Pending approval</h2>
+					<ul class="divide-y divide-gray-800 rounded-xl border border-amber-900/40 bg-amber-950/10">
+						for _, rec := range data.Pending {
+							<li class="flex flex-wrap items-center justify-between gap-3 px-3 py-2 text-sm">
+								<div>
+									<span>{ rec.Title } <span class="text-gray-500">({ fmt.Sprintf("%d", rec.Year) })</span></span>
+									<div class="text-xs text-gray-500">{ rec.ItemType } · by { rec.RequestedBy }</div>
+								</div>
+								<div class="flex gap-2">
+									<form method="post" action={ templ.SafeURL("/request/" + rec.ID + "/approve") }>
+										<button type="submit" class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-600" data-testid="request-approve">Approve</button>
+									</form>
+									<form method="post" action={ templ.SafeURL("/request/" + rec.ID + "/deny") }>
+										<button type="submit" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:border-red-500" data-testid="request-deny">Deny</button>
+									</form>
+								</div>
+							</li>
+						}
+					</ul>
+				</section>
+			}
+
 			<form class="flex flex-wrap gap-3 items-end" method="get" action="/request" data-testid="request-search-form">
 				<div>
 					<label class="block text-xs font-medium text-gray-500 mb-1">Type</label>
@@ -99,7 +126,7 @@ templ RequestPage(data RequestPageData) {
 			}
 
 			<section class="space-y-3" data-testid="request-history">
-				<h2 class="text-lg font-semibold">Recent requests</h2>
+				<h2 class="text-lg font-semibold">All requests</h2>
 				if len(data.Requests) == 0 {
 					<p class="text-sm text-gray-500">No requests yet.</p>
 				} else {
