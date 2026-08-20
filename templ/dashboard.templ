@@ -8,6 +8,8 @@ type DashboardData struct {
 	LeaderHTTPAddr    string
 	LeaderGRPCAddr    string
 	LeaderModuleCount int
+	SessionCount      int
+	LibraryCount      int
 	Disconnected      bool
 }
 
@@ -71,10 +73,18 @@ templ DashboardPage(data DashboardData) {
 				<p class="text-gray-400 text-sm mt-1">System overview</p>
 			</div>
 
-			<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
 				@ClusterStatCard("Nodes", fmt.Sprintf("%d", data.NodeCount), "Total cluster members")
 				@LeaderCard(data)
+				@ClusterStatCard("Sessions", fmt.Sprintf("%d", data.SessionCount), "Active admin sessions")
+				@ClusterStatCard("Libraries", fmt.Sprintf("%d", data.LibraryCount), "media.library modules")
 				@ClusterStatCard("Version", "v0.1.0", "Core version")
+			</div>
+			<div class="flex flex-wrap gap-3 text-sm">
+				<a href="/tasks" class="text-indigo-400 hover:text-indigo-300">Scheduled tasks →</a>
+				<a href="/devices" class="text-indigo-400 hover:text-indigo-300">Devices →</a>
+				<a href="/storage" class="text-indigo-400 hover:text-indigo-300">Storage →</a>
+				<a href="/activity" class="text-indigo-400 hover:text-indigo-300">Activity →</a>
 			</div>
 
 			<div>

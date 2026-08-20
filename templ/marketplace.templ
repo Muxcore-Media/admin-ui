@@ -1,0 +1,153 @@
+package templates
+
+import "fmt"
+
+type MarketplaceModulePin struct {
+	Repo      string
+	Version   string
+	Checksum  string
+	Publisher string
+	Required  bool
+}
+
+type MarketplaceTag struct {
+	Name        string
+	Description string
+	Version     string
+	ModuleCount int
+	Modules     []MarketplaceModulePin
+}
+
+type MarketplaceSpool struct {
+	URL    string
+	Active bool
+	Tags   []MarketplaceTag
+}
+
+type MarketplacePageData struct {
+	Spools       []MarketplaceSpool
+	Error        string
+	DeployResult string
+	APIRestHint  bool
+	SpoolHint    string
+}
+
+func TruncChecksum(s string) string {
+	if len(s) <= 12 {
+		return s
+	}
+	return s[:12]
+}
+
+templ MarketplacePage(data MarketplacePageData) {
+	<div class="space-y-6 max-w-4xl" data-testid="marketplace-page">
+		<div class="flex flex-wrap items-end justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Module marketplace</h1>
+				<p class="text-gray-400 text-sm mt-1">
+					Browse spool catalog tags and install modules at runtime via DeployTag.
+				</p>
+			</div>
+			<a href="/marketplace/trust" class="text-sm text-indigo-400 hover:text-indigo-300 shrink-0" data-testid="marketplace-trust-link">Trust keys →</a>
+		</div>
+		<div class="rounded-xl border border-amber-900/50 bg-amber-950/20 px-4 py-3 text-sm text-amber-200/90 space-y-1" data-testid="marketplace-trust">
+			<p><strong class="font-medium text-amber-100">Checksums:</strong> DeployTag verifies each module pin’s SHA-256 checksum before spawn (core spool path). Mismatch fails that module.</p>
+			<p><strong class="font-medium text-amber-100">Signatures:</strong> manage keys on <a href="/marketplace/trust" class="text-amber-100 underline underline-offset-2">/marketplace/trust</a>. Core uses <code class="text-amber-100/80">MUXCORE_SPOOL_REQUIRE_SIGNATURE</code>, <code class="text-amber-100/80">MUXCORE_SPOOL_PUBLIC_KEY</code>, and/or <code class="text-amber-100/80">MUXCORE_SPOOL_TRUSTED_KEYS_DIR</code>. Tags may pin <code class="text-amber-100/80">signature</code> / <code class="text-amber-100/80">publisher</code>, or ship sidecar <code class="text-amber-100/80">.sig</code> / <code class="text-amber-100/80">.minisig</code> (minisign hashed <code class="text-amber-100/80">ED</code> supported).</p>
+			<p><strong class="font-medium text-amber-100">Publishers:</strong> when <code class="text-amber-100/80">MUXCORE_SPOOL_ALLOWED_PUBLISHERS</code> is set, DeployTag requires a matching pin <code class="text-amber-100/80">publisher</code>.</p>
+			<p><strong class="font-medium text-amber-100">Compatibility:</strong> tags must match this core’s MinCoreVersion; failed modules are reported per-result.</p>
+			<p><strong class="font-medium text-amber-100">Rollback:</strong> DeployTag is additive/idempotent — stop or remove modules manually to roll back; there is no automatic undo.</p>
+			<p><strong class="font-medium text-amber-100">Audit:</strong> successful deploys write <code class="text-amber-100/80">marketplace.deploy</code> to the core audit log.</p>
+			<p><strong class="font-medium text-amber-100">Trust:</strong> only deploy tags from spools you control or have audited.</p>
+		</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-200" data-testid="marketplace-error">{ data.Error }</div>
+		}
+		if data.SpoolHint != "" {
+			<div class="rounded-xl border border-gray-700 bg-gray-900/40 px-4 py-3 text-sm text-gray-400" data-testid="marketplace-spool-hint">{ data.SpoolHint }</div>
+		}
+		if data.DeployResult != "" {
+			<div class="rounded-xl border border-emerald-900/40 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-200 whitespace-pre-wrap" data-testid="marketplace-deploy-result">{ data.DeployResult }</div>
+		}
+		if len(data.Spools) == 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500">
+				No spools available.
+				if data.APIRestHint {
+					<span> Connect admin-ui to core (gRPC SpoolService) or set <code class="text-gray-400">ADMIN_UI_API_REST_URL</code> to api-rest (<code class="text-gray-400">/api/v1/spools/…/deploy</code>). Without either, DeployTag is gRPC-only via core.</span>
+				}
+			</div>
+		} else {
+			for _, spool := range data.Spools {
+				<div class="rounded-xl border border-gray-800 bg-gray-900/40 overflow-hidden">
+					<div class="px-4 py-3 border-b border-gray-800 flex items-center justify-between gap-3">
+						<div>
+							<div class="text-sm font-medium text-gray-200 font-mono break-all">{ spool.URL }</div>
+							if spool.Active {
+								<span class="text-xs text-emerald-400">active boot spool</span>
+							}
+						</div>
+						<a href="/modules" class="text-xs text-indigo-400 hover:text-indigo-300 shrink-0">Running modules →</a>
+					</div>
+					if len(spool.Tags) == 0 {
+						<div class="px-4 py-4 text-sm text-gray-500">No tags on this spool.</div>
+					} else {
+						<ul class="divide-y divide-gray-800">
+							for _, tag := range spool.Tags {
+								<li class="px-4 py-4 flex flex-wrap items-start justify-between gap-4">
+									<div class="min-w-0 flex-1">
+										<div class="font-medium text-gray-100">{ tag.Name }</div>
+										if tag.Description != "" {
+											<p class="text-sm text-gray-400 mt-0.5">{ tag.Description }</p>
+										}
+										<p class="text-xs text-gray-500 mt-1">
+											version { tag.Version }
+											if tag.ModuleCount > 0 {
+												<span> · { fmt.Sprintf("%d modules", tag.ModuleCount) }</span>
+											}
+										</p>
+										if len(tag.Modules) > 0 {
+											<ul class="mt-2 space-y-1 text-xs font-mono text-gray-400" data-testid="marketplace-module-pins">
+												for _, pin := range tag.Modules {
+													<li class="flex flex-wrap gap-x-2 gap-y-0.5">
+														<span class="text-gray-300">{ pin.Repo }</span>
+														<span>{ "@" + pin.Version }</span>
+														if pin.Publisher != "" {
+															<span class="text-sky-400/90" data-testid="marketplace-pin-publisher" title="Publisher identity">{ "by " + pin.Publisher }</span>
+														}
+														if pin.Checksum != "" {
+															<span class="text-emerald-500/90" title="SHA-256 expected by DeployTag">{ "sha256:" + TruncChecksum(pin.Checksum) + "…" }</span>
+														} else {
+															<span class="text-amber-500/80">no checksum pin</span>
+														}
+														if pin.Required {
+															<span class="text-gray-500">required</span>
+														}
+													</li>
+												}
+											</ul>
+										}
+									</div>
+									<form
+										method="POST"
+										action="/marketplace/deploy"
+										class="shrink-0"
+										onsubmit="return confirm('Deploy tag \'' + this.tag_name.value + '\'?\n\nDeployTag verifies module checksums before spawn.\nRollback requires stopping modules manually.\nAn audit log entry (marketplace.deploy) will be written.');"
+									>
+										<input type="hidden" name="spool_url" value={ spool.URL }/>
+										<input type="hidden" name="tag_name" value={ tag.Name }/>
+										<button
+											type="submit"
+											class="rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-3 py-1.5"
+											data-testid="marketplace-deploy"
+										>
+											Install / Deploy
+										</button>
+									</form>
+								</li>
+							}
+						</ul>
+					}
+				</div>
+			}
+		}
+	</div>
+}

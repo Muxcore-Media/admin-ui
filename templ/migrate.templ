@@ -1,0 +1,147 @@
+package templates
+
+import "strconv"
+
+type MigrateItemRow struct {
+	Source             string
+	Title              string
+	Year               int
+	TMDBID             int
+	TVDBID             int
+	Monitored          bool
+	QualityProfileName string
+	RootFolderPath     string
+}
+
+type MigrateResultView struct {
+	DryRun   bool
+	Fetched  int
+	Imported int
+	Skipped  int
+	Errors   []string
+	Items    []MigrateItemRow
+}
+
+type MigratePageData struct {
+	Service string
+	BaseURL string
+	APIKey  string
+	DryRun  bool
+	Error   string
+	Result  *MigrateResultView
+}
+
+templ MigratePage(data MigratePageData) {
+	<div class="space-y-6 max-w-4xl" data-testid="migrate-page">
+		<div>
+			<h1 class="text-2xl font-bold">Sonarr / Radarr migrate</h1>
+			<p class="text-gray-400 text-sm mt-1">
+				Import library titles into MuxCore via Arr API (beyond list-sync watchlist ingest). Fixture/mock tested; no live Arr required for CI.
+			</p>
+		</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-amber-800 bg-amber-950/40 p-4 text-sm text-amber-200" data-testid="migrate-error">{ data.Error }</div>
+		}
+		if data.Result != nil {
+			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300 space-y-1" data-testid="migrate-result">
+				if data.Result.DryRun {
+					<p>Dry run: would consider { strconv.Itoa(data.Result.Fetched) } titles</p>
+				} else {
+					<p>
+						Imported { strconv.Itoa(data.Result.Imported) },
+						skipped { strconv.Itoa(data.Result.Skipped) }
+						of { strconv.Itoa(data.Result.Fetched) } fetched
+					</p>
+				}
+				if len(data.Result.Errors) > 0 {
+					<div class="mt-2 text-amber-300" data-testid="migrate-errors">
+						<p class="font-medium">Errors ({ strconv.Itoa(len(data.Result.Errors)) }):</p>
+						<ul class="list-disc list-inside text-xs mt-1 max-h-40 overflow-y-auto">
+							for _, e := range data.Result.Errors {
+								<li>{ e }</li>
+							}
+						</ul>
+					</div>
+				}
+			</div>
+		}
+		<form method="post" action="/migrate" class="rounded-xl border border-gray-800 bg-gray-900/40 p-4 space-y-4" data-testid="migrate-form">
+			<div class="grid gap-3 sm:grid-cols-2">
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Service</label>
+					<select name="service" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+						<option value="radarr" if data.Service == "radarr" || data.Service == "" { selected }>Radarr</option>
+						<option value="sonarr" if data.Service == "sonarr" { selected }>Sonarr</option>
+					</select>
+				</div>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Base URL</label>
+					<input type="url" name="base_url" required value={ data.BaseURL }
+						placeholder="http://127.0.0.1:7878"
+						class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">API key</label>
+					<input type="password" name="api_key" required value={ data.APIKey }
+						autocomplete="off"
+						class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<div class="flex items-end pb-1">
+					<label class="inline-flex items-center gap-2 text-sm text-gray-300">
+						<input type="checkbox" name="dry_run" value="1"
+							if data.DryRun {
+								checked
+							}
+						/>
+						Dry run (list only, do not add)
+					</label>
+				</div>
+			</div>
+			<div class="flex gap-2">
+				<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500" data-testid="migrate-submit">
+					Run migrate
+				</button>
+			</div>
+		</form>
+		if data.Result != nil && len(data.Result.Items) > 0 {
+			<div class="overflow-x-auto rounded-xl border border-gray-800" data-testid="migrate-preview">
+				<table class="min-w-full divide-y divide-gray-800 text-sm">
+					<thead class="bg-gray-900/50">
+						<tr>
+							<th class="px-3 py-2 text-left text-xs text-gray-500">Title</th>
+							<th class="px-3 py-2 text-left text-xs text-gray-500">IDs</th>
+							<th class="px-3 py-2 text-left text-xs text-gray-500">Profile</th>
+							<th class="px-3 py-2 text-left text-xs text-gray-500">Root</th>
+							<th class="px-3 py-2 text-left text-xs text-gray-500">Monitored</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-800">
+						for _, it := range data.Result.Items {
+							<tr>
+								<td class="px-3 py-2 text-gray-200">
+									<div class="font-medium">{ it.Title }</div>
+									<div class="text-xs text-gray-500">{ it.Source } · { strconv.Itoa(it.Year) }</div>
+								</td>
+								<td class="px-3 py-2 text-xs text-gray-400 whitespace-nowrap">
+									tmdb { strconv.Itoa(it.TMDBID) }
+									if it.TVDBID > 0 {
+										· tvdb { strconv.Itoa(it.TVDBID) }
+									}
+								</td>
+								<td class="px-3 py-2 text-gray-400">{ it.QualityProfileName }</td>
+								<td class="px-3 py-2 text-xs text-gray-500 truncate max-w-[12rem]" title={ it.RootFolderPath }>{ it.RootFolderPath }</td>
+								<td class="px-3 py-2 text-gray-400">
+									if it.Monitored {
+										yes
+									} else {
+										no
+									}
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+	</div>
+}

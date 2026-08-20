@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -205,4 +207,81 @@ func namingTemplateFromForm(r *http.Request) *renamev1.NamingTemplate {
 		Pattern:   r.FormValue("pattern"),
 		IsDefault: r.FormValue("is_default") == "1",
 	}
+}
+
+func (h *Handler) OrganizePage(w http.ResponseWriter, r *http.Request) {
+	data := templates.OrganizePageData{
+		MediaType: "movie",
+		Flash:     r.URL.Query().Get("status"),
+		Error:     r.URL.Query().Get("error"),
+	}
+	content := templates.OrganizePage(data)
+	h.render(w, r, templates.Layout("Organize", h.nav(r.URL.Path), content))
+}
+
+func (h *Handler) OrganizePost(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/rename/organize", http.StatusSeeOther)
+		return
+	}
+	directory := strings.TrimSpace(r.FormValue("directory"))
+	mediaType := r.FormValue("media_type")
+	if mediaType != "tv" {
+		mediaType = "movie"
+	}
+	importMode := r.FormValue("import_mode")
+	dryRun := r.FormValue("dry_run") != "0"
+
+	data := templates.OrganizePageData{
+		Directory: directory,
+		MediaType: mediaType,
+	}
+	if directory == "" {
+		data.Error = "directory required"
+		h.render(w, r, templates.Layout("Organize", h.nav(r.URL.Path), templates.OrganizePage(data)))
+		return
+	}
+
+	client, closer, err := h.withRenameClient(r.Context())
+	if err != nil {
+		data.Error = err.Error()
+		h.render(w, r, templates.Layout("Organize", h.nav(r.URL.Path), templates.OrganizePage(data)))
+		return
+	}
+	defer closer()
+
+	resp, err := client.BatchRename(r.Context(), &renamev1.BatchRenameRequest{
+		Directory:  directory,
+		MediaType:  mediaType,
+		DryRun:     dryRun,
+		ImportMode: importMode,
+	})
+	if err != nil {
+		data.Error = err.Error()
+		h.render(w, r, templates.Layout("Organize", h.nav(r.URL.Path), templates.OrganizePage(data)))
+		return
+	}
+	data.Total = int(resp.GetTotal())
+	data.Renamed = int(resp.GetRenamed())
+	data.Errors = int(resp.GetErrors())
+	for _, row := range resp.GetResults() {
+		data.Results = append(data.Results, templates.OrganizeResultRow{
+			Original:  row.GetOriginal(),
+			RenamedTo: row.GetRenamedTo(),
+			Success:   row.GetSuccess(),
+			Error:     row.GetError(),
+		})
+	}
+	if dryRun {
+		data.Flash = "Preview only — no files changed"
+	} else {
+		data.Flash = "Rename applied"
+		if sess := SessionFromContext(r.Context()); sess != nil {
+			h.auditLog(r.Context(), sess.UserID, "admin.rename.organize", "directory", directory, map[string]string{
+				"media_type": mediaType,
+				"renamed":    strconv.Itoa(data.Renamed),
+			})
+		}
+	}
+	h.render(w, r, templates.Layout("Organize", h.nav(r.URL.Path), templates.OrganizePage(data)))
 }

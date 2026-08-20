@@ -51,15 +51,37 @@ func TestNavLinks(t *testing.T) {
 	if len(staticNavLinks) == 0 {
 		t.Fatal("expected non-empty navLinks")
 	}
-	found := false
+	foundDash, foundRequest := false, false
 	for _, l := range staticNavLinks {
 		if l.Path == "/" {
-			found = true
-			break
+			foundDash = true
+		}
+		if l.Path == "/request" {
+			foundRequest = true
 		}
 	}
-	if !found {
+	if !foundDash {
 		t.Fatal("expected Dashboard link in nav")
+	}
+	if !foundRequest {
+		t.Fatal("expected Request link in nav")
+	}
+}
+
+func TestRequestRoutesRegistered(t *testing.T) {
+	ss := session.NewStore(0)
+	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+	for _, path := range []string{"/request", "/media/x/item/y/refresh", "/media/x/item/y/delete"} {
+		r := mustRequest("GET", path)
+		if path != "/request" {
+			r = mustRequest("POST", path)
+		}
+		_, pattern := mux.Handler(r)
+		if pattern == "" {
+			t.Fatalf("expected route registered for %s", path)
+		}
 	}
 }
 

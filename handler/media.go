@@ -199,9 +199,14 @@ func (h *Handler) MediaLibraryItem(w http.ResponseWriter, r *http.Request) {
 		releases = searchResp.GetResults()
 	}
 
+	seasons := h.loadTVSeasons(ctx, moduleID, itemID, displayName)
+	files := h.loadMovieFiles(ctx, moduleID, itemID, displayName)
+	titles := h.loadAlternateTitles(ctx, moduleID, itemID, displayName)
+	trailers := h.loadTrailers(ctx, moduleID, itemID, displayName, item.GetItem())
+
 	content := templates.MediaDetailPage(
 		item.GetItem(), moduleID, history, profiles, roots, features, displayName,
-		releases,
+		releases, seasons, files, titles, trailers,
 		r.URL.Query().Get("dispatched"),
 		r.URL.Query().Get("status"),
 		r.URL.Query().Get("error"),
@@ -326,6 +331,10 @@ func (h *Handler) MediaLibraryUpdate(w http.ResponseWriter, r *http.Request) {
 		if k != "title" && k != "description" && k != "year" && k != "genres" {
 			metadata[k] = r.FormValue(k)
 		}
+	}
+	// Checkbox fields are omitted when unchecked; always persist monitor state when the form includes the control.
+	if _, hasMonitor := r.Form["monitored"]; hasMonitor || r.FormValue("has_monitored") == "1" {
+		metadata["monitored"] = parseFormMonitored(r)
 	}
 
 	_, err = client.UpdateMetadata(ctx, &mediaadminv1.UpdateMetadataRequest{

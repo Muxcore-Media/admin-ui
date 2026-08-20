@@ -1,0 +1,597 @@
+package templates
+
+import "fmt"
+
+type APIKeyRow struct {
+	UserID   string
+	Username string
+	TokenID  string
+	Name     string
+	Prefix   string
+	Scopes   string
+}
+
+templ APIKeysLivePage(rows []APIKeyRow, errMsg string) {
+	<div class="space-y-6 max-w-4xl" data-testid="keys-page">
+		<div>
+			<h1 class="text-2xl font-bold">API Keys</h1>
+			<p class="text-gray-400 text-sm mt-1">
+				All auth-local API tokens across users (Jellyfin API keys catalog).
+			</p>
+		</div>
+
+		if errMsg != "" {
+			<div class="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-2 text-sm text-amber-200">{ errMsg }</div>
+		}
+
+		if len(rows) == 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500">
+				No API tokens yet. Create one from a user’s Manage → API Tokens panel.
+			</div>
+		} else {
+			<div class="rounded-xl border border-gray-800 overflow-hidden">
+				<table class="w-full text-sm">
+					<thead>
+						<tr class="border-b border-gray-800 bg-gray-900/50">
+							<th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">User</th>
+							<th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name</th>
+							<th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Prefix</th>
+							<th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Scopes</th>
+							<th class="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-800">
+						for _, row := range rows {
+							<tr class="hover:bg-gray-900/30">
+								<td class="px-4 py-3">
+									<div class="text-gray-200">{ row.Username }</div>
+									<div class="text-xs text-gray-500 font-mono">{ row.UserID }</div>
+								</td>
+								<td class="px-4 py-3 text-gray-300">{ row.Name }</td>
+								<td class="px-4 py-3 font-mono text-xs text-gray-400">{ row.Prefix }…</td>
+								<td class="px-4 py-3 text-xs text-gray-500">{ row.Scopes }</td>
+								<td class="px-4 py-3 text-right">
+									<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/keys/%s/revoke?user=%s", row.TokenID, row.UserID)) }>
+										<button type="submit" class="text-xs text-red-400 hover:text-red-300">Revoke</button>
+									</form>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+
+		<p class="text-xs text-gray-500">
+			Per-user create lives under <a href="/users" class="text-indigo-400">Users</a>.
+		</p>
+	</div>
+}
+
+type BackupRow struct {
+	ID        string
+	Timestamp string
+	Size      string
+	Checksum  string
+	Modules   string
+}
+
+templ BackupsLivePage(rows []BackupRow, errMsg, flash string) {
+	<div class="space-y-6 max-w-4xl" data-testid="backups-page">
+		<div class="flex flex-wrap items-end justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Backups</h1>
+				<p class="text-gray-400 text-sm mt-1">backup-local create / list / restore / delete (Jellyfin backups).</p>
+			</div>
+			<form method="POST" action="/backups/create">
+				<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+					Create backup
+				</button>
+			</form>
+		</div>
+
+		if flash != "" {
+			<div class="rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300">{ flash }</div>
+		}
+		if errMsg != "" {
+			<div class="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-2 text-sm text-amber-200">{ errMsg }</div>
+		}
+
+		if len(rows) == 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500">
+				No backups yet, or backup-local is not registered.
+			</div>
+		} else {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800">
+				for _, b := range rows {
+					<div class="px-4 py-3 space-y-2">
+						<div class="flex flex-wrap items-center justify-between gap-2">
+							<div>
+								<div class="text-sm font-medium text-gray-200 font-mono">{ b.ID }</div>
+								<div class="text-xs text-gray-500">{ b.Timestamp } · { b.Size }</div>
+								if b.Modules != "" {
+									<div class="text-xs text-gray-500 mt-1">Modules: { b.Modules }</div>
+								}
+							</div>
+							<div class="flex gap-2">
+								<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/backups/%s/delete", b.ID)) }>
+									<button type="submit" class="rounded-lg border border-red-800/60 px-3 py-1.5 text-xs text-red-300">Delete</button>
+								</form>
+							</div>
+						</div>
+						<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/backups/%s/restore", b.ID)) } class="flex flex-wrap gap-2 items-end">
+							<label class="flex-1 min-w-[12rem] space-y-1 text-xs text-gray-400">
+								<span>Restore target path</span>
+								<input name="target_path" required placeholder="/tmp/muxcore-restore" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-1.5 text-sm text-white"/>
+							</label>
+							<button type="submit" class="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-800">Restore</button>
+						</form>
+					</div>
+				}
+			</div>
+		}
+	</div>
+}
+
+type TaskRow struct {
+	ID        string
+	Name      string
+	CronExpr  string
+	Status    string
+	CreatedAt string
+	LastFired string
+}
+
+templ TasksLivePage(rows []TaskRow, errMsg, flash string) {
+	<div class="space-y-6 max-w-4xl" data-testid="tasks-page">
+		<div>
+			<h1 class="text-2xl font-bold">Scheduled Tasks</h1>
+			<p class="text-gray-400 text-sm mt-1">
+				scheduler-cron task list (Jellyfin scheduled tasks). Module loops also run under Automation.
+			</p>
+		</div>
+
+		if flash != "" {
+			<div class="rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300">{ flash }</div>
+		}
+		if errMsg != "" {
+			<div class="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-2 text-sm text-amber-200">{ errMsg }</div>
+		}
+
+		if len(rows) == 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500">
+				No cron tasks registered, or scheduler-cron is offline.
+				<a href="/automation" class="text-indigo-400 ml-1">Open Automation →</a>
+			</div>
+		} else {
+			<div class="rounded-xl border border-gray-800 overflow-hidden">
+				<table class="w-full text-sm">
+					<thead>
+						<tr class="border-b border-gray-800 bg-gray-900/50">
+							<th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name</th>
+							<th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Cron</th>
+							<th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
+							<th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Last fired</th>
+							<th class="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-800">
+						for _, t := range rows {
+							<tr>
+								<td class="px-4 py-3">
+									<div class="text-gray-200">{ t.Name }</div>
+									<div class="text-xs text-gray-500 font-mono">{ t.ID }</div>
+								</td>
+								<td class="px-4 py-3 font-mono text-xs text-gray-400">{ t.CronExpr }</td>
+								<td class="px-4 py-3 text-gray-300">{ t.Status }</td>
+								<td class="px-4 py-3 text-xs text-gray-500">{ t.LastFired }</td>
+								<td class="px-4 py-3 text-right">
+									<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/tasks/%s/cancel", t.ID)) }>
+										<button type="submit" class="text-xs text-red-400 hover:text-red-300">Cancel</button>
+									</form>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+	</div>
+}
+
+type NetworkingData struct {
+	PublicURL       string
+	TrustedProxies  string
+	PublishedHosts  string
+	HTTPPort        string
+	HTTPSPort       string
+	Saved           bool
+	Error           string
+	RuntimePublic   string
+	RuntimeTrusted  string
+}
+
+templ NetworkingEditPage(data NetworkingData) {
+	<div class="space-y-6 max-w-3xl" data-testid="networking-page">
+		<div>
+			<h1 class="text-2xl font-bold">Networking</h1>
+			<p class="text-gray-400 text-sm mt-1">
+				Public URLs, published hostnames, and proxy trust notes (Jellyfin networking).
+			</p>
+		</div>
+
+		if data.Saved {
+			<div class="rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300">Saved.</div>
+		}
+		if data.Error != "" {
+			<div class="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-2 text-sm text-red-300">{ data.Error }</div>
+		}
+
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400 space-y-1">
+			<div>Runtime public URL override: <code class="text-gray-200">{ emptyDash(data.RuntimePublic) }</code></div>
+			<div>Runtime trusted proxies: <code class="text-gray-200">{ emptyDash(data.RuntimeTrusted) }</code></div>
+		</div>
+
+		<form method="POST" action="/networking" class="space-y-4 rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+			<label class="block space-y-1 text-sm">
+				<span class="text-gray-400">Preferred public URL</span>
+				<input name="public_url" value={ data.PublicURL } placeholder="https://admin.example.com" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm"/>
+			</label>
+			<label class="block space-y-1 text-sm">
+				<span class="text-gray-400">Published hostnames (one per line)</span>
+				<textarea name="published_hosts" rows="3" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm">{ data.PublishedHosts }</textarea>
+			</label>
+			<label class="block space-y-1 text-sm">
+				<span class="text-gray-400">Trusted proxy CIDRs (comma or newline)</span>
+				<textarea name="trusted_proxies" rows="3" placeholder="10.0.0.0/8, 172.16.0.0/12" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm">{ data.TrustedProxies }</textarea>
+			</label>
+			<div class="grid grid-cols-2 gap-3">
+				<label class="block space-y-1 text-sm">
+					<span class="text-gray-400">HTTP port</span>
+					<input name="http_port" value={ data.HTTPPort } class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm"/>
+				</label>
+				<label class="block space-y-1 text-sm">
+					<span class="text-gray-400">HTTPS port</span>
+					<input name="https_port" value={ data.HTTPSPort } class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm"/>
+				</label>
+			</div>
+			<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+				Save networking
+			</button>
+		</form>
+		<p class="text-xs text-gray-500">
+			Process env <code>ADMIN_UI_TRUSTED_PROXIES</code> / <code>ADMIN_UI_PUBLIC_URL</code> still win at runtime until restart wiring reads this file.
+		</p>
+	</div>
+}
+
+func emptyDash(s string) string {
+	if s == "" {
+		return "—"
+	}
+	return s
+}
+
+type LiveTVChannel struct {
+	ID       string
+	Name     string
+	Number   string
+	URL      string
+	Category string
+}
+
+type LiveTVAdminData struct {
+	ChannelsJSON string
+	Saved        bool
+	Error        string
+	Channels     []LiveTVChannel
+}
+
+templ LiveTVAdminEditPage(data LiveTVAdminData) {
+	<div class="space-y-6 max-w-4xl" data-testid="livetv-admin-page">
+		<div>
+			<h1 class="text-2xl font-bold">Live TV</h1>
+			<p class="text-gray-400 text-sm mt-1">
+				Channels, tuners, recordings, timers, and EPG guide JSON for the consumer Live TV page
+				(file-backed companion; no physical tuner hardware).
+			</p>
+		</div>
+		if data.Saved {
+			<div class="rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300">Saved. Consumer BFF should point MEDIA_UI_LIVETV_FILE at the same path.</div>
+		}
+		if data.Error != "" {
+			<div class="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-2 text-sm text-red-300">{ data.Error }</div>
+		}
+
+		if len(data.Channels) > 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800">
+				for _, ch := range data.Channels {
+					<div class="px-4 py-3 text-sm">
+						<span class="text-gray-200 font-medium">{ ch.Number } · { ch.Name }</span>
+						<span class="text-xs text-gray-500 ml-2">{ ch.Category }</span>
+						<div class="text-xs text-gray-500 font-mono truncate mt-1">{ ch.URL }</div>
+					</div>
+				}
+			</div>
+		}
+
+		<form method="POST" action="/livetv" class="space-y-3 rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+			<label class="block space-y-1 text-sm">
+				<span class="text-gray-400">Live TV JSON (channels, guide, recordings, timers)</span>
+				<textarea name="channels_json" rows="16" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-xs text-white">{ data.ChannelsJSON }</textarea>
+			</label>
+			<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">Save channels</button>
+		</form>
+	</div>
+}
+
+type ParentalData struct {
+	UserID           string
+	MaxParentalRating string
+	BlockedTags      string
+	AllowedTags      string
+	AllowUnrated     bool
+	Saved            bool
+	Error            string
+}
+
+templ UserParentalForm(data ParentalData) {
+	<div class="space-y-3" data-testid="parental-form">
+		<h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider">Parental controls</h4>
+		if data.Saved {
+			<p class="text-xs text-emerald-400">Parental settings saved.</p>
+		}
+		if data.Error != "" {
+			<p class="text-xs text-red-400">{ data.Error }</p>
+		}
+		<form
+			hx-post={ templ.SafeURL(fmt.Sprintf("/users/%s/parental", data.UserID)) }
+			hx-target="closest [data-testid=parental-form]"
+			hx-swap="outerHTML"
+			class="space-y-2"
+		>
+			<label class="block space-y-1 text-xs text-gray-400">
+				<span>Max parental rating (e.g. PG-13, TV-14)</span>
+				<input name="max_rating" value={ data.MaxParentalRating } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white"/>
+			</label>
+			<label class="block space-y-1 text-xs text-gray-400">
+				<span>Blocked tags (comma-separated)</span>
+				<input name="blocked_tags" value={ data.BlockedTags } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white"/>
+			</label>
+			<label class="block space-y-1 text-xs text-gray-400">
+				<span>Allowed tags (empty = all except blocked)</span>
+				<input name="allowed_tags" value={ data.AllowedTags } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white"/>
+			</label>
+			<label class="flex items-center gap-2 text-xs text-gray-300">
+				if data.AllowUnrated {
+					<input type="checkbox" name="allow_unrated" value="1" checked class="rounded border-gray-600"/>
+				} else {
+					<input type="checkbox" name="allow_unrated" value="1" class="rounded border-gray-600"/>
+				}
+				<span>Allow unrated content</span>
+			</label>
+			<button type="submit" class="rounded-lg bg-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-600">Save parental</button>
+		</form>
+	</div>
+}
+
+type LibraryModRow struct {
+	ID   string
+	Name string
+	Path string
+}
+
+templ LibrariesLivePage(rows []LibraryModRow) {
+	<div class="space-y-6 max-w-4xl" data-testid="libraries-page">
+		<div>
+			<h1 class="text-2xl font-bold">Libraries</h1>
+			<p class="text-gray-400 text-sm mt-1">
+				Media library modules (Jellyfin libraries). Paths/metadata live under each module and Root Folders.
+			</p>
+		</div>
+		if len(rows) == 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500">
+				No media.library modules registered yet.
+			</div>
+		} else {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800">
+				for _, r := range rows {
+					<div class="flex items-center justify-between px-4 py-3">
+						<div>
+							<div class="text-sm font-medium text-gray-200">{ r.Name }</div>
+							<div class="text-xs text-gray-500 font-mono">{ r.ID }</div>
+						</div>
+						<a href={ templ.SafeURL(r.Path) } class="text-sm text-indigo-400 hover:text-indigo-300">Open →</a>
+					</div>
+				}
+			</div>
+		}
+		<div class="flex flex-wrap gap-3 text-sm">
+			<a href="/roots" class="text-indigo-400">Root Folders</a>
+			<a href="/rename/templates" class="text-indigo-400">Naming</a>
+			<a href="/formats" class="text-indigo-400">Formats</a>
+			<a href="/jellyfin" class="text-indigo-400">Jellyfin bridge</a>
+		</div>
+	</div>
+}
+
+type PlaybackAdminData struct {
+	EnableResume      bool
+	EnableTranscode   bool
+	PreferDirectPlay  bool
+	TrickplayEnabled  bool
+	MaxBitrateMbps    string
+	FFmpegBin         string
+	TranscoderID      string
+	TranscoderPresent bool
+	SoftEmpty         bool
+	Saved             bool
+	Error             string
+	Notice            string
+}
+
+templ PlaybackAdminEditPage(data PlaybackAdminData) {
+	<div class="space-y-6 max-w-3xl" data-testid="playback-admin-page">
+		<div>
+			<h1 class="text-2xl font-bold">Playback</h1>
+			<p class="text-gray-400 text-sm mt-1">
+				Server playback policy (resume, streaming, transcoding, trickplay) — Jellyfin playback admin stand-in.
+			</p>
+		</div>
+		if data.Saved {
+			<div class="rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300">Saved.</div>
+		}
+		if data.Error != "" {
+			<div class="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-2 text-sm text-red-300">{ data.Error }</div>
+		}
+		if data.Notice != "" {
+			<div class="rounded-lg border border-indigo-800/40 bg-indigo-950/20 px-4 py-2 text-sm text-indigo-200">{ data.Notice }</div>
+		}
+		if data.SoftEmpty {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400" data-testid="playback-transcoder-soft-empty">
+				media-transcoder not registered — local policy is saved to disk; transcoder SettingsProvider knobs appear when the module is online.
+			</div>
+		} else if data.TranscoderPresent {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-3 text-xs text-gray-400" data-testid="playback-transcoder-present">
+				Transcoder module <span class="font-mono text-gray-300">{ data.TranscoderID }</span> settings linked.
+			</div>
+		}
+		<form method="POST" action="/playback" class="space-y-3 rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+			<label class="flex items-center gap-2 text-sm text-gray-300">
+				if data.EnableResume {
+					<input type="checkbox" name="enable_resume" value="1" checked class="rounded border-gray-600"/>
+				} else {
+					<input type="checkbox" name="enable_resume" value="1" class="rounded border-gray-600"/>
+				}
+				<span>Enable resume / remember position</span>
+			</label>
+			<label class="flex items-center gap-2 text-sm text-gray-300">
+				if data.PreferDirectPlay {
+					<input type="checkbox" name="prefer_direct" value="1" checked class="rounded border-gray-600"/>
+				} else {
+					<input type="checkbox" name="prefer_direct" value="1" class="rounded border-gray-600"/>
+				}
+				<span>Prefer direct play / stream</span>
+			</label>
+			<label class="flex items-center gap-2 text-sm text-gray-300">
+				if data.EnableTranscode {
+					<input type="checkbox" name="enable_transcode" value="1" checked class="rounded border-gray-600"/>
+				} else {
+					<input type="checkbox" name="enable_transcode" value="1" class="rounded border-gray-600"/>
+				}
+				<span>Allow server-side transcoding</span>
+			</label>
+			<label class="flex items-center gap-2 text-sm text-gray-300">
+				if data.TrickplayEnabled {
+					<input type="checkbox" name="trickplay" value="1" checked class="rounded border-gray-600"/>
+				} else {
+					<input type="checkbox" name="trickplay" value="1" class="rounded border-gray-600"/>
+				}
+				<span>Generate trickplay / chapter previews</span>
+			</label>
+			<label class="block space-y-1 text-sm">
+				<span class="text-gray-400">Max streaming bitrate (Mbps)</span>
+				<input name="max_bitrate" value={ data.MaxBitrateMbps } class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm"/>
+			</label>
+			<label class="block space-y-1 text-sm">
+				<span class="text-gray-400">FFmpeg binary (media-transcoder)</span>
+				<input name="ffmpeg_bin" value={ data.FFmpegBin } placeholder="ffmpeg" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm font-mono"/>
+			</label>
+			<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">Save playback policy</button>
+		</form>
+		<p class="text-xs text-gray-500">
+			Local JSON stores resume / bitrate policy. When media-transcoder is registered, ffmpeg_bin is pushed via SettingsProvider UpdateSetting.
+		</p>
+	</div>
+}
+
+templ PluginsCatalogPage(modules []ModuleListItem) {
+	<div class="space-y-6" data-testid="plugins-page">
+		<div class="flex flex-wrap items-end justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Plugins</h1>
+				<p class="text-gray-400 text-sm mt-1">
+					Jellyfin plugins catalog stand-in — MuxCore modules are the plugin surface.
+				</p>
+			</div>
+			<a href="/marketplace" class="text-sm text-indigo-400 hover:text-indigo-300">Marketplace / install →</a>
+			<a href="/modules" class="text-sm text-indigo-400 hover:text-indigo-300">Full modules list →</a>
+		</div>
+		@ModuleTable(modules)
+	</div>
+}
+
+type MetadataLibRow struct {
+	ID   string
+	Name string
+	Path string
+}
+
+templ MetadataManagerPage(rows []MetadataLibRow) {
+	<div class="space-y-6 max-w-4xl" data-testid="metadata-page">
+		<div>
+			<h1 class="text-2xl font-bold">Metadata</h1>
+			<p class="text-gray-400 text-sm mt-1">
+				Jellyfin metadata manager stand-in. Edit titles/NFO fields and refresh from each library item page.
+			</p>
+		</div>
+		if len(rows) == 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500">
+				No media libraries registered. Metadata editing appears on item detail once libraries are online.
+			</div>
+		} else {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800">
+				for _, r := range rows {
+					<div class="flex items-center justify-between px-4 py-3">
+						<div>
+							<div class="text-sm font-medium text-gray-200">{ r.Name }</div>
+							<div class="text-xs text-gray-500">Browse → open an item → Refresh metadata / edit fields</div>
+						</div>
+						<a href={ templ.SafeURL(r.Path) } class="text-sm text-indigo-400 hover:text-indigo-300">Open library →</a>
+					</div>
+				}
+			</div>
+		}
+		<p class="text-xs text-gray-500">
+			Provider knobs (TMDB, etc.) live under <a href="/settings" class="text-indigo-400">Settings</a>.
+		</p>
+	</div>
+}
+
+type AuthSSOData struct {
+	AuthModules []ModuleListItem
+	Notes       []string
+}
+
+templ AuthSSOPage(data AuthSSOData) {
+	<div class="space-y-6 max-w-4xl" data-testid="auth-sso-page">
+		<div>
+			<h1 class="text-2xl font-bold">Authentication / SSO</h1>
+			<p class="text-gray-400 text-sm mt-1">
+				Jellyfin auth dashboard stand-in. Local users, passkeys, and OIDC modules.
+			</p>
+		</div>
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 space-y-2 text-sm">
+			<a href="/users" class="block text-indigo-400 hover:text-indigo-300">Users — passwords, roles, TOTP, passkeys, tokens</a>
+			<a href="/settings" class="block text-indigo-400 hover:text-indigo-300">Settings — auth-local / auth-oidc SettingsProvider entries</a>
+			<a href="/branding" class="block text-indigo-400 hover:text-indigo-300">Branding — login banner / splash</a>
+		</div>
+		if len(data.AuthModules) > 0 {
+			<div>
+				<h2 class="text-sm font-semibold text-gray-300 mb-2">Registered auth modules</h2>
+				@ModuleTable(data.AuthModules)
+			</div>
+		} else {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500">
+				No auth* modules discovered yet.
+			</div>
+		}
+		if len(data.Notes) > 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800">
+				for _, n := range data.Notes {
+					<div class="px-4 py-3 text-sm text-gray-300">{ n }</div>
+				}
+			</div>
+		}
+	</div>
+}

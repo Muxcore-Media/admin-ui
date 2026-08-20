@@ -179,7 +179,7 @@ templ MediaItemCard(item *mediaadminv1.MediaItem, moduleID string) {
 	</a>
 }
 
-templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []ActivityEntry, profiles []ProfileOption, roots []RootOption, features []string, displayName string, releases []*mediaadminv1.IndexerResult, flash, flashStatus, errorMsg string) {
+templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []ActivityEntry, profiles []ProfileOption, roots []RootOption, features []string, displayName string, releases []*mediaadminv1.IndexerResult, seasons []SeasonView, files []MediaFileView, titles []AlternateTitleView, trailers []TrailerView, flash, flashStatus, errorMsg string) {
 	<div class="space-y-6">
 		@MediaSubnav(moduleID, displayName, features, "")
 		<a href={ templ.SafeURL(fmt.Sprintf("/media/%s", moduleID)) } class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Back</a>
@@ -192,9 +192,24 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 				}
 			</div>
 		}
+		if flashStatus == "refreshed" {
+			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300" data-testid="refresh-flash">Metadata refreshed</div>
+		}
 		if errorMsg != "" {
 			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ errorMsg }</div>
 		}
+
+		<div class="flex flex-wrap gap-2" data-testid="item-actions">
+			<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s/refresh", moduleID, item.GetId())) }>
+				<button type="submit" class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800" data-testid="item-refresh">Refresh metadata</button>
+			</form>
+			<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s/delete", moduleID, item.GetId())) } onsubmit="return confirm('Remove this library item?');">
+				<label class="mr-2 inline-flex items-center gap-1 text-xs text-gray-500">
+					<input type="checkbox" name="delete_files" value="1"/> Delete files
+				</label>
+				<button type="submit" class="rounded-lg border border-red-900/60 px-3 py-1.5 text-sm text-red-300 hover:bg-red-950/40" data-testid="item-delete">Delete</button>
+			</form>
+		</div>
 
 		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 			<div class="lg:col-span-1">
@@ -234,6 +249,7 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 						hx-swap="outerHTML"
 						class="space-y-3"
 					>
+						<input type="hidden" name="has_monitored" value="1"/>
 						<div>
 							<label class="block text-xs text-gray-500 mb-1">Title</label>
 							<input
@@ -248,8 +264,43 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 								class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
 							>{ item.GetDescription() }</textarea>
 						</div>
+						<label class="flex items-center gap-2 text-sm text-gray-300">
+							if item.GetMetadata()["monitored"] == "true" {
+								<input type="checkbox" name="monitored" value="true" checked data-testid="item-monitored"/>
+							} else {
+								<input type="checkbox" name="monitored" value="true" data-testid="item-monitored"/>
+							}
+							Monitored
+						</label>
 						for k, v := range item.GetMetadata() {
-							if k == "quality_profile_id" && len(profiles) > 0 {
+							if k == "monitored" {
+							} else if k == "series_type" {
+								<div>
+									<label class="block text-xs text-gray-500 mb-1">Series type</label>
+									<select name="series_type" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm" data-testid="item-series-type">
+										for _, opt := range []string{"standard", "daily", "anime"} {
+											if opt == v || (v == "" && opt == "standard") {
+												<option value={ opt } selected>{ opt }</option>
+											} else {
+												<option value={ opt }>{ opt }</option>
+											}
+										}
+									</select>
+								</div>
+							} else if k == "minimum_availability" {
+								<div>
+									<label class="block text-xs text-gray-500 mb-1">Minimum availability</label>
+									<select name="minimum_availability" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm" data-testid="item-min-availability">
+										for _, opt := range []string{"announced", "inCinemas", "released", "preDB"} {
+											if opt == v || (v == "" && opt == "released") {
+												<option value={ opt } selected>{ opt }</option>
+											} else {
+												<option value={ opt }>{ opt }</option>
+											}
+										}
+									</select>
+								</div>
+							} else if k == "quality_profile_id" && len(profiles) > 0 {
 								<div>
 									<label class="block text-xs text-gray-500 mb-1">Quality Profile</label>
 									<select name="quality_profile_id" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
@@ -295,6 +346,160 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 				</div>
 			</div>
 		</div>
+
+		if len(files) > 0 {
+			<div data-testid="media-files" class="space-y-3">
+				<h2 class="text-lg font-semibold">Files</h2>
+				<div class="overflow-x-auto rounded-xl border border-gray-800">
+					<table class="min-w-full divide-y divide-gray-800 text-sm">
+						<thead class="bg-gray-900/50">
+							<tr>
+								<th class="px-3 py-2 text-left text-xs text-gray-500">Path</th>
+								<th class="px-3 py-2 text-left text-xs text-gray-500">Quality</th>
+								<th class="px-3 py-2 text-left text-xs text-gray-500">Size</th>
+								<th class="px-3 py-2 text-right text-xs text-gray-500">Actions</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, f := range files {
+								<tr>
+									<td class="px-3 py-2 text-gray-300 truncate max-w-[28rem]" title={ f.Path }>{ f.Path }</td>
+									<td class="px-3 py-2 text-gray-400">{ f.Quality }</td>
+									<td class="px-3 py-2 text-gray-400">{ formatBytes(f.Size) }</td>
+									<td class="px-3 py-2 text-right">
+										<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s/files/%s/delete", moduleID, item.GetId(), f.ID)) } class="inline">
+											<label class="mr-2 text-xs text-gray-500"><input type="checkbox" name="delete_files" value="1"/> delete from disk</label>
+											<button type="submit" class="text-xs text-red-300 hover:underline">Remove</button>
+										</form>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		}
+
+		<div id="alternate-titles" class="space-y-3" data-testid="alternate-titles">
+			<h2 class="text-lg font-semibold">Alternate titles</h2>
+			if len(titles) > 0 {
+				<ul class="space-y-2 rounded-xl border border-gray-800 bg-gray-900/40 p-3">
+					for _, t := range titles {
+						<li class="flex items-center justify-between gap-3 text-sm">
+							<span class="text-gray-200">{ t.Title } <span class="text-xs text-gray-500">({ t.Source })</span></span>
+							<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s/titles/%s/delete", moduleID, item.GetId(), t.ID)) }>
+								<button type="submit" class="text-xs text-red-400 hover:underline">Remove</button>
+							</form>
+						</li>
+					}
+				</ul>
+			} else {
+				<p class="text-sm text-gray-500">No alternate titles yet.</p>
+			}
+			<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s/titles", moduleID, item.GetId())) } class="flex flex-wrap gap-2">
+				<input type="text" name="title" required placeholder="Add alternate title" class="flex-1 min-w-[12rem] rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Add</button>
+			</form>
+		</div>
+
+		if len(trailers) > 0 {
+			<div id="trailers" class="space-y-3" data-testid="trailers">
+				<h2 class="text-lg font-semibold">Trailers &amp; extras</h2>
+				<ul class="space-y-2 rounded-xl border border-gray-800 bg-gray-900/40 p-3">
+					for _, t := range trailers {
+						<li class="flex items-center justify-between gap-3 text-sm">
+							<span class="text-gray-200">{ t.Name } <span class="text-xs text-gray-500">({ t.Type })</span></span>
+							<a href={ templ.SafeURL(t.URL) } target="_blank" rel="noopener" class="text-xs text-indigo-400 hover:underline">Open</a>
+						</li>
+					}
+				</ul>
+			</div>
+		}
+
+		if len(seasons) > 0 {
+			<div id="seasons" class="space-y-3" data-testid="season-tree">
+				<h2 class="text-lg font-semibold">Seasons &amp; episodes</h2>
+				for _, season := range seasons {
+					<details class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
+						<summary class="flex flex-wrap items-center justify-between gap-3 cursor-pointer">
+							<span class="font-medium text-gray-200">
+								if season.Name != "" {
+									Season { strconv.Itoa(season.Number) }: { season.Name }
+								} else {
+									Season { strconv.Itoa(season.Number) }
+								}
+								<span class="text-xs text-gray-500 ml-2">{ strconv.Itoa(len(season.Episodes)) } eps</span>
+							</span>
+							<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s/season/%s/monitor", moduleID, item.GetId(), season.ID)) } class="inline" onclick="event.stopPropagation()">
+								if season.Monitored {
+									<input type="hidden" name="monitored" value="false"/>
+									<button type="submit" class="rounded border border-green-900/50 px-2 py-1 text-xs text-green-300 hover:bg-green-950/30">Monitored</button>
+								} else {
+									<input type="hidden" name="monitored" value="true"/>
+									<button type="submit" class="rounded border border-gray-700 px-2 py-1 text-xs text-gray-400 hover:bg-gray-800">Unmonitored</button>
+								}
+							</form>
+						</summary>
+						<div class="mt-3 overflow-x-auto">
+							<table class="min-w-full divide-y divide-gray-800 text-sm">
+								<thead>
+									<tr class="text-xs text-gray-500">
+										<th class="px-2 py-1 text-left">Ep</th>
+										<th class="px-2 py-1 text-left">Title</th>
+										<th class="px-2 py-1 text-left">Air</th>
+										<th class="px-2 py-1 text-left">File</th>
+										<th class="px-2 py-1 text-right">Monitor</th>
+										<th class="px-2 py-1 text-right">Actions</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-gray-800">
+									for _, ep := range season.Episodes {
+										<tr>
+											<td class="px-2 py-1 text-gray-400 whitespace-nowrap">
+												E{ strconv.Itoa(ep.Number) }
+												if ep.Absolute > 0 {
+													<span class="text-gray-600"> (abs { strconv.Itoa(ep.Absolute) })</span>
+												}
+											</td>
+											<td class="px-2 py-1 text-gray-200">{ ep.Name }</td>
+											<td class="px-2 py-1 text-gray-500 whitespace-nowrap">{ ep.AirDate }</td>
+											<td class="px-2 py-1 text-xs">
+												if ep.HasFile {
+													<span class="text-green-400">yes</span>
+												} else {
+													<span class="text-gray-500">no</span>
+												}
+											</td>
+											<td class="px-2 py-1 text-right">
+												<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s/episode/%s/monitor", moduleID, item.GetId(), ep.ID)) } class="inline">
+													if ep.Monitored {
+														<input type="hidden" name="monitored" value="false"/>
+														<button type="submit" class="text-xs text-green-300 hover:underline">on</button>
+													} else {
+														<input type="hidden" name="monitored" value="true"/>
+														<button type="submit" class="text-xs text-gray-500 hover:underline">off</button>
+													}
+												</form>
+											</td>
+											<td class="px-2 py-1 text-right whitespace-nowrap">
+												if ep.HasFile {
+													<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s/episode/%s/files/delete", moduleID, item.GetId(), ep.ID)) } class="inline">
+														<label class="mr-2 text-[10px] text-gray-500">
+															<input type="checkbox" name="delete_files" value="1" class="align-middle"/> disk
+														</label>
+														<button type="submit" class="text-xs text-red-400 hover:underline" data-testid="episode-file-delete">Remove file</button>
+													</form>
+												}
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					</details>
+				}
+			</div>
+		}
 
 		<div id="artwork-section" hx-get={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s/artwork", moduleID, item.GetId())) } hx-trigger="load" hx-swap="innerHTML">
 			<div class="text-sm text-gray-500">Loading artwork...</div>

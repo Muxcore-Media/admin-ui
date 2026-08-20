@@ -1,0 +1,97 @@
+package templates
+
+import "fmt"
+
+type ReleaseProfileRow struct {
+	ID              string
+	Name            string
+	Preferred       string
+	MustContain     string
+	MustNotContain  string
+	PreferredScore  int
+	Enabled         bool
+}
+
+templ ReleaseProfilesPage(rows []ReleaseProfileRow, errMsg string) {
+	<div class="space-y-6" data-testid="release-profiles-page">
+		<div class="flex items-center justify-between">
+			<div>
+				<h1 class="text-2xl font-bold">Release profiles</h1>
+				<p class="text-gray-400 text-sm mt-1">Preferred / required / blocked terms (Sonarr-style release restrictions)</p>
+			</div>
+			<div class="flex gap-2">
+				<a href="/formats" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Formats</a>
+				<a href="/formats/profiles" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Quality profiles</a>
+			</div>
+		</div>
+		if errMsg != "" {
+			<div class="rounded-xl border border-amber-800 bg-amber-950/40 p-4 text-sm text-amber-200">{ errMsg }</div>
+		}
+
+		<form method="POST" action="/formats/release-profiles" class="rounded-xl border border-gray-800 bg-gray-900/40 p-4 space-y-3" data-testid="release-profile-create">
+			<h2 class="text-sm font-semibold text-gray-300">New / update profile</h2>
+			<input type="hidden" name="id" value=""/>
+			<div class="grid gap-3 sm:grid-cols-2">
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Name</label>
+					<input name="name" required class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Preferred score</label>
+					<input type="number" name="preferred_score" value="10" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Preferred (comma-separated)</label>
+					<input name="preferred" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm" placeholder="bluray, remux"/>
+				</div>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Must contain</label>
+					<input name="must_contain" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<div class="sm:col-span-2">
+					<label class="block text-xs text-gray-500 mb-1">Must not contain</label>
+					<input name="must_not_contain" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm" placeholder="cam, telesync"/>
+				</div>
+			</div>
+			<label class="flex items-center gap-2 text-sm text-gray-300">
+				<input type="checkbox" name="enabled" value="1" checked/> Enabled
+			</label>
+			<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm text-white hover:bg-indigo-500">Save</button>
+		</form>
+
+		if len(rows) == 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">No release profiles.</div>
+		} else {
+			<div class="space-y-3">
+				for _, r := range rows {
+					<form method="POST" action="/formats/release-profiles" class="rounded-xl border border-gray-800 bg-gray-900/40 p-4 space-y-2">
+						<input type="hidden" name="id" value={ r.ID }/>
+						<div class="flex flex-wrap items-center justify-between gap-2">
+							<input name="name" value={ r.Name } class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm font-medium"/>
+							<label class="flex items-center gap-2 text-xs text-gray-400">
+								if r.Enabled {
+									<input type="checkbox" name="enabled" value="1" checked/>
+								} else {
+									<input type="checkbox" name="enabled" value="1"/>
+								}
+								Enabled
+							</label>
+						</div>
+						<div class="grid gap-2 sm:grid-cols-3 text-sm">
+							<input name="preferred" value={ r.Preferred } placeholder="preferred" class="rounded border border-gray-700 bg-gray-800 px-2 py-1.5"/>
+							<input name="must_contain" value={ r.MustContain } placeholder="must contain" class="rounded border border-gray-700 bg-gray-800 px-2 py-1.5"/>
+							<input name="must_not_contain" value={ r.MustNotContain } placeholder="must not contain" class="rounded border border-gray-700 bg-gray-800 px-2 py-1.5"/>
+						</div>
+						<div class="flex flex-wrap gap-2 items-center">
+							<input type="number" name="preferred_score" value={ fmt.Sprintf("%d", r.PreferredScore) } class="w-24 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm"/>
+							<button type="submit" class="rounded bg-indigo-600 px-3 py-1 text-xs text-white">Save</button>
+						</div>
+					</form>
+					<form method="POST" action={ templ.SafeURL("/formats/release-profiles/" + r.ID + "/delete") }>
+						<button type="submit" class="text-xs text-red-400 hover:text-red-300 mb-4">Delete { r.Name }</button>
+					</form>
+				}
+			</div>
+		}
+	</div>
+}

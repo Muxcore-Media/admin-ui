@@ -1,0 +1,377 @@
+package templates
+
+import "fmt"
+
+type SubtitlesWantedItem struct {
+	ID       string
+	MediaID  string
+	Title    string
+	Language string
+	Type     string
+	Season   int
+	Episode  int
+}
+
+type SubtitlesHistoryItem struct {
+	Title    string
+	Language string
+	Provider string
+	Action   string
+	Score    int
+	At       string
+}
+
+type SubtitlesBlacklistItem struct {
+	ID       string
+	Provider string
+	Title    string
+	Language string
+	Reason   string
+	At       string
+}
+
+type SubtitlesProviderItem struct {
+	ID          string
+	Name        string
+	Enabled     bool
+	Implemented bool
+}
+
+type SubtitlesMediaItem struct {
+	ID        string
+	Title     string
+	Type      string
+	Monitored bool
+	ProfileID string
+	Season    int
+	Episode   int
+	SeriesID  string
+}
+
+type SubtitlesPageData struct {
+	Wanted     []SubtitlesWantedItem
+	History    []SubtitlesHistoryItem
+	Blacklist  []SubtitlesBlacklistItem
+	Providers  []SubtitlesProviderItem
+	Media      []SubtitlesMediaItem
+	Profiles   []SubtitlesProfileItem
+	Languages  []SubtitlesLanguageItem
+	SearchHits []SubtitlesSearchHit
+	WantedTot  int
+	HistoryTot int
+	MediaTot   int
+	LangTot    int
+	Error      string
+	Flash      string
+}
+
+type SubtitlesProfileItem struct {
+	ID        string
+	Name      string
+	Languages string
+	IsDefault bool
+}
+
+type SubtitlesLanguageItem struct {
+	Code string
+	Name string
+}
+
+type SubtitlesSearchHit struct {
+	FileID   string
+	Provider string
+	Language string
+	Release  string
+	Score    int
+}
+
+templ SubtitlesPage(data SubtitlesPageData) {
+	<div class="space-y-6" data-testid="subtitles-page">
+		<div class="flex flex-wrap items-start justify-between gap-4">
+			<div>
+				<h1 class="text-2xl font-bold">Subtitles</h1>
+				<p class="text-gray-400 text-sm mt-1">Bazarr-style wanted, history, blacklist, and providers from media-subtitles</p>
+			</div>
+			<div class="flex flex-wrap gap-2">
+				<form method="post" action="/subtitles/sync">
+					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Sync library</button>
+				</form>
+				<form method="post" action="/subtitles/search-wanted">
+					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Search wanted</button>
+				</form>
+				<form method="post" action="/subtitles/upgrade">
+					<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Upgrade</button>
+				</form>
+				<form method="post" action="/subtitles/history/clear" onsubmit="return confirm('Clear all subtitle history?')">
+					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-400 hover:bg-gray-800">Clear history</button>
+				</form>
+				<form method="post" action="/subtitles/test-arr">
+					<input type="hidden" name="target" value="sonarr"/>
+					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-400 hover:bg-gray-800">Test Sonarr</button>
+				</form>
+				<form method="post" action="/subtitles/test-arr">
+					<input type="hidden" name="target" value="radarr"/>
+					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-400 hover:bg-gray-800">Test Radarr</button>
+				</form>
+			</div>
+		</div>
+
+		if data.Flash != "" {
+			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300">{ data.Flash }</div>
+		}
+		if data.Error != "" {
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ data.Error }</div>
+		}
+
+		<div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
+			<h2 class="text-sm font-semibold text-gray-300 mb-3">Manual search</h2>
+			<form method="get" action="/subtitles" class="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+				<input type="hidden" name="tab" value="search"/>
+				<input type="text" name="q" placeholder="Title query" class="rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200 lg:col-span-2"/>
+				<input type="text" name="imdb" placeholder="IMDb id" class="rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200"/>
+				<input type="text" name="lang" placeholder="Language (en)" value="en" class="rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200"/>
+				<input type="number" name="season" placeholder="Season" min="0" class="rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200"/>
+				<input type="number" name="episode" placeholder="Episode" min="0" class="rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200"/>
+				<button type="submit" class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-800">Search</button>
+			</form>
+			if len(data.SearchHits) > 0 {
+				<ul class="mt-3 space-y-2 text-sm max-h-64 overflow-y-auto">
+					for _, hit := range data.SearchHits {
+						<li class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-800/80 py-2">
+							<div>
+								<div class="text-gray-200">{ hit.Release }</div>
+								<div class="text-gray-500">{ hit.Provider } · { hit.Language } · score { fmt.Sprintf("%d", hit.Score) }</div>
+							</div>
+							<form method="post" action="/subtitles/download">
+								<input type="hidden" name="provider" value={ hit.Provider }/>
+								<input type="hidden" name="file_id" value={ hit.FileID }/>
+								<input type="hidden" name="language" value={ hit.Language }/>
+								<input type="hidden" name="release" value={ hit.Release }/>
+								<input type="hidden" name="score" value={ fmt.Sprintf("%d", hit.Score) }/>
+								<button type="submit" class="rounded px-2 py-1 text-xs bg-indigo-900/50 text-indigo-200 hover:bg-indigo-800/60">Download</button>
+							</form>
+						</li>
+					}
+				</ul>
+			}
+		</div>
+
+		<div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
+			<h2 class="text-sm font-semibold text-gray-300 mb-3">Wanted ({ data.WantedTot })</h2>
+			if len(data.Wanted) == 0 {
+				<p class="text-sm text-gray-500">No missing subtitles. Sync library after configuring a language profile.</p>
+			} else {
+				<div class="overflow-x-auto">
+					<table class="w-full text-sm">
+						<thead class="text-xs uppercase text-gray-500">
+							<tr>
+								<th class="text-left py-2">Title</th>
+								<th class="text-left py-2">Lang</th>
+								<th class="text-left py-2">Type</th>
+								<th class="text-left py-2">S/E</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, w := range data.Wanted {
+								<tr>
+									<td class="py-2">
+										<a class="text-indigo-300 hover:underline" href={ templ.SafeURL(fmt.Sprintf("/subtitles/media/%s", firstNonEmptyWanted(w.MediaID, w.ID))) }>{ w.Title }</a>
+									</td>
+									<td class="py-2 text-gray-400">{ w.Language }</td>
+									<td class="py-2 text-gray-400">{ w.Type }</td>
+									<td class="py-2 text-gray-400">
+										if w.Season > 0 || w.Episode > 0 {
+											{ fmt.Sprintf("S%02dE%02d", w.Season, w.Episode) }
+										}
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+
+		<div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
+			<h2 class="text-sm font-semibold text-gray-300 mb-3">Library ({ data.MediaTot })</h2>
+			if len(data.Media) == 0 {
+				<p class="text-sm text-gray-500">No synced media. Run Sync library.</p>
+			} else {
+				<form method="post" action="/subtitles/mass-edit" class="space-y-3">
+					<div class="flex flex-wrap gap-2 items-center">
+						<select name="action" class="rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200">
+							<option value="monitor">Monitor</option>
+							<option value="unmonitor">Unmonitor</option>
+							<option value="profile">Set language profile</option>
+							<option value="search">Search wanted for selected</option>
+						</select>
+						if len(data.Profiles) > 0 {
+							<select name="profile_id" class="rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200">
+								for _, p := range data.Profiles {
+									<option value={ p.ID }>{ p.Name }</option>
+								}
+							</select>
+						}
+						<button type="submit" class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-800">Apply</button>
+					</div>
+					<div class="overflow-x-auto max-h-72 overflow-y-auto">
+						<table class="w-full text-sm">
+							<thead class="text-xs uppercase text-gray-500 sticky top-0 bg-gray-900">
+								<tr>
+									<th class="text-left py-2 w-8"></th>
+									<th class="text-left py-2">Title</th>
+									<th class="text-left py-2">Type</th>
+									<th class="text-left py-2">Monitored</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-gray-800">
+								for _, it := range data.Media {
+									<tr>
+										<td class="py-2">
+											<input type="checkbox" name="media_id" value={ it.ID } class="rounded border-gray-600"/>
+										</td>
+										<td class="py-2">
+											<a class="text-indigo-300 hover:underline" href={ templ.SafeURL(fmt.Sprintf("/subtitles/media/%s", it.ID)) }>{ it.Title }</a>
+										</td>
+										<td class="py-2 text-gray-400">{ it.Type }</td>
+										<td class="py-2 text-gray-400">
+											if it.Monitored {
+												yes
+											} else {
+												no
+											}
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				</form>
+			}
+		</div>
+
+		<div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
+			<h2 class="text-sm font-semibold text-gray-300 mb-3">History ({ data.HistoryTot })</h2>
+			if len(data.History) == 0 {
+				<p class="text-sm text-gray-500">No subtitle history yet.</p>
+			} else {
+				<ul class="space-y-2 text-sm">
+					for _, h := range data.History {
+						<li class="flex flex-wrap gap-2 text-gray-300">
+							<span class="text-gray-500">{ h.At }</span>
+							<span class="font-medium">{ h.Action }</span>
+							<span>{ h.Title }</span>
+							<span class="text-gray-400">{ h.Language }</span>
+							<span class="text-gray-500">{ h.Provider }</span>
+							if h.Score > 0 {
+								<span class="text-gray-500">score { fmt.Sprintf("%d", h.Score) }</span>
+							}
+						</li>
+					}
+				</ul>
+			}
+		</div>
+
+		<div class="grid gap-4 lg:grid-cols-2">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
+				<h2 class="text-sm font-semibold text-gray-300 mb-3">Language profiles</h2>
+				if len(data.Profiles) == 0 {
+					<p class="text-sm text-gray-500">No profiles yet. Create one via module settings / API.</p>
+				} else {
+					<ul class="space-y-2 text-sm">
+						for _, p := range data.Profiles {
+							<li class="text-gray-300">
+								<span class="font-medium text-gray-200">{ p.Name }</span>
+								if p.IsDefault {
+									<span class="ml-1 text-xs text-indigo-300">default</span>
+								}
+								if p.Languages != "" {
+									<div class="text-gray-500">{ p.Languages }</div>
+								}
+							</li>
+						}
+					</ul>
+				}
+				<p class="mt-3 text-xs text-gray-600">Language catalog: { fmt.Sprintf("%d", data.LangTot) } codes (Bazarr-parity list)</p>
+				<form method="post" action="/subtitles/profiles" class="mt-4 space-y-2 border-t border-gray-800 pt-3">
+					<div class="text-xs font-medium text-gray-400">Create / update profile</div>
+					<input type="text" name="name" required placeholder="Profile name" class="w-full rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200"/>
+					<input type="text" name="languages" required placeholder="Languages (en,es+hi,fr+forced)" class="w-full rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200"/>
+					<label class="flex items-center gap-2 text-xs text-gray-400">
+						<input type="checkbox" name="is_default" value="true" class="rounded border-gray-600"/>
+						Default profile
+					</label>
+					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-800">Save profile</button>
+				</form>
+			</div>
+			<div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
+				<h2 class="text-sm font-semibold text-gray-300 mb-3">Blacklist</h2>
+				if len(data.Blacklist) == 0 {
+					<p class="text-sm text-gray-500">Empty.</p>
+				} else {
+					<ul class="space-y-2 text-sm">
+						for _, b := range data.Blacklist {
+							<li class="flex items-start justify-between gap-2">
+								<div>
+									<div class="text-gray-200">{ b.Title }</div>
+									<div class="text-gray-500">{ b.Provider } · { b.Language } · { b.Reason }</div>
+								</div>
+								<form method="post" action={ templ.SafeURL(fmt.Sprintf("/subtitles/blacklist/%s/delete", b.ID)) }>
+									<button type="submit" class="text-xs text-red-400 hover:text-red-300">Remove</button>
+								</form>
+							</li>
+						}
+					</ul>
+				}
+			</div>
+			<div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
+				<h2 class="text-sm font-semibold text-gray-300 mb-3">Providers</h2>
+				<ul class="space-y-1 text-sm max-h-80 overflow-y-auto">
+					for _, p := range data.Providers {
+						<li class="flex items-center justify-between gap-2 py-1">
+							<div>
+								<span class="text-gray-200">{ p.Name }</span>
+								if !p.Implemented {
+									<span class="text-xs text-gray-600 ml-1">stub</span>
+								}
+							</div>
+							<form method="post" action={ templ.SafeURL(fmt.Sprintf("/subtitles/providers/%s", p.ID)) }>
+								<input type="hidden" name="enabled" value={ boolStr(!p.Enabled) }/>
+								<button type="submit" class={ providerBtnClass(p.Enabled) }>
+									if p.Enabled {
+										On
+									} else {
+										Off
+									}
+								</button>
+							</form>
+						</li>
+					}
+				</ul>
+			</div>
+		</div>
+	</div>
+}
+
+func boolStr(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}
+
+func firstNonEmptyWanted(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func providerBtnClass(on bool) string {
+	if on {
+		return "rounded px-2 py-0.5 text-xs bg-green-900/40 text-green-300"
+	}
+	return "rounded px-2 py-0.5 text-xs bg-gray-800 text-gray-400"
+}

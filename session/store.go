@@ -13,6 +13,7 @@ type Session struct {
 	Username    string
 	Roles       []string
 	Permissions []string
+	TenantID    string
 	CreatedAt   time.Time
 	ExpiresAt   time.Time
 }
@@ -37,12 +38,18 @@ func (s *Store) TTL() time.Duration {
 }
 
 func (s *Store) Create(userID, username string, roles, permissions []string) (string, error) {
+	return s.CreateWithTenant(userID, username, "", roles, permissions)
+}
+
+// CreateWithTenant stores a session bound to tenantID (forwarded as X-Tenant-ID by BFFs).
+func (s *Store) CreateWithTenant(userID, username, tenantID string, roles, permissions []string) (string, error) {
 	now := time.Now()
 	sess := &Session{
 		UserID:      userID,
 		Username:    username,
 		Roles:       roles,
 		Permissions: permissions,
+		TenantID:    tenantID,
 		CreatedAt:   now,
 		ExpiresAt:   now.Add(s.ttl),
 	}
@@ -92,6 +99,37 @@ func (s *Store) Count() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return len(s.sessions)
+}
+
+// SessionInfo is a public view of an active admin session (Jellyfin Devices stand-in).
+type SessionInfo struct {
+	Token     string
+	UserID    string
+	Username  string
+	Roles     []string
+	CreatedAt time.Time
+	ExpiresAt time.Time
+}
+
+func (s *Store) List() []SessionInfo {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]SessionInfo, 0, len(s.sessions))
+	now := time.Now()
+	for tok, sess := range s.sessions {
+		if now.After(sess.ExpiresAt) {
+			continue
+		}
+		out = append(out, SessionInfo{
+			Token:     tok,
+			UserID:    sess.UserID,
+			Username:  sess.Username,
+			Roles:     append([]string(nil), sess.Roles...),
+			CreatedAt: sess.CreatedAt,
+			ExpiresAt: sess.ExpiresAt,
+		})
+	}
+	return out
 }
 
 func (s *Store) cleanupLoop() {

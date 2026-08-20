@@ -31,9 +31,17 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := templates.DashboardData{
-		NodeCount: len(members),
-		LeaderID:  leaderID,
+		NodeCount:    len(members),
+		LeaderID:     leaderID,
+		SessionCount: 0,
 	}
+	if h.Sessions != nil {
+		data.SessionCount = len(h.Sessions.List())
+	}
+	h.refreshMediaNavLinks(r.Context())
+	h.mediaMu.RLock()
+	data.LibraryCount = len(h.mediaModules)
+	h.mediaMu.RUnlock()
 
 	for _, m := range members {
 		if m.GetId() == leaderID {

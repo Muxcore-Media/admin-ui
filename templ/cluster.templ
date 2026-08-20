@@ -2,6 +2,8 @@ package templates
 
 import "fmt"
 
+const tenantClusterMapExample = `{"tenant-a":"core-a:9090"}`
+
 type NodeCardData struct {
 	ID           string
 	GRPCAddr     string
@@ -26,6 +28,33 @@ templ ClusterPage(data ClusterPageData) {
 		<div>
 			<h1 class="text-2xl font-bold">Cluster</h1>
 			<p class="text-gray-400 text-sm mt-1">{ fmt.Sprintf("%d nodes in cluster", len(data.Nodes)) }</p>
+		</div>
+
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400 space-y-2" data-testid="tenant-cluster-map-note">
+			<div class="font-medium text-gray-200">Multi-cluster tenant routing</div>
+			<p>
+				When <code class="text-gray-300">TENANT_MODE=1</code>, set
+				<code class="text-gray-300">MUXCORE_TENANT_CLUSTER_MAP</code> to a JSON object mapping
+				<code class="text-gray-300">tenant_id</code> to a remote muxcored gRPC address
+				(example: <code class="text-gray-300">{ tenantClusterMapExample }</code>).
+				Module clients rewrite dials via <code class="text-gray-300">tenant.ResolveDial</code>.
+				Optional <code class="text-gray-300">MUXCORE_TENANT_CLUSTER_STRICT=1</code> fails closed if the remote is unreachable.
+			</p>
+			<p>
+				<strong class="text-gray-300">Multi-region placement:</strong>
+				<code class="text-gray-300">MUXCORE_TENANT_REGION_MAP</code>
+				(e.g. <code class="text-gray-300">{"tenant-a":"us-east"}</code>) plus
+				<code class="text-gray-300">MUXCORE_NODE_REGION</code> on each node.
+				Placement picks mesh nodes by <code class="text-gray-300">region</code> label before the cluster map fallback.
+			</p>
+			<p>
+				<strong class="text-gray-300">Cross-cluster storage sync:</strong>
+				<code class="text-gray-300">MUXCORE_TENANT_STORAGE_SYNC</code>
+				(e.g. <code class="text-gray-300">{"tenant-a":{"targets":["file:///mirror/a"],"mode":"mirror","interval_sec":3600}}</code>).
+				Mirror runs copy tenant partitions to <code class="text-gray-300">file://</code> targets (fixture) or
+				<code class="text-gray-300">s3://</code> peers via storage-s3 in production.
+			</p>
+			<p class="text-xs text-gray-500">This page shows mesh membership on this loom; the cluster map is process env / deploy config, not edited here.</p>
 		</div>
 
 		<div

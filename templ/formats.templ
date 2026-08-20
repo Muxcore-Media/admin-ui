@@ -5,8 +5,8 @@ import (
 	"strconv"
 )
 
-templ FormatsListPage(formats []FormatRow, errMsg string) {
-	<div class="space-y-6">
+templ FormatsListPage(data FormatsListPageData) {
+	<div class="space-y-6" data-testid="formats-list-page">
 		<div class="flex items-center justify-between">
 			<div>
 				<h1 class="text-2xl font-bold">Custom Formats</h1>
@@ -14,19 +14,85 @@ templ FormatsListPage(formats []FormatRow, errMsg string) {
 			</div>
 			<div class="flex gap-2">
 				<a href="/formats/profiles" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Profiles</a>
+				<a href="/formats/release-profiles" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Release profiles</a>
 				<a href="/formats/new" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">New format</a>
 			</div>
 		</div>
-		if errMsg != "" {
-			<div class="rounded-xl border border-amber-800 bg-amber-950/40 p-4 text-sm text-amber-200">{ errMsg }</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-amber-800 bg-amber-950/40 p-4 text-sm text-amber-200" data-testid="formats-error">{ data.Error }</div>
 		}
-		if len(formats) == 0 && errMsg == "" {
+		if data.SyncResult != nil {
+			if data.SyncResult.Error != "" {
+				<div class="rounded-xl border border-red-800 bg-red-950/40 p-4 text-sm text-red-200" data-testid="formats-sync-error">{ data.SyncResult.Error }</div>
+			} else {
+				<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300 space-y-1" data-testid="formats-sync-result">
+					<p>
+						TRaSH sync: imported/updated { strconv.Itoa(data.SyncResult.FormatsUpserted) },
+						skipped { strconv.Itoa(data.SyncResult.FormatsSkipped) },
+						profiles { strconv.Itoa(data.SyncResult.ProfilesUpserted) }
+					</p>
+					if data.SyncResult.GuidesPath != "" {
+						<p class="text-xs text-gray-400">Guides path: { data.SyncResult.GuidesPath }</p>
+					}
+					for _, w := range data.SyncResult.Warnings {
+						<p class="text-xs text-amber-300">{ w }</p>
+					}
+				</div>
+			}
+		}
+		<form method="post" action="/formats/sync-trash" class="rounded-xl border border-gray-800 bg-gray-900/40 p-4 space-y-3" data-testid="formats-sync-trash-form">
+			<h2 class="text-sm font-semibold text-gray-300">Sync TRaSH Guides</h2>
+			<p class="text-xs text-gray-500">
+				Imports Recyclarr-compatible custom formats (and optional quality profiles) via media-custom-formats <code class="text-gray-400">SyncTrashGuides</code>.
+				Scheduled sync: set <code class="text-gray-400">FORMATS_TRASH_SYNC=true</code> on the module (or use settings / an external cron hitting this button). scheduler-cron wiring is not required for manual sync.
+			</p>
+			<div class="grid gap-3 sm:grid-cols-3">
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Score set</label>
+					<input type="text" name="score_set" value={ DefaultScoreSet(data.ScoreSet) }
+						placeholder="default"
+						class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<div class="flex items-end gap-4 pb-1">
+					<label class="inline-flex items-center gap-2 text-sm text-gray-300">
+						<input type="checkbox" name="service_radarr" value="1"
+							if ServiceSelected(data.Services, "radarr") {
+								checked
+							}
+						/>
+						Radarr
+					</label>
+					<label class="inline-flex items-center gap-2 text-sm text-gray-300">
+						<input type="checkbox" name="service_sonarr" value="1"
+							if ServiceSelected(data.Services, "sonarr") {
+								checked
+							}
+						/>
+						Sonarr
+					</label>
+				</div>
+				<div class="flex items-end pb-1">
+					<label class="inline-flex items-center gap-2 text-sm text-gray-300">
+						<input type="checkbox" name="import_profiles" value="1"
+							if data.ImportProfiles {
+								checked
+							}
+						/>
+						Import quality profiles
+					</label>
+				</div>
+			</div>
+			<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500" data-testid="formats-sync-trash">
+				Sync TRaSH Guides
+			</button>
+		</form>
+		if len(data.Formats) == 0 && data.Error == "" {
 			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
 				<p class="text-gray-400">No custom formats yet.</p>
 			</div>
-		} else if len(formats) > 0 {
+		} else if len(data.Formats) > 0 {
 			<ul class="space-y-2">
-				for _, f := range formats {
+				for _, f := range data.Formats {
 					<li class="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3">
 						<div>
 							<a href={ templ.SafeURL(fmt.Sprintf("/formats/item/%s", f.ID)) } class="font-medium text-indigo-400 hover:text-indigo-300">
