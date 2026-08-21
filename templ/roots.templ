@@ -27,7 +27,7 @@ templ RootsListPage(roots []*rootsv1.RootFolder, errMsg string) {
 		<div class="flex items-center justify-between">
 			<div>
 				<h1 class="text-2xl font-bold">Root Folders</h1>
-				<p class="text-gray-400 text-sm mt-1">Library paths from media-root-folders</p>
+				<p class="text-gray-400 text-sm mt-1">Disk folders where your movies, TV, and music files are stored</p>
 			</div>
 			<a href="/roots/new" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Add root</a>
 		</div>
@@ -50,10 +50,10 @@ templ RootsListPage(roots []*rootsv1.RootFolder, errMsg string) {
 							<p class="text-xs text-gray-500 mt-1">
 								{ r.GetMediaKind() }
 								if r.GetAccessible() {
-									<span class="text-emerald-400"> · accessible</span>
-									<span> · free { formatBytes(r.GetFreeBytes()) } / { formatBytes(r.GetTotalBytes()) }</span>
+									<span class="text-emerald-400">· accessible</span>
+									<span>· free { formatBytes(r.GetFreeBytes()) } / { formatBytes(r.GetTotalBytes()) }</span>
 								} else {
-									<span class="text-amber-400"> · inaccessible</span>
+									<span class="text-amber-400">· inaccessible</span>
 								}
 							</p>
 						</div>
@@ -123,20 +123,34 @@ templ RootEditPage(root *rootsv1.RootFolder, isNew bool, namingTemplates []Namin
 		}
 		<form
 			if isNew {
-				method="post" action="/roots" class="space-y-4"
+				method="post"
+				action="/roots"
+				class="space-y-4"
 			} else {
-				method="post" action={ templ.SafeURL(fmt.Sprintf("/roots/%s", root.GetId())) } class="space-y-4"
+				method="post"
+				action={ templ.SafeURL(fmt.Sprintf("/roots/%s", root.GetId())) }
+				class="space-y-4"
 			}
 		>
 			<div>
 				<label class="block text-xs text-gray-500 mb-1">Name</label>
-				<input type="text" name="name" value={ root.GetName() }
-					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				<input
+					type="text"
+					name="name"
+					value={ root.GetName() }
+					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+				/>
 			</div>
 			<div>
 				<label class="block text-xs text-gray-500 mb-1">Path</label>
-				<input id="root-path" type="text" name="path" required value={ root.GetPath() }
-					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-mono"/>
+				<input
+					id="root-path"
+					type="text"
+					name="path"
+					required
+					value={ root.GetPath() }
+					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-mono"
+				/>
 			</div>
 			@RootsBrowsePartial(browse, "")
 			<div>

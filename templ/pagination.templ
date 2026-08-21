@@ -6,24 +6,21 @@ templ Pagination(current int, total int, baseURL string) {
 	if total <= 1 {
 		return
 	}
-
 	<nav class="flex items-center justify-center gap-1">
 		if current > 1 {
 			<a
 				href={ templ.SafeURL(fmt.Sprintf("%s?page=%d", baseURL, current-1)) }
-				class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
+				class="rounded-[var(--radius-md)] border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
 				hx-get={ templ.SafeURL(fmt.Sprintf("%s?page=%d", baseURL, current-1)) }
 				hx-target="main"
 				hx-push-url="true"
 			>Prev</a>
 		}
-
 		@PageNumbers(current, total, baseURL)
-
 		if current < total {
 			<a
 				href={ templ.SafeURL(fmt.Sprintf("%s?page=%d", baseURL, current+1)) }
-				class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
+				class="rounded-[var(--radius-md)] border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
 				hx-get={ templ.SafeURL(fmt.Sprintf("%s?page=%d", baseURL, current+1)) }
 				hx-target="main"
 				hx-push-url="true"
@@ -39,11 +36,11 @@ templ PageNumbers(current int, total int, baseURL string) {
 templ PageRange(current int, total int, baseURL string) {
 	for i := 1; i <= total; i++ {
 		if i == current {
-			<span class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white">{ fmt.Sprint(i) }</span>
+			<span class="rounded-[var(--radius-md)] bg-[var(--accent-color)] px-3 py-1.5 text-sm font-medium text-black">{ fmt.Sprint(i) }</span>
 		} else {
 			<a
 				href={ templ.SafeURL(fmt.Sprintf("%s?page=%d", baseURL, i)) }
-				class="rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:bg-gray-800 transition-colors"
+				class="rounded-[var(--radius-md)] px-3 py-1.5 text-sm text-gray-400 hover:bg-gray-800 transition-colors"
 				hx-get={ templ.SafeURL(fmt.Sprintf("%s?page=%d", baseURL, i)) }
 				hx-target="main"
 				hx-push-url="true"

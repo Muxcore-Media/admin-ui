@@ -32,7 +32,7 @@ templ NamingTemplatesListPage(items []*renamev1.NamingTemplate, errMsg string) {
 		<div class="flex items-center justify-between">
 			<div>
 				<h1 class="text-2xl font-bold">Naming Templates</h1>
-				<p class="text-gray-400 text-sm mt-1">Patterns from media-rename</p>
+				<p class="text-gray-400 text-sm mt-1">File and folder naming patterns for new imports</p>
 			</div>
 			<div class="flex flex-wrap gap-2">
 				<a href="/rename/organize" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Organize</a>
@@ -57,7 +57,7 @@ templ NamingTemplatesListPage(items []*renamev1.NamingTemplate, errMsg string) {
 							<p class="text-xs text-gray-500 mt-1">
 								{ t.GetMediaType() }
 								if t.GetIsDefault() {
-									<span class="text-emerald-400"> · default</span>
+									<span class="text-emerald-400">· default</span>
 								}
 							</p>
 							<p class="text-xs text-gray-500 mt-1 font-mono truncate max-w-xl">{ t.GetPattern() }</p>
@@ -85,15 +85,24 @@ templ NamingTemplateEditPage(tpl *renamev1.NamingTemplate, isNew bool, errMsg st
 		}
 		<form
 			if isNew {
-				method="post" action="/rename/templates" class="space-y-4"
+				method="post"
+				action="/rename/templates"
+				class="space-y-4"
 			} else {
-				method="post" action={ templ.SafeURL(fmt.Sprintf("/rename/templates/%s", tpl.GetId())) } class="space-y-4"
+				method="post"
+				action={ templ.SafeURL(fmt.Sprintf("/rename/templates/%s", tpl.GetId())) }
+				class="space-y-4"
 			}
 		>
 			<div>
 				<label class="block text-xs text-gray-500 mb-1">Name</label>
-				<input type="text" name="name" required value={ tpl.GetName() }
-					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				<input
+					type="text"
+					name="name"
+					required
+					value={ tpl.GetName() }
+					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+				/>
 			</div>
 			if isNew {
 				<div>
@@ -111,8 +120,7 @@ templ NamingTemplateEditPage(tpl *renamev1.NamingTemplate, isNew bool, errMsg st
 			}
 			<div>
 				<label class="block text-xs text-gray-500 mb-1">Pattern</label>
-				<textarea name="pattern" rows="3" required class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-mono"
-				>{ tpl.GetPattern() }</textarea>
+				<textarea name="pattern" rows="3" required class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-mono">{ tpl.GetPattern() }</textarea>
 			</div>
 			<label class="flex items-center gap-2 text-sm text-gray-300">
 				if tpl.GetIsDefault() {
@@ -143,8 +151,14 @@ templ OrganizePage(data OrganizePageData) {
 		<form method="post" action="/rename/organize" class="space-y-4 rounded-xl border border-gray-800 bg-gray-900/40 p-4">
 			<div>
 				<label class="block text-xs text-gray-500 mb-1">Directory</label>
-				<input type="text" name="directory" required value={ data.Directory }
-					placeholder="/data/media/movies" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-mono"/>
+				<input
+					type="text"
+					name="directory"
+					required
+					value={ data.Directory }
+					placeholder="/data/media/movies"
+					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-mono"
+				/>
 			</div>
 			<div>
 				<label class="block text-xs text-gray-500 mb-1">Media type</label>
@@ -168,8 +182,14 @@ templ OrganizePage(data OrganizePageData) {
 			</div>
 			<div class="flex flex-wrap gap-2">
 				<button type="submit" name="dry_run" value="1" class="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-200 hover:bg-gray-800" data-testid="organize-preview">Preview</button>
-				<button type="submit" name="dry_run" value="0" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500" data-testid="organize-apply"
-					onclick="return confirm('Apply renames to disk?');">Apply</button>
+				<button
+					type="submit"
+					name="dry_run"
+					value="0"
+					class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+					data-testid="organize-apply"
+					onclick="return confirm('Apply renames to disk?');"
+				>Apply</button>
 			</div>
 		</form>
 		if len(data.Results) > 0 {

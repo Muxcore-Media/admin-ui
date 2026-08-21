@@ -24,6 +24,8 @@ func automationItemType(moduleID, displayName string) string {
 		return "movie"
 	case strings.Contains(s, "tv") || strings.Contains(s, "show"):
 		return "tv"
+	case strings.Contains(s, "music"):
+		return "music"
 	default:
 		return "movie"
 	}

@@ -3,32 +3,54 @@ package templates
 import "fmt"
 
 type ListSyncSourceRow struct {
-	ID           string
-	Name         string
-	Type         string
-	Enabled      bool
-	Username     string
-	ListURL      string
-	IntervalMin  int
-	LastSynced   string
-	BaseURL      string
+	ID                string
+	Name              string
+	Type              string
+	Enabled           bool
+	Username          string
+	ClientID          string
+	ListURL           string
+	IntervalMin       int
+	LastSynced        string
+	BaseURL           string
+	QualityProfileID  string
+	RootFolderPath    string
+	CleanLibraryLevel   string
+	TagIDs              string
+	MonitorMode         string
+	MinimumAvailability string
+	SearchOnAdd         bool
 }
 
 type ListSyncHistoryRow struct {
-	ID          string
-	SourceName  string
-	Status      string
-	ItemsFound  int
-	ItemsNew    int
-	Error       string
-	StartedAt   string
-	CompletedAt string
+	ID           string
+	SourceName   string
+	Status       string
+	ItemsFound   int
+	ItemsNew     int
+	ItemsRemoved int
+	Error        string
+	StartedAt    string
+	CompletedAt  string
+}
+
+type ListSyncItemRow struct {
+	ID            string
+	SourceName    string
+	ExternalID    string
+	Title         string
+	MediaType     string
+	Year          int
+	Status        string
+	MatchedItemID string
 }
 
 type ListSyncPageData struct {
-	Sources []ListSyncSourceRow
-	Flash   string
-	Error   string
+	Sources  []ListSyncSourceRow
+	Profiles []ProfileOption
+	Roots    []RootOption
+	Flash    string
+	Error    string
 }
 
 type ListSyncHistoryPageData struct {
@@ -37,30 +59,45 @@ type ListSyncHistoryPageData struct {
 	Error   string
 }
 
+type ListSyncItemsPageData struct {
+	Items []ListSyncItemRow
+	Total int
+	Error string
+}
+
+type ListSyncEditPageData struct {
+	Source      ListSyncSourceRow
+	Profiles    []ProfileOption
+	Roots       []RootOption
+	Flash       string
+	Error       string
+	TestOK      bool
+	TestMessage string
+}
+
 templ ListSyncPage(data ListSyncPageData) {
 	<div class="space-y-6" data-testid="list-sync-page">
 		<div class="flex flex-wrap items-start justify-between gap-3">
 			<div>
 				<h1 class="text-2xl font-bold">List Sync</h1>
-				<p class="text-gray-400 text-sm mt-1">Import lists from Trakt, IMDb, Plex, Jellyfin, Radarr, Sonarr</p>
+				<p class="text-gray-400 text-sm mt-1">Keep your library in sync with watchlists and shared lists from online sources.</p>
 			</div>
-			<div class="flex gap-2">
+			<div class="flex flex-wrap gap-2">
+				<a href="/list-sync/items" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Items</a>
 				<a href="/list-sync/history" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">History</a>
 				<form method="POST" action="/list-sync/sync">
 					<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500" data-testid="list-sync-now">
-						Sync now
+						Sync all
 					</button>
 				</form>
 			</div>
 		</div>
-
 		if data.Flash != "" {
 			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300" data-testid="list-sync-flash">{ data.Flash }</div>
 		}
 		if data.Error != "" {
 			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ data.Error }</div>
 		}
-
 		<div>
 			<h2 class="text-lg font-semibold mb-3">Sources</h2>
 			if len(data.Sources) == 0 {
@@ -72,6 +109,7 @@ templ ListSyncPage(data ListSyncPageData) {
 							<tr>
 								<th class="px-4 py-2 text-left text-xs text-gray-500">Name</th>
 								<th class="px-4 py-2 text-left text-xs text-gray-500">Type</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Enabled</th>
 								<th class="px-4 py-2 text-left text-xs text-gray-500">Interval</th>
 								<th class="px-4 py-2 text-left text-xs text-gray-500">Last synced</th>
 								<th class="px-4 py-2 text-left text-xs text-gray-500"></th>
@@ -89,6 +127,13 @@ templ ListSyncPage(data ListSyncPageData) {
 										}
 									</td>
 									<td class="px-4 py-2 text-gray-300">{ s.Type }</td>
+									<td class="px-4 py-2">
+										if s.Enabled {
+											<span class="text-green-400 text-xs">yes</span>
+										} else {
+											<span class="text-gray-500 text-xs">no</span>
+										}
+									</td>
 									<td class="px-4 py-2 text-gray-400">{ fmt.Sprintf("%dm", s.IntervalMin) }</td>
 									<td class="px-4 py-2 text-gray-400">
 										if s.LastSynced != "" {
@@ -97,10 +142,23 @@ templ ListSyncPage(data ListSyncPageData) {
 											<span class="text-gray-600">never</span>
 										}
 									</td>
-									<td class="px-4 py-2 text-right">
-										<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/list-sync/sources/%s/delete", s.ID)) }>
-											<button type="submit" class="text-xs text-red-400 hover:text-red-300">Remove</button>
-										</form>
+									<td class="px-4 py-2 text-right whitespace-nowrap">
+										<div class="flex justify-end gap-2 items-center">
+											<a href={ templ.SafeURL(fmt.Sprintf("/list-sync/sources/%s/edit", s.ID)) } class="text-xs text-indigo-400 hover:text-indigo-300">Edit</a>
+											<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/list-sync/sources/%s/toggle", s.ID)) }>
+												if s.Enabled {
+													<button type="submit" class="text-xs text-gray-400 hover:text-gray-300">Disable</button>
+												} else {
+													<button type="submit" class="text-xs text-green-400 hover:text-green-300">Enable</button>
+												}
+											</form>
+											<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/list-sync/sources/%s/sync", s.ID)) }>
+												<button type="submit" class="text-xs text-indigo-400 hover:text-indigo-300">Sync</button>
+											</form>
+											<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/list-sync/sources/%s/delete", s.ID)) }>
+												<button type="submit" class="text-xs text-red-400 hover:text-red-300">Remove</button>
+											</form>
+										</div>
 									</td>
 								</tr>
 							}
@@ -109,62 +167,239 @@ templ ListSyncPage(data ListSyncPageData) {
 				</div>
 			}
 		</div>
-
 		<div class="max-w-xl">
 			<h2 class="text-lg font-semibold mb-3">Add source</h2>
-			<form method="POST" action="/list-sync/sources" class="space-y-3 rounded-xl border border-gray-800 bg-gray-900/50 p-4">
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-					<div>
-						<label class="block text-xs text-gray-500 mb-1">Name</label>
-						<input type="text" name="name" required class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
-					</div>
-					<div>
-						<label class="block text-xs text-gray-500 mb-1">Type</label>
-						<select name="type" required class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
-							<option value="trakt">trakt</option>
-							<option value="imdb">imdb</option>
-							<option value="plex">plex</option>
-							<option value="jellyfin">jellyfin</option>
-							<option value="radarr">radarr</option>
-							<option value="sonarr">sonarr</option>
-						</select>
-					</div>
-					<div>
-						<label class="block text-xs text-gray-500 mb-1">Username</label>
-						<input type="text" name="username" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
-					</div>
-					<div>
-						<label class="block text-xs text-gray-500 mb-1">Client ID</label>
-						<input type="text" name="client_id" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
-					</div>
-					<div class="sm:col-span-2">
-						<label class="block text-xs text-gray-500 mb-1">List URL / playlist id</label>
-						<input type="text" name="list_url" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
-					</div>
-					<div>
-						<label class="block text-xs text-gray-500 mb-1">Base URL</label>
-						<input type="text" name="base_url" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
-					</div>
-					<div>
-						<label class="block text-xs text-gray-500 mb-1">API key / token</label>
-						<input type="password" name="api_key" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
-					</div>
-					<div>
-						<label class="block text-xs text-gray-500 mb-1">Sync interval (minutes)</label>
-						<input type="number" name="sync_interval_minutes" value="60" min="1" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
-					</div>
-					<div>
-						<label class="block text-xs text-gray-500 mb-1">Quality profile ID</label>
-						<input type="text" name="quality_profile_id" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
-					</div>
-					<div class="sm:col-span-2">
-						<label class="block text-xs text-gray-500 mb-1">Root folder path</label>
-						<input type="text" name="root_folder_path" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
-					</div>
-				</div>
-				<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Add source</button>
-			</form>
+			@listSyncSourceForm("/list-sync/sources", "", ListSyncSourceRow{IntervalMin: 60, SearchOnAdd: true}, false, "", data.Profiles, data.Roots)
 		</div>
+	</div>
+}
+
+templ listSyncSourceForm(action, method string, s ListSyncSourceRow, showEnabled bool, submitLabel string, profiles []ProfileOption, roots []RootOption) {
+	if submitLabel == "" {
+		if method == "PUT" {
+			submitLabel = "Save changes"
+		} else {
+			submitLabel = "Add source"
+		}
+	}
+	<form method="POST" action={ templ.SafeURL(action) } class="space-y-3 rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+		if method == "PUT" {
+			<input type="hidden" name="_method" value="PUT"/>
+		}
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">Name</label>
+				<input type="text" name="name" required value={ s.Name } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+			</div>
+			if showEnabled {
+				<div class="flex items-end pb-2">
+					<label class="inline-flex items-center gap-2 text-sm text-gray-300">
+						<input type="hidden" name="enabled" value="0"/>
+						<input type="checkbox" name="enabled" value="1" checked?={ s.Enabled } class="rounded border-gray-600"/>
+						Enabled
+					</label>
+				</div>
+			} else {
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Type</label>
+					<select name="type" required class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+						<option value="trakt" selected?={ s.Type == "trakt" }>trakt (watchlist)</option>
+						<option value="trakt_list" selected?={ s.Type == "trakt_list" }>trakt_list (custom list)</option>
+						<option value="imdb" selected?={ s.Type == "imdb" }>imdb</option>
+						<option value="plex" selected?={ s.Type == "plex" }>plex</option>
+						<option value="jellyfin" selected?={ s.Type == "jellyfin" }>jellyfin</option>
+						<option value="watcharr" selected?={ s.Type == "watcharr" }>watcharr</option>
+						<option value="stevenlu" selected?={ s.Type == "stevenlu" }>stevenlu</option>
+						<option value="tmdb_list" selected?={ s.Type == "tmdb_list" }>tmdb_list</option>
+						<option value="rss" selected?={ s.Type == "rss" }>rss</option>
+						<option value="radarr" selected?={ s.Type == "radarr" }>radarr (library mirror)</option>
+						<option value="radarr_importlist" selected?={ s.Type == "radarr_importlist" }>radarr_importlist</option>
+						<option value="sonarr" selected?={ s.Type == "sonarr" }>sonarr (library mirror)</option>
+						<option value="sonarr_importlist" selected?={ s.Type == "sonarr_importlist" }>sonarr_importlist</option>
+					</select>
+				</div>
+			}
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">Username</label>
+				<input type="text" name="username" value={ s.Username } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+			</div>
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">Client ID</label>
+				<input type="text" name="client_id" value={ s.ClientID } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+			</div>
+			<div class="sm:col-span-2">
+				<label class="block text-xs text-gray-500 mb-1">List URL / playlist id / TMDB preset / Watcharr filter</label>
+				<input type="text" name="list_url" value={ s.ListURL } placeholder="e.g. status:PLANNED, tag:3, public:1/alice" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+			</div>
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">Base URL</label>
+				<input type="text" name="base_url" value={ s.BaseURL } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+			</div>
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">API key / token</label>
+				<input type="password" name="api_key" placeholder="leave blank to keep existing" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+			</div>
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">Sync interval (minutes)</label>
+				<input type="number" name="sync_interval_minutes" value={ fmt.Sprintf("%d", s.IntervalMin) } min="1" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+			</div>
+			if len(profiles) > 0 {
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Quality profile</label>
+					<select name="quality_profile_id" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+						<option value="">—</option>
+						for _, p := range profiles {
+							if p.ID == s.QualityProfileID {
+								<option value={ p.ID } selected>{ p.Name }</option>
+							} else {
+								<option value={ p.ID }>{ p.Name }</option>
+							}
+						}
+					</select>
+				</div>
+			} else {
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Quality profile ID</label>
+					<input type="text" name="quality_profile_id" value={ s.QualityProfileID } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+			}
+			if len(roots) > 0 {
+				<div class="sm:col-span-2">
+					<label class="block text-xs text-gray-500 mb-1">Root folder</label>
+					<select name="root_folder_path" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+						<option value="">—</option>
+						for _, root := range roots {
+							if root.Path == s.RootFolderPath {
+								<option value={ root.Path } selected>{ root.Name } ({ root.Path })</option>
+							} else {
+								<option value={ root.Path }>{ root.Name } ({ root.Path })</option>
+							}
+						}
+					</select>
+				</div>
+			} else {
+				<div class="sm:col-span-2">
+					<label class="block text-xs text-gray-500 mb-1">Root folder path</label>
+					<input type="text" name="root_folder_path" value={ s.RootFolderPath } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+			}
+			<div class="sm:col-span-2">
+				<label class="block text-xs text-gray-500 mb-1">Clean library level</label>
+				<select name="clean_library_level" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+					<option value="keep" selected?={ s.CleanLibraryLevel == "" || s.CleanLibraryLevel == "keep" }>keep (do nothing)</option>
+					<option value="unmonitor" selected?={ s.CleanLibraryLevel == "unmonitor" }>unmonitor when item leaves list</option>
+					<option value="remove" selected?={ s.CleanLibraryLevel == "remove" }>remove from library, keep files</option>
+					<option value="remove_and_delete" selected?={ s.CleanLibraryLevel == "remove_and_delete" }>remove and delete files</option>
+				</select>
+			</div>
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">Tag IDs (comma-separated)</label>
+				<input type="text" name="tag_ids" value={ s.TagIDs } placeholder="tag_abc, tag_def" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+			</div>
+			<div>
+				<label class="block text-xs text-gray-500 mb-1">Monitor mode</label>
+				<select name="monitor_mode" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+					<option value="all" selected?={ s.MonitorMode == "" || s.MonitorMode == "all" }>all</option>
+					<option value="future" selected?={ s.MonitorMode == "future" }>future episodes only (TV)</option>
+					<option value="none" selected?={ s.MonitorMode == "none" }>none</option>
+				</select>
+			</div>
+			<div class="sm:col-span-2">
+				<label class="block text-xs text-gray-500 mb-1">Minimum availability</label>
+				<select name="minimum_availability" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+					<option value="announced" selected?={ s.MinimumAvailability == "" || s.MinimumAvailability == "announced" }>announced</option>
+					<option value="incinemas" selected?={ s.MinimumAvailability == "incinemas" }>in cinemas / airing soon</option>
+					<option value="released" selected?={ s.MinimumAvailability == "released" }>released</option>
+					<option value="predb" selected?={ s.MinimumAvailability == "predb" }>preDB (TV)</option>
+				</select>
+			</div>
+			<div class="sm:col-span-2">
+				<label class="inline-flex items-center gap-2 text-sm text-gray-300">
+					<input type="hidden" name="search_on_add" value="0"/>
+					<input type="checkbox" name="search_on_add" value="1" checked?={ s.SearchOnAdd } class="rounded border-gray-600"/>
+					Search on add (queue automation after import)
+				</label>
+			</div>
+		</div>
+		<div class="flex flex-wrap gap-2">
+			<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">{ submitLabel }</button>
+			if s.ID != "" {
+				<button type="submit" formaction={ templ.SafeURL(fmt.Sprintf("/list-sync/sources/%s/test", s.ID)) } formmethod="POST" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Test connection</button>
+			}
+		</div>
+	</form>
+}
+
+templ ListSyncEditPage(data ListSyncEditPageData) {
+	<div class="space-y-6" data-testid="list-sync-edit-page">
+		<div>
+			<a href="/list-sync" class="text-sm text-indigo-400 hover:text-indigo-300">&larr; List Sync</a>
+			<h1 class="text-2xl font-bold mt-2">Edit source</h1>
+			<p class="text-gray-400 text-sm mt-1">{ data.Source.Name } ({ data.Source.Type })</p>
+		</div>
+		if data.Flash != "" {
+			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300">{ data.Flash }</div>
+		}
+		if data.Error != "" {
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ data.Error }</div>
+		}
+		if data.TestMessage != "" {
+			if data.TestOK {
+				<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300">{ data.TestMessage }</div>
+			} else {
+				<div class="rounded-xl border border-red-900/50 bg-red-950/20 p-4 text-sm text-red-300">{ data.TestMessage }</div>
+			}
+		}
+		<div class="max-w-xl">
+			@listSyncSourceForm(fmt.Sprintf("/list-sync/sources/%s", data.Source.ID), "PUT", data.Source, true, "Save changes", data.Profiles, data.Roots)
+		</div>
+	</div>
+}
+
+templ ListSyncItemsPage(data ListSyncItemsPageData) {
+	<div class="space-y-6" data-testid="list-sync-items-page">
+		<div>
+			<a href="/list-sync" class="text-sm text-indigo-400 hover:text-indigo-300">&larr; List Sync</a>
+			<h1 class="text-2xl font-bold mt-2">Sync items</h1>
+			<p class="text-gray-400 text-sm mt-1">Items discovered from import lists</p>
+		</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ data.Error }</div>
+		}
+		if len(data.Items) == 0 && data.Error == "" {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">No sync items yet.</div>
+		} else if len(data.Items) > 0 {
+			<p class="text-xs text-gray-500">Showing { fmt.Sprintf("%d", len(data.Items)) } of { fmt.Sprintf("%d", data.Total) }</p>
+			<div class="overflow-x-auto rounded-xl border border-gray-800">
+				<table class="min-w-full divide-y divide-gray-800 text-sm">
+					<thead class="bg-gray-900/50">
+						<tr>
+							<th class="px-4 py-2 text-left text-xs text-gray-500">Title</th>
+							<th class="px-4 py-2 text-left text-xs text-gray-500">Type</th>
+							<th class="px-4 py-2 text-left text-xs text-gray-500">Source</th>
+							<th class="px-4 py-2 text-left text-xs text-gray-500">Status</th>
+							<th class="px-4 py-2 text-left text-xs text-gray-500">Library ID</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-800">
+						for _, item := range data.Items {
+							<tr>
+								<td class="px-4 py-2 text-white">
+									{ item.Title }
+									if item.Year > 0 {
+										<span class="text-gray-500">({ fmt.Sprintf("%d", item.Year) })</span>
+									}
+								</td>
+								<td class="px-4 py-2 text-gray-300">{ item.MediaType }</td>
+								<td class="px-4 py-2 text-gray-400">{ item.SourceName }</td>
+								<td class="px-4 py-2 text-gray-300">{ item.Status }</td>
+								<td class="px-4 py-2 text-gray-500 text-xs">{ item.MatchedItemID }</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
 	</div>
 }
 
@@ -175,11 +410,9 @@ templ ListSyncHistoryPage(data ListSyncHistoryPageData) {
 			<h1 class="text-2xl font-bold mt-2">Sync history</h1>
 			<p class="text-gray-400 text-sm mt-1">Recent list-sync runs</p>
 		</div>
-
 		if data.Error != "" {
 			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ data.Error }</div>
 		}
-
 		if len(data.Entries) == 0 && data.Error == "" {
 			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">No sync history yet.</div>
 		} else if len(data.Entries) > 0 {
@@ -192,6 +425,7 @@ templ ListSyncHistoryPage(data ListSyncHistoryPageData) {
 							<th class="px-4 py-2 text-left text-xs text-gray-500">Status</th>
 							<th class="px-4 py-2 text-left text-xs text-gray-500">Found</th>
 							<th class="px-4 py-2 text-left text-xs text-gray-500">New</th>
+							<th class="px-4 py-2 text-left text-xs text-gray-500">Removed</th>
 							<th class="px-4 py-2 text-left text-xs text-gray-500">Started</th>
 							<th class="px-4 py-2 text-left text-xs text-gray-500">Error</th>
 						</tr>
@@ -203,6 +437,7 @@ templ ListSyncHistoryPage(data ListSyncHistoryPageData) {
 								<td class="px-4 py-2 text-gray-300">{ e.Status }</td>
 								<td class="px-4 py-2 text-gray-400">{ fmt.Sprintf("%d", e.ItemsFound) }</td>
 								<td class="px-4 py-2 text-gray-400">{ fmt.Sprintf("%d", e.ItemsNew) }</td>
+								<td class="px-4 py-2 text-gray-400">{ fmt.Sprintf("%d", e.ItemsRemoved) }</td>
 								<td class="px-4 py-2 text-gray-400">{ e.StartedAt }</td>
 								<td class="px-4 py-2 text-red-400 text-xs max-w-xs truncate">{ e.Error }</td>
 							</tr>

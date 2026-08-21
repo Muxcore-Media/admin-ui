@@ -10,7 +10,7 @@ templ FormatsListPage(data FormatsListPageData) {
 		<div class="flex items-center justify-between">
 			<div>
 				<h1 class="text-2xl font-bold">Custom Formats</h1>
-				<p class="text-gray-400 text-sm mt-1">Release scoring rules from media-custom-formats</p>
+				<p class="text-gray-400 text-sm mt-1">Rules that score and filter release names</p>
 			</div>
 			<div class="flex gap-2">
 				<a href="/formats/profiles" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Profiles</a>
@@ -49,13 +49,20 @@ templ FormatsListPage(data FormatsListPageData) {
 			<div class="grid gap-3 sm:grid-cols-3">
 				<div>
 					<label class="block text-xs text-gray-500 mb-1">Score set</label>
-					<input type="text" name="score_set" value={ DefaultScoreSet(data.ScoreSet) }
+					<input
+						type="text"
+						name="score_set"
+						value={ DefaultScoreSet(data.ScoreSet) }
 						placeholder="default"
-						class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+						class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+					/>
 				</div>
 				<div class="flex items-end gap-4 pb-1">
 					<label class="inline-flex items-center gap-2 text-sm text-gray-300">
-						<input type="checkbox" name="service_radarr" value="1"
+						<input
+							type="checkbox"
+							name="service_radarr"
+							value="1"
 							if ServiceSelected(data.Services, "radarr") {
 								checked
 							}
@@ -63,7 +70,10 @@ templ FormatsListPage(data FormatsListPageData) {
 						Radarr
 					</label>
 					<label class="inline-flex items-center gap-2 text-sm text-gray-300">
-						<input type="checkbox" name="service_sonarr" value="1"
+						<input
+							type="checkbox"
+							name="service_sonarr"
+							value="1"
 							if ServiceSelected(data.Services, "sonarr") {
 								checked
 							}
@@ -73,7 +83,10 @@ templ FormatsListPage(data FormatsListPageData) {
 				</div>
 				<div class="flex items-end pb-1">
 					<label class="inline-flex items-center gap-2 text-sm text-gray-300">
-						<input type="checkbox" name="import_profiles" value="1"
+						<input
+							type="checkbox"
+							name="import_profiles"
+							value="1"
 							if data.ImportProfiles {
 								checked
 							}
@@ -125,26 +138,42 @@ templ FormatEditPage(f FormatEdit, isNew bool, errMsg string) {
 		}
 		<form
 			if isNew {
-				method="post" action="/formats" class="space-y-4"
+				method="post"
+				action="/formats"
+				class="space-y-4"
 			} else {
-				method="post" action={ templ.SafeURL(fmt.Sprintf("/formats/item/%s", f.ID)) } class="space-y-4"
+				method="post"
+				action={ templ.SafeURL(fmt.Sprintf("/formats/item/%s", f.ID)) }
+				class="space-y-4"
 			}
 		>
 			<div>
 				<label class="block text-xs text-gray-500 mb-1">Name</label>
-				<input type="text" name="name" required value={ f.Name }
-					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				<input
+					type="text"
+					name="name"
+					required
+					value={ f.Name }
+					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+				/>
 			</div>
 			<div>
 				<label class="block text-xs text-gray-500 mb-1">Default score</label>
-				<input type="number" name="default_score" value={ strconv.Itoa(f.Score) }
-					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				<input
+					type="number"
+					name="default_score"
+					value={ strconv.Itoa(f.Score) }
+					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+				/>
 			</div>
 			<div>
 				<label class="block text-xs text-gray-500 mb-1">Rules (one per line: field|op|value)</label>
-				<textarea name="rules" rows="6"
+				<textarea
+					name="rules"
+					rows="6"
 					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-mono"
-					placeholder="title|contains|Remux">{ f.RulesText }</textarea>
+					placeholder="title|contains|Remux"
+				>{ f.RulesText }</textarea>
 				<p class="text-xs text-gray-500 mt-1">field: title, size, seeders · op: contains, matches, gt, lt, gte, lte</p>
 			</div>
 			<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Save</button>

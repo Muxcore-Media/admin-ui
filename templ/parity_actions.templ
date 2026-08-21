@@ -16,14 +16,12 @@ templ APIKeysLivePage(rows []APIKeyRow, errMsg string) {
 		<div>
 			<h1 class="text-2xl font-bold">API Keys</h1>
 			<p class="text-gray-400 text-sm mt-1">
-				All auth-local API tokens across users (Jellyfin API keys catalog).
+				All API tokens across users. Create per-user tokens from Users → Manage.
 			</p>
 		</div>
-
 		if errMsg != "" {
 			<div class="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-2 text-sm text-amber-200">{ errMsg }</div>
 		}
-
 		if len(rows) == 0 {
 			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500">
 				No API tokens yet. Create one from a user’s Manage → API Tokens panel.
@@ -61,7 +59,6 @@ templ APIKeysLivePage(rows []APIKeyRow, errMsg string) {
 				</table>
 			</div>
 		}
-
 		<p class="text-xs text-gray-500">
 			Per-user create lives under <a href="/users" class="text-indigo-400">Users</a>.
 		</p>
@@ -81,7 +78,7 @@ templ BackupsLivePage(rows []BackupRow, errMsg, flash string) {
 		<div class="flex flex-wrap items-end justify-between gap-3">
 			<div>
 				<h1 class="text-2xl font-bold">Backups</h1>
-				<p class="text-gray-400 text-sm mt-1">backup-local create / list / restore / delete (Jellyfin backups).</p>
+				<p class="text-gray-400 text-sm mt-1">Create, restore, and delete server backups.</p>
 			</div>
 			<form method="POST" action="/backups/create">
 				<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
@@ -89,14 +86,12 @@ templ BackupsLivePage(rows []BackupRow, errMsg, flash string) {
 				</button>
 			</form>
 		</div>
-
 		if flash != "" {
 			<div class="rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300">{ flash }</div>
 		}
 		if errMsg != "" {
 			<div class="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-2 text-sm text-amber-200">{ errMsg }</div>
 		}
-
 		if len(rows) == 0 {
 			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500">
 				No backups yet, or backup-local is not registered.
@@ -147,17 +142,15 @@ templ TasksLivePage(rows []TaskRow, errMsg, flash string) {
 		<div>
 			<h1 class="text-2xl font-bold">Scheduled Tasks</h1>
 			<p class="text-gray-400 text-sm mt-1">
-				scheduler-cron task list (Jellyfin scheduled tasks). Module loops also run under Automation.
+				Recurring jobs on a schedule. Module automation loops also appear under Automation.
 			</p>
 		</div>
-
 		if flash != "" {
 			<div class="rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300">{ flash }</div>
 		}
 		if errMsg != "" {
 			<div class="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-2 text-sm text-amber-200">{ errMsg }</div>
 		}
-
 		if len(rows) == 0 {
 			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500">
 				No cron tasks registered, or scheduler-cron is offline.
@@ -200,15 +193,15 @@ templ TasksLivePage(rows []TaskRow, errMsg, flash string) {
 }
 
 type NetworkingData struct {
-	PublicURL       string
-	TrustedProxies  string
-	PublishedHosts  string
-	HTTPPort        string
-	HTTPSPort       string
-	Saved           bool
-	Error           string
-	RuntimePublic   string
-	RuntimeTrusted  string
+	PublicURL      string
+	TrustedProxies string
+	PublishedHosts string
+	HTTPPort       string
+	HTTPSPort      string
+	Saved          bool
+	Error          string
+	RuntimePublic  string
+	RuntimeTrusted string
 }
 
 templ NetworkingEditPage(data NetworkingData) {
@@ -216,22 +209,19 @@ templ NetworkingEditPage(data NetworkingData) {
 		<div>
 			<h1 class="text-2xl font-bold">Networking</h1>
 			<p class="text-gray-400 text-sm mt-1">
-				Public URLs, published hostnames, and proxy trust notes (Jellyfin networking).
+				Public URLs, published hostnames, and trusted reverse-proxy settings.
 			</p>
 		</div>
-
 		if data.Saved {
 			<div class="rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300">Saved.</div>
 		}
 		if data.Error != "" {
 			<div class="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-2 text-sm text-red-300">{ data.Error }</div>
 		}
-
 		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400 space-y-1">
 			<div>Runtime public URL override: <code class="text-gray-200">{ emptyDash(data.RuntimePublic) }</code></div>
 			<div>Runtime trusted proxies: <code class="text-gray-200">{ emptyDash(data.RuntimeTrusted) }</code></div>
 		</div>
-
 		<form method="POST" action="/networking" class="space-y-4 rounded-xl border border-gray-800 bg-gray-900/50 p-4">
 			<label class="block space-y-1 text-sm">
 				<span class="text-gray-400">Preferred public URL</span>
@@ -302,7 +292,6 @@ templ LiveTVAdminEditPage(data LiveTVAdminData) {
 		if data.Error != "" {
 			<div class="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-2 text-sm text-red-300">{ data.Error }</div>
 		}
-
 		if len(data.Channels) > 0 {
 			<div class="rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800">
 				for _, ch := range data.Channels {
@@ -314,7 +303,6 @@ templ LiveTVAdminEditPage(data LiveTVAdminData) {
 				}
 			</div>
 		}
-
 		<form method="POST" action="/livetv" class="space-y-3 rounded-xl border border-gray-800 bg-gray-900/50 p-4">
 			<label class="block space-y-1 text-sm">
 				<span class="text-gray-400">Live TV JSON (channels, guide, recordings, timers)</span>
@@ -326,13 +314,13 @@ templ LiveTVAdminEditPage(data LiveTVAdminData) {
 }
 
 type ParentalData struct {
-	UserID           string
+	UserID            string
 	MaxParentalRating string
-	BlockedTags      string
-	AllowedTags      string
-	AllowUnrated     bool
-	Saved            bool
-	Error            string
+	BlockedTags       string
+	AllowedTags       string
+	AllowUnrated      bool
+	Saved             bool
+	Error             string
 }
 
 templ UserParentalForm(data ParentalData) {
@@ -386,7 +374,7 @@ templ LibrariesLivePage(rows []LibraryModRow) {
 		<div>
 			<h1 class="text-2xl font-bold">Libraries</h1>
 			<p class="text-gray-400 text-sm mt-1">
-				Media library modules (Jellyfin libraries). Paths/metadata live under each module and Root Folders.
+				Media libraries registered with MuxCore. Paths and metadata live under each library and in Root Folders.
 			</p>
 		</div>
 		if len(rows) == 0 {
@@ -435,7 +423,7 @@ templ PlaybackAdminEditPage(data PlaybackAdminData) {
 		<div>
 			<h1 class="text-2xl font-bold">Playback</h1>
 			<p class="text-gray-400 text-sm mt-1">
-				Server playback policy (resume, streaming, transcoding, trickplay) — Jellyfin playback admin stand-in.
+				Server playback policy: resume, streaming, transcoding, and trickplay previews.
 			</p>
 		</div>
 		if data.Saved {
@@ -511,7 +499,7 @@ templ PluginsCatalogPage(modules []ModuleListItem) {
 			<div>
 				<h1 class="text-2xl font-bold">Plugins</h1>
 				<p class="text-gray-400 text-sm mt-1">
-					Jellyfin plugins catalog stand-in — MuxCore modules are the plugin surface.
+					Installed modules that extend MuxCore. Install more from the Marketplace.
 				</p>
 			</div>
 			<a href="/marketplace" class="text-sm text-indigo-400 hover:text-indigo-300">Marketplace / install →</a>
@@ -532,7 +520,7 @@ templ MetadataManagerPage(rows []MetadataLibRow) {
 		<div>
 			<h1 class="text-2xl font-bold">Metadata</h1>
 			<p class="text-gray-400 text-sm mt-1">
-				Jellyfin metadata manager stand-in. Edit titles/NFO fields and refresh from each library item page.
+				Edit titles, NFO fields, and refresh metadata from each library item page.
 			</p>
 		</div>
 		if len(rows) == 0 {
@@ -568,7 +556,7 @@ templ AuthSSOPage(data AuthSSOData) {
 		<div>
 			<h1 class="text-2xl font-bold">Authentication / SSO</h1>
 			<p class="text-gray-400 text-sm mt-1">
-				Jellyfin auth dashboard stand-in. Local users, passkeys, and OIDC modules.
+				Sign-in options: local users, passkeys, and single sign-on modules.
 			</p>
 		</div>
 		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 space-y-2 text-sm">

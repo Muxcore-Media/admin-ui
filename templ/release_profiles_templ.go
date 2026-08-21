@@ -41,7 +41,7 @@ func ReleaseProfilesPage(rows []ReleaseProfileRow, errMsg string) templ.Componen
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-6\" data-testid=\"release-profiles-page\"><div class=\"flex items-center justify-between\"><div><h1 class=\"text-2xl font-bold\">Release profiles</h1><p class=\"text-gray-400 text-sm mt-1\">Preferred / required / blocked terms (Sonarr-style release restrictions)</p></div><div class=\"flex gap-2\"><a href=\"/formats\" class=\"rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800\">Formats</a> <a href=\"/formats/profiles\" class=\"rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800\">Quality profiles</a></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-6\" data-testid=\"release-profiles-page\"><div class=\"flex items-center justify-between\"><div><h1 class=\"text-2xl font-bold\">Release profiles</h1><p class=\"text-gray-400 text-sm mt-1\">Preferred, required, and blocked terms for release selection.</p></div><div class=\"flex gap-2\"><a href=\"/formats\" class=\"rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800\">Formats</a> <a href=\"/formats/profiles\" class=\"rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800\">Quality profiles</a></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -86,7 +86,7 @@ func ReleaseProfilesPage(rows []ReleaseProfileRow, errMsg string) templ.Componen
 				var templ_7745c5c3_Var3 string
 				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(r.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/release_profiles.templ`, Line: 68, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/release_profiles.templ`, Line: 66, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 				if templ_7745c5c3_Err != nil {
@@ -99,7 +99,7 @@ func ReleaseProfilesPage(rows []ReleaseProfileRow, errMsg string) templ.Componen
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(r.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/release_profiles.templ`, Line: 70, Col: 40}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/release_profiles.templ`, Line: 68, Col: 40}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 				if templ_7745c5c3_Err != nil {
@@ -127,7 +127,7 @@ func ReleaseProfilesPage(rows []ReleaseProfileRow, errMsg string) templ.Componen
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(r.Preferred)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/release_profiles.templ`, Line: 81, Col: 50}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/release_profiles.templ`, Line: 79, Col: 50}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 				if templ_7745c5c3_Err != nil {
@@ -140,7 +140,7 @@ func ReleaseProfilesPage(rows []ReleaseProfileRow, errMsg string) templ.Componen
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(r.MustContain)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/release_profiles.templ`, Line: 82, Col: 55}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/release_profiles.templ`, Line: 80, Col: 55}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 				if templ_7745c5c3_Err != nil {
@@ -153,7 +153,7 @@ func ReleaseProfilesPage(rows []ReleaseProfileRow, errMsg string) templ.Componen
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(r.MustNotContain)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/release_profiles.templ`, Line: 83, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/release_profiles.templ`, Line: 81, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 				if templ_7745c5c3_Err != nil {
@@ -166,7 +166,7 @@ func ReleaseProfilesPage(rows []ReleaseProfileRow, errMsg string) templ.Componen
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("%d", r.PreferredScore))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/release_profiles.templ`, Line: 86, Col: 94}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/release_profiles.templ`, Line: 84, Col: 94}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 				if templ_7745c5c3_Err != nil {
@@ -179,7 +179,7 @@ func ReleaseProfilesPage(rows []ReleaseProfileRow, errMsg string) templ.Componen
 				var templ_7745c5c3_Var9 templ.SafeURL
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/formats/release-profiles/" + r.ID + "/delete"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/release_profiles.templ`, Line: 90, Col: 96}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/release_profiles.templ`, Line: 88, Col: 96}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -192,7 +192,7 @@ func ReleaseProfilesPage(rows []ReleaseProfileRow, errMsg string) templ.Componen
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(r.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/release_profiles.templ`, Line: 91, Col: 96}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/release_profiles.templ`, Line: 89, Col: 96}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {

@@ -51,7 +51,7 @@ templ UnifiedQueuePage(data UnifiedQueueData) {
 	>
 		<div>
 			<h1 class="text-2xl font-bold">Queue</h1>
-			<p class="text-gray-400 text-sm mt-1">Wanted items and download history with stuck/warning actions</p>
+			<p class="text-gray-400 text-sm mt-1">Pending downloads and recent history — retry or clear stuck items here</p>
 		</div>
 		if data.Flash != "" {
 			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300" data-testid="queue-flash">{ data.Flash }</div>
@@ -59,7 +59,6 @@ templ UnifiedQueuePage(data UnifiedQueueData) {
 		if data.Error != "" {
 			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" data-testid="queue-error">{ data.Error }</div>
 		}
-
 		<form class="flex flex-wrap gap-3 items-end" method="get" action="/queue">
 			<div>
 				<label class="block text-xs font-medium text-gray-500 mb-1">Filter</label>
@@ -74,7 +73,6 @@ templ UnifiedQueuePage(data UnifiedQueueData) {
 		<form method="POST" action="/queue/retry-import" class="inline">
 			<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800" title="Retry all import_failed">Retry imports</button>
 		</form>
-
 		<div>
 			<h2 class="text-lg font-semibold mb-3">Wanted <span class="text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", data.Total) })</span></h2>
 			if len(data.Wanted) == 0 {
@@ -96,7 +94,7 @@ templ UnifiedQueuePage(data UnifiedQueueData) {
 									<td class="px-4 py-2 text-gray-200">
 										{ it.Title }
 										if it.Year > 0 {
-											<span class="text-gray-500"> ({ fmt.Sprintf("%d", it.Year) })</span>
+											<span class="text-gray-500">({ fmt.Sprintf("%d", it.Year) })</span>
 										}
 									</td>
 									<td class="px-4 py-2 text-gray-400">{ it.ItemType }</td>
@@ -121,7 +119,6 @@ templ UnifiedQueuePage(data UnifiedQueueData) {
 				</div>
 			}
 		</div>
-
 		<div>
 			<h2 class="text-lg font-semibold mb-3">Download history</h2>
 			if len(data.History) == 0 {
@@ -137,10 +134,10 @@ templ UnifiedQueuePage(data UnifiedQueueData) {
 								} else if h.Warning {
 									<span class="rounded bg-red-900/40 px-1.5 py-0.5 text-xs text-red-200" data-testid="warn-badge">{ h.Status }</span>
 								} else {
-									<span class="text-gray-500"> · { h.Status }</span>
+									<span class="text-gray-500">· { h.Status }</span>
 								}
 								if h.Source != "" {
-									<span class="text-gray-600"> — { h.Source }</span>
+									<span class="text-gray-600">— { h.Source }</span>
 								}
 								if h.At != "" {
 									<span class="text-xs text-gray-600 ml-auto">{ h.At }</span>

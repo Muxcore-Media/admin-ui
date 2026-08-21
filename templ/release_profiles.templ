@@ -3,13 +3,13 @@ package templates
 import "fmt"
 
 type ReleaseProfileRow struct {
-	ID              string
-	Name            string
-	Preferred       string
-	MustContain     string
-	MustNotContain  string
-	PreferredScore  int
-	Enabled         bool
+	ID             string
+	Name           string
+	Preferred      string
+	MustContain    string
+	MustNotContain string
+	PreferredScore int
+	Enabled        bool
 }
 
 templ ReleaseProfilesPage(rows []ReleaseProfileRow, errMsg string) {
@@ -17,7 +17,7 @@ templ ReleaseProfilesPage(rows []ReleaseProfileRow, errMsg string) {
 		<div class="flex items-center justify-between">
 			<div>
 				<h1 class="text-2xl font-bold">Release profiles</h1>
-				<p class="text-gray-400 text-sm mt-1">Preferred / required / blocked terms (Sonarr-style release restrictions)</p>
+				<p class="text-gray-400 text-sm mt-1">Preferred, required, and blocked terms for release selection.</p>
 			</div>
 			<div class="flex gap-2">
 				<a href="/formats" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Formats</a>
@@ -27,7 +27,6 @@ templ ReleaseProfilesPage(rows []ReleaseProfileRow, errMsg string) {
 		if errMsg != "" {
 			<div class="rounded-xl border border-amber-800 bg-amber-950/40 p-4 text-sm text-amber-200">{ errMsg }</div>
 		}
-
 		<form method="POST" action="/formats/release-profiles" class="rounded-xl border border-gray-800 bg-gray-900/40 p-4 space-y-3" data-testid="release-profile-create">
 			<h2 class="text-sm font-semibold text-gray-300">New / update profile</h2>
 			<input type="hidden" name="id" value=""/>
@@ -58,7 +57,6 @@ templ ReleaseProfilesPage(rows []ReleaseProfileRow, errMsg string) {
 			</label>
 			<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm text-white hover:bg-indigo-500">Save</button>
 		</form>
-
 		if len(rows) == 0 {
 			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">No release profiles.</div>
 		} else {

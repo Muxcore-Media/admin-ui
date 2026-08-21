@@ -4,31 +4,78 @@ type NavLink struct {
 	Label string
 	Path  string
 	Icon  string
+	Group string
 }
 
+// groupOrder controls section rendering order regardless of slice order.
+var groupOrder = []string{"Overview", "Daily admin", "Library", "Media", "Automation", "Playback", "Monitoring", "Advanced"}
+
 templ Nav(links []NavLink, activePath string) {
-	<div class="p-4">
-		<div class="flex items-center justify-between mb-6">
-			<a href="/" class="flex items-center gap-2">
-				<div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-sm font-bold">M</div>
-				<span class="text-lg font-bold">MuxCore</span>
+	<div class="flex h-full flex-col">
+		<div class="flex items-center gap-2 px-4 pt-5 pb-4">
+			<a href="/" class="flex items-center gap-2.5">
+				<div class="flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] bg-[var(--accent-color)] text-sm font-bold text-black">M</div>
+				<span class="text-base font-bold tracking-tight text-[var(--text-primary)]">
+					MuxCore <span class="text-[var(--accent-color)]">Admin</span>
+				</span>
 			</a>
 		</div>
-		<ul class="space-y-1">
-			for _, link := range links {
-				<li>
-					<a
-						href={ link.Path }
-						class={ "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
-							templ.KV("bg-gray-800 text-white", activePath == link.Path),
-							templ.KV("text-gray-400 hover:text-white hover:bg-gray-800", activePath != link.Path),
-						}
-					>
-						<span class="w-5 h-5 flex items-center justify-center">{ link.Icon }</span>
-						{ link.Label }
-					</a>
-				</li>
+		<nav class="flex-1 overflow-y-auto px-3 pb-3" aria-label="Primary">
+			for _, group := range groupOrder {
+				if len(linksInGroup(links, group)) > 0 {
+					<div class={
+						templ.KV("mb-4 mt-3 border-t border-[var(--border-subtle)] pt-3", group == "Advanced"),
+						templ.KV("mb-4", group != "Advanced"),
+					}>
+						<div class={
+							templ.KV("mb-1.5 px-3 text-[11px] font-semibold tracking-wider text-gray-500 uppercase", group == "Advanced"),
+							templ.KV("mb-1.5 px-3 text-[11px] font-semibold tracking-wider text-[var(--text-tertiary)] uppercase", group != "Advanced"),
+						}>{ group }</div>
+						<ul class="space-y-0.5">
+							for _, link := range linksInGroup(links, group) {
+								<li>
+									<a
+										href={ templ.SafeURL(link.Path) }
+										data-nav-link="true"
+										class={
+											"flex items-center gap-2.5 rounded-[var(--radius-md)] px-3 py-1.5 text-sm font-medium transition-colors",
+											templ.KV("bg-[var(--accent-color)] text-black", activePath == link.Path),
+											templ.KV("text-[var(--text-secondary)] hover:bg-[var(--bg-elevated-2)] hover:text-[var(--text-primary)]", activePath != link.Path),
+										}
+									>
+										@NavIcon(link.Icon)
+										<span class="truncate">{ link.Label }</span>
+									</a>
+								</li>
+							}
+						</ul>
+					</div>
+				}
 			}
-		</ul>
+		</nav>
+		<div class="border-t border-[var(--border-subtle)] px-3 py-3">
+			<a
+				href="/logout"
+				hx-boost="false"
+				class="flex items-center gap-2.5 rounded-[var(--radius-md)] px-3 py-1.5 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated-2)] hover:text-[var(--text-primary)]"
+			>
+				@NavIcon("logout")
+				Log out
+			</a>
+		</div>
 	</div>
+}
+
+func linksInGroup(links []NavLink, group string) []NavLink {
+	out := make([]NavLink, 0, len(links))
+	for _, l := range links {
+		g := l.Group
+		if g == "" {
+			g = "Media"
+		}
+		if g == group {
+			out = append(out, l)
+		}
+	}
+	return out
 }

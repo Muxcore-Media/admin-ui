@@ -23,7 +23,6 @@ templ ModuleDetailPage(m ModuleDetail) {
 		<div>
 			<a href="/modules" class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Back to modules</a>
 		</div>
-
 		<div class="flex items-start justify-between">
 			<div>
 				<div class="flex items-center gap-3">
@@ -34,20 +33,16 @@ templ ModuleDetailPage(m ModuleDetail) {
 				<p class="text-sm text-gray-500 font-mono mt-1">{ m.ID }</p>
 			</div>
 		</div>
-
 		@ModuleMetaFields(m)
-
 		if m.Description != "" {
 			<div>
 				<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Description</h2>
 				<p class="text-sm text-gray-300">{ m.Description }</p>
 			</div>
 		}
-
 		@ModuleRolesBlock(m.Roles)
 		@ModuleCapabilitiesBlock(m.Capabilities)
 		@ModuleDependenciesBlock(m.DependsOn)
-
 		if m.HealthError != "" {
 			<div class="rounded-xl border border-red-800/50 bg-red-900/20 p-4">
 				<h2 class="text-sm font-semibold text-red-400 uppercase tracking-wider mb-1">Health Error</h2>

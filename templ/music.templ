@@ -49,7 +49,6 @@ templ MusicListPage(data MusicPageData) {
 				</p>
 			</div>
 		</div>
-
 		if data.Error != "" {
 			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" data-testid="music-soft-error">{ data.Error }</div>
 		}
@@ -58,7 +57,6 @@ templ MusicListPage(data MusicPageData) {
 				Soft OK without media-music — empty library until the module is registered.
 			</div>
 		}
-
 		<form class="flex flex-wrap gap-3 items-end" method="get" action="/music">
 			<div>
 				<label class="block text-xs font-medium text-gray-500 mb-1">Search</label>
@@ -73,7 +71,6 @@ templ MusicListPage(data MusicPageData) {
 			</div>
 			<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Search</button>
 		</form>
-
 		<div>
 			<h2 class="text-lg font-semibold mb-3">Artists <span class="text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", len(data.Artists)) })</span></h2>
 			if len(data.Artists) == 0 {
@@ -121,11 +118,9 @@ templ MusicDetailPage(data MusicDetailData) {
 			<h1 class="text-2xl font-bold mt-2">{ data.Artist.Name }</h1>
 			<p class="text-gray-400 text-sm mt-1">Artist detail from media-music</p>
 		</div>
-
 		if data.Error != "" {
 			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ data.Error }</div>
 		}
-
 		<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
 				<div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Path</div>
@@ -146,7 +141,6 @@ templ MusicDetailPage(data MusicDetailData) {
 				<div class="text-sm text-gray-300 mt-1 font-mono">{ data.Artist.MusicBrainzID }</div>
 			</div>
 		</div>
-
 		<div>
 			<h2 class="text-lg font-semibold mb-3">Albums <span class="text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", len(data.Albums)) })</span></h2>
 			if len(data.Albums) == 0 {

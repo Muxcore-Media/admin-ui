@@ -6,7 +6,7 @@ templ Layout(title string, nav templ.Component, content templ.Component) {
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>{ title } - MuxCore Admin</title>
+			<title hx-head="re-eval">{ title } - MuxCore Admin</title>
 			<link rel="stylesheet" href="/static/dist/styles.css"/>
 			<script src="/static/htmx.min.js"></script>
 			<script src="/static/sse.js"></script>
@@ -14,18 +14,27 @@ templ Layout(title string, nav templ.Component, content templ.Component) {
 			<script src="/static/webauthn.js"></script>
 			<script src="/static/nav.js"></script>
 		</head>
-		<body class="h-full text-gray-100 font-sans antialiased" hx-boost="true" hx-indicator="#loading-bar">
-			<div id="loading-bar" class="fixed top-0 left-0 w-full h-0.5 bg-indigo-600 z-50 htmx-indicator"></div>
-
+		<body
+			class="h-full font-sans antialiased"
+			style="color:var(--text-primary)"
+			hx-boost="true"
+			hx-target="#main-content"
+			hx-select="#main-content"
+			hx-indicator="#loading-bar"
+		>
+			<div id="loading-bar" class="fixed top-0 left-0 z-50 h-0.5 w-full bg-[var(--accent-color)] htmx-indicator"></div>
 			<div class="flex h-full">
-				<nav id="sidebar" class="w-64 shrink-0 border-r border-gray-800 bg-gray-900 -translate-x-full lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 transition-transform duration-200 ease-in-out overflow-y-auto">
+				<nav
+					id="sidebar"
+					class="fixed inset-y-0 left-0 z-40 w-64 shrink-0 -translate-x-full overflow-y-auto border-r border-[var(--border-subtle)] bg-[var(--bg-elevated)] transition-transform duration-200 ease-in-out lg:static lg:translate-x-0"
+				>
 					@nav
 				</nav>
-
-				<div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-30 hidden lg:hidden"></div>
-
-				<main id="main-content" class="flex-1 overflow-y-auto p-6 pt-16 lg:pt-6 htmx-settling:hidden">
-					@content
+				<div id="sidebar-overlay" class="fixed inset-0 z-30 hidden bg-black/50 lg:hidden"></div>
+				<main id="main-content" class="flex-1 overflow-y-auto p-4 pt-16 sm:p-6 lg:pt-6 htmx-settling:hidden">
+					<div class="mx-auto max-w-[1600px]">
+						@content
+					</div>
 				</main>
 			</div>
 		</body>
@@ -42,7 +51,7 @@ templ ErrorLayout(title string, content templ.Component) {
 			<link rel="stylesheet" href="/static/dist/styles.css"/>
 			<script src="/static/csrf.js"></script>
 		</head>
-		<body class="h-full text-gray-100 font-sans antialiased">
+		<body class="h-full font-sans antialiased" style="color:var(--text-primary)">
 			@content
 		</body>
 	</html>

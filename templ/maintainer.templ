@@ -1,0 +1,399 @@
+package templates
+
+import "fmt"
+
+type MaintainerRuleRow struct {
+	ID      string
+	Name    string
+	Scope   string
+	Enabled bool
+	Outcome string
+	Action  string
+	AutoAct bool
+}
+
+type MaintainerCandidateRow struct {
+	ID       string
+	Title    string
+	Scope    string
+	Status   string
+	Action   string
+	ActAfter string
+}
+
+type MaintainerRunRow struct {
+	ID          string
+	Kind        string
+	Status      string
+	Found       int
+	Taken       int
+	Failed      int
+	DryRun      bool
+	StartedAt   string
+	CompletedAt string
+	Error       string
+}
+
+type MaintainerExclusionRow struct {
+	ID         string
+	Name       string
+	Type       string
+	ListURL    string
+	LastSynced string
+	Count      int
+}
+
+type MaintainerStorageRow struct {
+	Path         string
+	FreePercent  string
+	FreeBytes    string
+	TotalBytes   string
+	LibraryBytes string
+	ItemCount    string
+}
+
+type MaintainerPageData struct {
+	Rules         []MaintainerRuleRow
+	Candidates    []MaintainerCandidateRow
+	Runs          []MaintainerRunRow
+	Exclusions    []MaintainerExclusionRow
+	Storage       []MaintainerStorageRow
+	PlaybackUsers []string
+	Flash         string
+	Error         string
+}
+
+templ MaintainerPage(data MaintainerPageData) {
+	<div class="space-y-6" data-testid="maintainer-page">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Library Maintainer</h1>
+				<p class="text-gray-400 text-sm mt-1">Automated cleanup rules, candidates, and actions for your library.</p>
+			</div>
+			<div class="flex flex-wrap gap-2">
+				<form method="POST" action="/maintainer/scan">
+					<input type="hidden" name="dry_run" value="false"/>
+					<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Scan now</button>
+				</form>
+				<form method="POST" action="/maintainer/scan">
+					<input type="hidden" name="dry_run" value="true"/>
+					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Dry-run scan</button>
+				</form>
+				<form method="POST" action="/maintainer/act">
+					<button type="submit" class="rounded-lg border border-red-800 px-3 py-2 text-sm text-red-300 hover:bg-red-950/30">Act now</button>
+				</form>
+				<form method="POST" action="/maintainer/act/free-up" class="flex items-center gap-2">
+					<input type="number" name="target_free_percent" value="15" min="1" max="99" step="0.1" class="w-20 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs"/>
+					<button type="submit" class="rounded-lg border border-orange-800 px-3 py-2 text-sm text-orange-300 hover:bg-orange-950/30">Free-up</button>
+				</form>
+				<form method="POST" action="/maintainer/exclusions/sync">
+					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Sync lists</button>
+				</form>
+			</div>
+		</div>
+		if data.Flash != "" {
+			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300">{ data.Flash }</div>
+		}
+		if data.Error != "" {
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ data.Error }</div>
+		}
+		<div>
+			<h2 class="text-lg font-semibold mb-3">Storage</h2>
+			if len(data.Storage) == 0 {
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">No root folder metrics available.</div>
+			} else {
+				<div class="overflow-x-auto rounded-xl border border-gray-800">
+					<table class="min-w-full divide-y divide-gray-800 text-sm">
+						<thead class="bg-gray-900/50">
+							<tr>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Path</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Free %</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Free</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Total</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Library</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Items</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, s := range data.Storage {
+								<tr>
+									<td class="px-4 py-2 text-white font-mono text-xs">{ s.Path }</td>
+									<td class="px-4 py-2 text-gray-400">{ s.FreePercent }</td>
+									<td class="px-4 py-2 text-gray-400">{ s.FreeBytes }</td>
+									<td class="px-4 py-2 text-gray-400">{ s.TotalBytes }</td>
+									<td class="px-4 py-2 text-gray-400">{ s.LibraryBytes }</td>
+									<td class="px-4 py-2 text-gray-400">{ s.ItemCount }</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+		<div>
+			<h2 class="text-lg font-semibold mb-3">Playback users</h2>
+			<p class="text-gray-500 text-sm mb-2">Usernames from userdata-local for per-user playback rules (<code class="text-gray-400">playback.user_watched_percent</code>).</p>
+			if len(data.PlaybackUsers) == 0 {
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-500">No userdata progress files found.</div>
+			} else {
+				<div class="flex flex-wrap gap-2">
+					for _, u := range data.PlaybackUsers {
+						<span class="rounded-full border border-gray-700 bg-gray-900/50 px-3 py-1 text-xs text-gray-300">{ u }</span>
+					}
+				</div>
+				<datalist id="maintainer-playback-users">
+					for _, u := range data.PlaybackUsers {
+						<option value={ u }></option>
+					}
+				</datalist>
+			}
+		</div>
+		<div>
+			<h2 class="text-lg font-semibold mb-3">Rules</h2>
+			<div class="flex flex-wrap gap-2 mb-3">
+				<form method="GET" action="/maintainer/rules/export">
+					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Export YAML</button>
+				</form>
+			</div>
+			if len(data.Rules) == 0 {
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">No rules configured.</div>
+			} else {
+				<div class="overflow-x-auto rounded-xl border border-gray-800">
+					<table class="min-w-full divide-y divide-gray-800 text-sm">
+						<thead class="bg-gray-900/50">
+							<tr>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Name</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Scope</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Outcome</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Action</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Auto act</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500"></th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, r := range data.Rules {
+								<tr>
+									<td class="px-4 py-2 text-white">{ r.Name }</td>
+									<td class="px-4 py-2 text-gray-400">{ r.Scope }</td>
+									<td class="px-4 py-2 text-gray-400">{ r.Outcome }</td>
+									<td class="px-4 py-2 text-gray-400">{ r.Action }</td>
+									<td class="px-4 py-2 text-gray-400">
+										if r.AutoAct {
+											<span>yes</span>
+										} else {
+											<span>no</span>
+										}
+									</td>
+									<td class="px-4 py-2 text-right">
+										<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/maintainer/rules/%s/delete", r.ID)) }>
+											<button type="submit" class="text-xs text-red-400 hover:text-red-300">Delete</button>
+										</form>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+		<div class="max-w-3xl">
+			<h2 class="text-lg font-semibold mb-3">Add rule</h2>
+			<form method="POST" action="/maintainer/rules" class="space-y-3 rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+					<div>
+						<label class="block text-xs text-gray-500 mb-1">Name</label>
+						<input type="text" name="name" required class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+					</div>
+					<div>
+						<label class="block text-xs text-gray-500 mb-1">Scope</label>
+						<select name="scope" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+							<option value="MEDIA_SCOPE_MOVIE">movie</option>
+							<option value="MEDIA_SCOPE_MOVIE_FILE">movie_file</option>
+							<option value="MEDIA_SCOPE_SERIES">series</option>
+							<option value="MEDIA_SCOPE_EPISODE">episode</option>
+						</select>
+					</div>
+					<div>
+						<label class="block text-xs text-gray-500 mb-1">Outcome</label>
+						<select name="outcome" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+							<option value="RULE_OUTCOME_CANDIDATE">candidate</option>
+							<option value="RULE_OUTCOME_PROTECT">protect</option>
+						</select>
+					</div>
+					<div>
+						<label class="block text-xs text-gray-500 mb-1">Action</label>
+						<select name="arr_action" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+							<option value="ARR_ACTION_DELETE">delete</option>
+							<option value="ARR_ACTION_UNMONITOR_ONLY">unmonitor_only</option>
+							<option value="ARR_ACTION_UNMONITOR">unmonitor</option>
+							<option value="ARR_ACTION_REMOVE_IF_EMPTY">remove_if_empty</option>
+							<option value="ARR_ACTION_MOVE">move</option>
+							<option value="ARR_ACTION_CHANGE_QUALITY_PROFILE">change_quality_profile</option>
+						</select>
+					</div>
+					<div>
+						<label class="block text-xs text-gray-500 mb-1">Quality profile ID (optional)</label>
+						<input type="text" name="quality_profile_id" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+					</div>
+				</div>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Definition JSON</label>
+					<textarea name="definition_json" rows="4" required placeholder='{"op":"and","conditions":[{"field":"playback.user_watched_percent","operator":"lt","value":{"usernames":["alice"],"amount":50}}]}' class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-mono"></textarea>
+				</div>
+				<label class="flex items-center gap-2 text-sm text-gray-400">
+					<input type="checkbox" name="auto_act_enabled" value="1"/>
+					Auto-act after delay
+				</label>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Auto-act delay (days)</label>
+					<input type="number" name="auto_act_delay_days" value="14" min="0" class="w-32 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Add rule</button>
+			</form>
+			<form method="POST" action="/maintainer/rules/import" class="mt-4 space-y-3 rounded-xl border border-gray-800 bg-gray-900/50 p-4 max-w-3xl">
+				<h3 class="text-sm font-medium text-gray-300">Import rules YAML</h3>
+				<textarea name="rules_yaml" rows="6" required placeholder="Paste exported rules YAML" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-mono"></textarea>
+				<label class="flex items-center gap-2 text-sm text-gray-400">
+					<input type="checkbox" name="replace" value="1"/>
+					Replace existing rules
+				</label>
+				<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Import YAML</button>
+			</form>
+		</div>
+		<div>
+			<h2 class="text-lg font-semibold mb-3">Exclusion lists</h2>
+			if len(data.Exclusions) == 0 {
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">No exclusion lists configured.</div>
+			} else {
+				<div class="overflow-x-auto rounded-xl border border-gray-800 mb-4">
+					<table class="min-w-full divide-y divide-gray-800 text-sm">
+						<thead class="bg-gray-900/50">
+							<tr>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Name</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Type</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">URL</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">IDs</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Synced</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500"></th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, e := range data.Exclusions {
+								<tr>
+									<td class="px-4 py-2 text-white">{ e.Name }</td>
+									<td class="px-4 py-2 text-gray-400">{ e.Type }</td>
+									<td class="px-4 py-2 text-gray-400 truncate max-w-xs">{ e.ListURL }</td>
+									<td class="px-4 py-2 text-gray-400">{ fmt.Sprintf("%d", e.Count) }</td>
+									<td class="px-4 py-2 text-gray-400">{ e.LastSynced }</td>
+									<td class="px-4 py-2 text-right">
+										<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/maintainer/exclusions/%s/delete", e.ID)) }>
+											<button type="submit" class="text-xs text-red-400 hover:text-red-300">Delete</button>
+										</form>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+			<form method="POST" action="/maintainer/exclusions" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-3xl rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Name</label>
+					<input type="text" name="name" required class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Type</label>
+					<select name="type" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+						<option value="trakt">trakt</option>
+						<option value="mdblist">mdblist</option>
+						<option value="justwatch">justwatch</option>
+					</select>
+				</div>
+				<div class="sm:col-span-2">
+					<label class="block text-xs text-gray-500 mb-1">List URL, slug, or JustWatch JSON config</label>
+					<input type="text" name="list_url" required placeholder='justwatch: {"country":"US","mode":"available_on","providers":["netflix"]}' class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<div class="sm:col-span-2">
+					<label class="block text-xs text-gray-500 mb-1">API key (optional)</label>
+					<input type="text" name="api_key" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<div>
+					<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Add list</button>
+				</div>
+			</form>
+		</div>
+		<div>
+			<h2 class="text-lg font-semibold mb-3">Candidates</h2>
+			if len(data.Candidates) == 0 {
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">No active candidates.</div>
+			} else {
+				<div class="overflow-x-auto rounded-xl border border-gray-800">
+					<table class="min-w-full divide-y divide-gray-800 text-sm">
+						<thead class="bg-gray-900/50">
+							<tr>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Title</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Scope</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Status</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Action</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Act after</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500"></th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, c := range data.Candidates {
+								<tr>
+									<td class="px-4 py-2 text-white">{ c.Title }</td>
+									<td class="px-4 py-2 text-gray-400">{ c.Scope }</td>
+									<td class="px-4 py-2 text-gray-400">{ c.Status }</td>
+									<td class="px-4 py-2 text-gray-400">{ c.Action }</td>
+									<td class="px-4 py-2 text-gray-400">{ c.ActAfter }</td>
+									<td class="px-4 py-2 text-right space-x-2">
+										<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/maintainer/candidates/%s/approve", c.ID)) } class="inline">
+											<button type="submit" class="text-xs text-green-400 hover:text-green-300">Approve</button>
+										</form>
+										<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/maintainer/candidates/%s/cancel", c.ID)) } class="inline">
+											<button type="submit" class="text-xs text-red-400 hover:text-red-300">Cancel</button>
+										</form>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+		<div>
+			<h2 class="text-lg font-semibold mb-3">Recent runs</h2>
+			if len(data.Runs) == 0 {
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">No runs yet.</div>
+			} else {
+				<div class="overflow-x-auto rounded-xl border border-gray-800">
+					<table class="min-w-full divide-y divide-gray-800 text-sm">
+						<thead class="bg-gray-900/50">
+							<tr>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Kind</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Status</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Found</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Taken</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Failed</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Started</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, r := range data.Runs {
+								<tr>
+									<td class="px-4 py-2 text-gray-300">{ r.Kind }</td>
+									<td class="px-4 py-2 text-gray-400">{ r.Status }</td>
+									<td class="px-4 py-2 text-gray-400">{ fmt.Sprintf("%d", r.Found) }</td>
+									<td class="px-4 py-2 text-gray-400">{ fmt.Sprintf("%d", r.Taken) }</td>
+									<td class="px-4 py-2 text-gray-400">{ fmt.Sprintf("%d", r.Failed) }</td>
+									<td class="px-4 py-2 text-gray-400">{ r.StartedAt }</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+	</div>
+}

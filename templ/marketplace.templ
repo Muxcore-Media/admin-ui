@@ -72,7 +72,7 @@ templ MarketplacePage(data MarketplacePageData) {
 			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500">
 				No spools available.
 				if data.APIRestHint {
-					<span> Connect admin-ui to core (gRPC SpoolService) or set <code class="text-gray-400">ADMIN_UI_API_REST_URL</code> to api-rest (<code class="text-gray-400">/api/v1/spools/…/deploy</code>). Without either, DeployTag is gRPC-only via core.</span>
+					<span>Connect admin-ui to core (gRPC SpoolService) or set <code class="text-gray-400">ADMIN_UI_API_REST_URL</code> to api-rest (<code class="text-gray-400">/api/v1/spools/…/deploy</code>). Without either, DeployTag is gRPC-only via core.</span>
 				}
 			</div>
 		} else {
@@ -101,7 +101,7 @@ templ MarketplacePage(data MarketplacePageData) {
 										<p class="text-xs text-gray-500 mt-1">
 											version { tag.Version }
 											if tag.ModuleCount > 0 {
-												<span> · { fmt.Sprintf("%d modules", tag.ModuleCount) }</span>
+												<span>· { fmt.Sprintf("%d modules", tag.ModuleCount) }</span>
 											}
 										</p>
 										if len(tag.Modules) > 0 {

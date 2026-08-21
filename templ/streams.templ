@@ -1,0 +1,1287 @@
+package templates
+
+import "fmt"
+
+type StreamStat struct {
+	Key   string
+	Label string
+	Value string
+}
+
+type StreamSessionRow struct {
+	ID       string
+	User     string
+	Title    string
+	State    string
+	Position string
+	Platform string
+	Player   string
+	IP       string
+	Started  string
+}
+
+type StreamsPageData struct {
+	Error        string
+	SoftNote     bool
+	Stats        []StreamStat
+	Active       []StreamSessionRow
+	History      []StreamSessionRow
+	HistoryTotal int
+}
+
+templ StreamsPage(data StreamsPageData) {
+	<div class="space-y-6" data-testid="streams-page">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Streams</h1>
+				<p class="text-gray-400 text-sm mt-1">Live activity and watch history across your server.</p>
+			</div>
+			<div class="flex flex-wrap gap-2">
+				<a href="/streams/users" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Users</a>
+				<a href="/streams/stats" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Analytics</a>
+				<a href="/streams/libraries" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Libraries</a>
+				<a href="/streams/guard" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Guard</a>
+				<a href="/streams/notifications" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Notifications</a>
+				<a href="/streams/map" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Map</a>
+				<a href="/streams/servers" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Servers</a>
+				<a href="/streams/history" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Full history</a>
+			</div>
+		</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">{ data.Error }</div>
+		}
+		if data.SoftNote {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3 text-sm text-gray-400" data-testid="streams-soft-empty">
+				playback-monitor not registered — deploy the module to track live and completed playback sessions.
+			</div>
+		}
+		if len(data.Stats) > 0 {
+			<div class="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="streams-home-stats">
+				for _, s := range data.Stats {
+					<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+						<div class="text-xs text-gray-500 uppercase tracking-wide">{ s.Label }</div>
+						<div class="text-2xl font-semibold mt-1">{ s.Value }</div>
+					</div>
+				}
+			</div>
+		}
+		<div id="streams-live-root">
+			<div class="flex items-center justify-between gap-3 mb-3">
+				<h2 class="text-lg font-semibold">Active streams</h2>
+				if !data.SoftNote {
+					<span id="streams-live-badge" class="text-xs text-emerald-400">Live</span>
+				}
+			</div>
+			if data.SoftNote {
+				if len(data.Active) == 0 {
+					<p class="text-gray-500 text-sm">No active streams.</p>
+				}
+			} else {
+				<div id="streams-active-panel">
+					if len(data.Active) == 0 {
+						<p class="text-gray-500 text-sm">No active streams.</p>
+					} else {
+						<div class="overflow-x-auto rounded-xl border border-gray-800">
+							<table class="min-w-full text-sm">
+								<thead class="bg-gray-900/80 text-gray-400 text-left">
+									<tr>
+										<th class="px-3 py-2">User</th>
+										<th class="px-3 py-2">Title</th>
+										<th class="px-3 py-2">State</th>
+										<th class="px-3 py-2">Progress</th>
+										<th class="px-3 py-2">Device</th>
+										<th class="px-3 py-2">IP</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-gray-800" id="streams-active-body">
+									for _, row := range data.Active {
+										<tr class="hover:bg-gray-900/40">
+											<td class="px-3 py-2">{ row.User }</td>
+											<td class="px-3 py-2">{ row.Title }</td>
+											<td class="px-3 py-2">{ row.State }</td>
+											<td class="px-3 py-2 font-mono text-xs">{ row.Position }</td>
+											<td class="px-3 py-2 text-gray-400">{ row.Platform } / { row.Player }</td>
+											<td class="px-3 py-2 font-mono text-xs text-gray-400">{ row.IP }</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</div>
+				<script src="/static/streams-live.js"></script>
+			}
+		</div>
+		<div>
+			<h2 class="text-lg font-semibold mb-3">Recent history</h2>
+			if len(data.History) == 0 {
+				<p class="text-gray-500 text-sm">No completed sessions yet.</p>
+			} else {
+				<div class="overflow-x-auto rounded-xl border border-gray-800">
+					<table class="min-w-full text-sm">
+						<thead class="bg-gray-900/80 text-gray-400 text-left">
+							<tr>
+								<th class="px-3 py-2">User</th>
+								<th class="px-3 py-2">Title</th>
+								<th class="px-3 py-2">Started</th>
+								<th class="px-3 py-2">Watched</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, row := range data.History {
+								<tr class="hover:bg-gray-900/40">
+									<td class="px-3 py-2">{ row.User }</td>
+									<td class="px-3 py-2">{ row.Title }</td>
+									<td class="px-3 py-2 text-gray-400">{ row.Started }</td>
+									<td class="px-3 py-2 font-mono text-xs">{ row.Position }</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+				if data.HistoryTotal > len(data.History) {
+					<p class="text-xs text-gray-500 mt-2">Showing { fmt.Sprintf("%d", len(data.History)) } of { fmt.Sprintf("%d", data.HistoryTotal) } — <a href="/streams/history" class="text-indigo-400 hover:underline">view all</a></p>
+				}
+			}
+		</div>
+	</div>
+}
+
+type StreamsHistoryPageData struct {
+	Error    string
+	SoftNote bool
+	Query    string
+	Sessions []StreamSessionRow
+	Total    int
+}
+
+templ StreamsHistoryPage(data StreamsHistoryPageData) {
+	<div class="space-y-6" data-testid="streams-history-page">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Watch history</h1>
+				<p class="text-gray-400 text-sm mt-1">Completed playback sessions</p>
+			</div>
+			<a href="/streams" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Back to streams</a>
+		</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">{ data.Error }</div>
+		}
+		if data.SoftNote {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3 text-sm text-gray-400" data-testid="streams-soft-empty">
+				playback-monitor not registered.
+			</div>
+		}
+		<form method="GET" action="/streams/history" class="flex flex-wrap gap-2 max-w-xl">
+			<input type="search" name="q" value={ data.Query } placeholder="Search title or user" class="flex-1 min-w-[12rem] rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+			<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">Search</button>
+		</form>
+		if len(data.Sessions) == 0 {
+			<p class="text-gray-500 text-sm">No history rows match.</p>
+		} else {
+			<div class="overflow-x-auto rounded-xl border border-gray-800">
+				<table class="min-w-full text-sm">
+					<thead class="bg-gray-900/80 text-gray-400 text-left">
+						<tr>
+							<th class="px-3 py-2">User</th>
+							<th class="px-3 py-2">Title</th>
+							<th class="px-3 py-2">Started</th>
+							<th class="px-3 py-2">Duration watched</th>
+							<th class="px-3 py-2">Device</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-800">
+						for _, row := range data.Sessions {
+							<tr class="hover:bg-gray-900/40">
+								<td class="px-3 py-2">{ row.User }</td>
+								<td class="px-3 py-2">{ row.Title }</td>
+								<td class="px-3 py-2 text-gray-400">{ row.Started }</td>
+								<td class="px-3 py-2 font-mono text-xs">{ row.Position }</td>
+								<td class="px-3 py-2 text-gray-400">{ row.Platform }</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			<p class="text-xs text-gray-500">{ fmt.Sprintf("%d", data.Total) } total sessions</p>
+		}
+	</div>
+}
+
+type StreamBreakdownRow struct {
+	Label string
+	Count int
+}
+
+type StreamUserRow struct {
+	Username     string
+	PlayCount    int
+	WatchMinutes string
+}
+
+type StreamsStatsPageData struct {
+	Error                     string
+	SoftNote                  bool
+	Platforms                 []StreamBreakdownRow
+	Transcodes                []StreamBreakdownRow
+	PlaysByDate               []StreamBreakdownRow
+	PlaysByHour               []StreamBreakdownRow
+	PlaysByDayWeek            []StreamBreakdownRow
+	PlaysByMonth              []StreamBreakdownRow
+	TopUsers                  []StreamBreakdownRow
+	Concurrent                []StreamConcurrentRow
+	PlaysByResolution         []StreamBreakdownRow
+	PlaysBySourceResolution   []StreamBreakdownRow
+	PlaysByPlatformResolution []StreamBreakdownRow
+}
+
+type StreamConcurrentRow struct {
+	Date      string
+	Total     int
+	Direct    int
+	Transcode int
+}
+
+templ StreamsStatsPage(data StreamsStatsPageData) {
+	<div class="space-y-6" data-testid="streams-stats-page">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Stream analytics</h1>
+				<p class="text-gray-400 text-sm mt-1">Platform, transcode, and play-time breakdown (last 30 days)</p>
+			</div>
+			<a href="/streams" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Back to streams</a>
+		</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">{ data.Error }</div>
+		}
+		if data.SoftNote {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3 text-sm text-gray-400" data-testid="streams-soft-empty">playback-monitor not registered.</div>
+		}
+		<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+				<h2 class="text-lg font-semibold mb-3">Platforms</h2>
+				if len(data.Platforms) == 0 {
+					<p class="text-gray-500 text-sm">No data yet.</p>
+				} else {
+					<ul class="space-y-2 text-sm">
+						for _, row := range data.Platforms {
+							<li class="flex justify-between gap-3"><span>{ row.Label }</span> <span class="font-mono text-gray-300">{ fmt.Sprintf("%d", row.Count) }</span></li>
+						}
+					</ul>
+				}
+			</div>
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+				<h2 class="text-lg font-semibold mb-3">Transcode vs direct</h2>
+				if len(data.Transcodes) == 0 {
+					<p class="text-gray-500 text-sm">No data yet.</p>
+				} else {
+					<ul class="space-y-2 text-sm">
+						for _, row := range data.Transcodes {
+							<li class="flex justify-between gap-3"><span>{ row.Label }</span> <span class="font-mono text-gray-300">{ fmt.Sprintf("%d", row.Count) }</span></li>
+						}
+					</ul>
+				}
+			</div>
+		</div>
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4" data-testid="streams-resolution-chart">
+			<h2 class="text-lg font-semibold mb-3">Plays by stream resolution</h2>
+			if len(data.PlaysByResolution) == 0 {
+				<p class="text-gray-500 text-sm">No resolution data yet — sessions need height/resolution from bridges.</p>
+			} else {
+				<ul class="space-y-2 text-sm max-h-64 overflow-y-auto">
+					for _, row := range data.PlaysByResolution {
+						<li class="flex justify-between gap-3"><span>{ row.Label }</span> <span class="font-mono text-gray-300">{ fmt.Sprintf("%d", row.Count) }</span></li>
+					}
+				</ul>
+			}
+		</div>
+		<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4" data-testid="streams-source-resolution-chart">
+				<h2 class="text-lg font-semibold mb-3">Plays by source resolution</h2>
+				if len(data.PlaysBySourceResolution) == 0 {
+					<p class="text-gray-500 text-sm">No catalog resolution data yet — sync your libraries first.</p>
+				} else {
+					<ul class="space-y-2 text-sm max-h-64 overflow-y-auto">
+						for _, row := range data.PlaysBySourceResolution {
+							<li class="flex justify-between gap-3"><span>{ row.Label }</span> <span class="font-mono text-gray-300">{ fmt.Sprintf("%d", row.Count) }</span></li>
+						}
+					</ul>
+				}
+			</div>
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4" data-testid="streams-platform-resolution-chart">
+				<h2 class="text-lg font-semibold mb-3">Platform × resolution</h2>
+				if len(data.PlaysByPlatformResolution) == 0 {
+					<p class="text-gray-500 text-sm">No combo data yet.</p>
+				} else {
+					<ul class="space-y-2 text-sm max-h-64 overflow-y-auto">
+						for _, row := range data.PlaysByPlatformResolution {
+							<li class="flex justify-between gap-3"><span>{ row.Label }</span> <span class="font-mono text-gray-300">{ fmt.Sprintf("%d", row.Count) }</span></li>
+						}
+					</ul>
+				}
+			</div>
+		</div>
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+			<h2 class="text-lg font-semibold mb-3">Plays by date</h2>
+			if len(data.PlaysByDate) == 0 {
+				<p class="text-gray-500 text-sm">No play history yet.</p>
+			} else {
+				<ul class="space-y-2 text-sm max-h-64 overflow-y-auto">
+					for _, row := range data.PlaysByDate {
+						<li class="flex justify-between gap-3"><span>{ row.Label }</span> <span class="font-mono text-gray-300">{ fmt.Sprintf("%d", row.Count) }</span></li>
+					}
+				</ul>
+			}
+		</div>
+		<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+				<h2 class="text-lg font-semibold mb-3">Plays by hour</h2>
+				if len(data.PlaysByHour) == 0 {
+					<p class="text-gray-500 text-sm">No play history yet.</p>
+				} else {
+					<ul class="space-y-1 text-sm max-h-64 overflow-y-auto font-mono">
+						for _, row := range data.PlaysByHour {
+							if row.Count > 0 {
+								<li class="flex justify-between gap-3"><span>{ row.Label }</span> <span class="text-gray-300">{ fmt.Sprintf("%d", row.Count) }</span></li>
+							}
+						}
+					</ul>
+				}
+			</div>
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+				<h2 class="text-lg font-semibold mb-3">Plays by day of week</h2>
+				if len(data.PlaysByDayWeek) == 0 {
+					<p class="text-gray-500 text-sm">No play history yet.</p>
+				} else {
+					<ul class="space-y-2 text-sm">
+						for _, row := range data.PlaysByDayWeek {
+							<li class="flex justify-between gap-3"><span>{ row.Label }</span> <span class="font-mono text-gray-300">{ fmt.Sprintf("%d", row.Count) }</span></li>
+						}
+					</ul>
+				}
+			</div>
+		</div>
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+			<h2 class="text-lg font-semibold mb-3">Plays by month</h2>
+			if len(data.PlaysByMonth) == 0 {
+				<p class="text-gray-500 text-sm">No play history yet.</p>
+			} else {
+				<ul class="space-y-2 text-sm max-h-64 overflow-y-auto">
+					for _, row := range data.PlaysByMonth {
+						<li class="flex justify-between gap-3"><span>{ row.Label }</span> <span class="font-mono text-gray-300">{ fmt.Sprintf("%d", row.Count) }</span></li>
+					}
+				</ul>
+			}
+		</div>
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+			<h2 class="text-lg font-semibold mb-3">Top users by plays</h2>
+			if len(data.TopUsers) == 0 {
+				<p class="text-gray-500 text-sm">No play history yet.</p>
+			} else {
+				<ul class="space-y-2 text-sm max-h-64 overflow-y-auto">
+					for _, row := range data.TopUsers {
+						<li class="flex justify-between gap-3"><span>{ row.Label }</span> <span class="font-mono text-gray-300">{ fmt.Sprintf("%d", row.Count) }</span></li>
+					}
+				</ul>
+			}
+		</div>
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4" data-testid="streams-concurrent-chart">
+			<h2 class="text-lg font-semibold mb-3">Peak concurrent streams</h2>
+			<p class="text-gray-500 text-sm mb-3">Maximum simultaneous streams per day (last 30 days)</p>
+			if len(data.Concurrent) == 0 {
+				<p class="text-gray-500 text-sm">No session history yet.</p>
+			} else {
+				<div class="overflow-x-auto">
+					<table class="w-full text-sm">
+						<thead>
+							<tr class="text-left text-gray-400 border-b border-gray-800">
+								<th class="py-2 pr-3 font-medium">Date</th>
+								<th class="py-2 px-3 font-medium text-right">Total</th>
+								<th class="py-2 px-3 font-medium text-right">Direct</th>
+								<th class="py-2 pl-3 font-medium text-right">Transcode</th>
+							</tr>
+						</thead>
+						<tbody>
+							for _, row := range data.Concurrent {
+								if row.Total > 0 || row.Direct > 0 || row.Transcode > 0 {
+									<tr class="border-b border-gray-800/50">
+										<td class="py-2 pr-3 font-mono text-gray-300">{ row.Date }</td>
+										<td class="py-2 px-3 text-right font-mono">{ fmt.Sprintf("%d", row.Total) }</td>
+										<td class="py-2 px-3 text-right font-mono text-gray-300">{ fmt.Sprintf("%d", row.Direct) }</td>
+										<td class="py-2 pl-3 text-right font-mono text-gray-300">{ fmt.Sprintf("%d", row.Transcode) }</td>
+									</tr>
+								}
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+	</div>
+}
+
+type StreamLibraryRow struct {
+	ServerID     string
+	LibraryName  string
+	PlayCount    int
+	WatchMinutes string
+}
+
+type StreamTopContentRow struct {
+	Title        string
+	MediaType    string
+	PlayCount    int
+	WatchMinutes string
+}
+
+type StreamDuplicateGroupRow struct {
+	Title     string
+	CopyCount int
+	Servers   string
+}
+
+type StreamStaleRow struct {
+	Title     string
+	Category  string
+	DaysStale int
+	ServerID  string
+}
+
+type StreamLibraryStorageRow struct {
+	LibraryName string
+	ServerID    string
+	ItemCount   int
+	TotalBytes  string
+}
+
+type StreamStorageHistoryRow struct {
+	Day        string
+	TotalBytes string
+	ItemCount  int
+}
+
+type StreamsLibrariesPageData struct {
+	Error                 string
+	SoftNote              bool
+	StorageTotal          string
+	StorageItems          int
+	StorageDuplicateWaste string
+	StorageProjected      string
+	StorageGrowthPerDay   string
+	StorageLibraries      []StreamLibraryStorageRow
+	StorageHistory        []StreamStorageHistoryRow
+	Libraries             []StreamLibraryRow
+	Movies                []StreamTopContentRow
+	Shows                 []StreamTopContentRow
+	Duplicates            []StreamDuplicateGroupRow
+	Stale                 []StreamStaleRow
+	StaleNever            int
+	StaleOld              int
+}
+
+templ StreamsLibrariesPage(data StreamsLibrariesPageData) {
+	<div class="space-y-6" data-testid="streams-libraries-page">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Library analytics</h1>
+				<p class="text-gray-400 text-sm mt-1">Per-library plays and top content (last 30 days, derived from session paths)</p>
+			</div>
+			<a href="/streams" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Back to streams</a>
+		</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">{ data.Error }</div>
+		}
+		if data.SoftNote {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3 text-sm text-gray-400" data-testid="streams-soft-empty">playback-monitor not registered.</div>
+		}
+		if data.StorageTotal != "" || data.StorageItems > 0 {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4" data-testid="streams-library-storage">
+				<h2 class="text-lg font-semibold mb-3">Storage summary</h2>
+				<p class="text-gray-500 text-sm mb-4">Total catalog size from library sync.</p>
+				<div class="grid gap-3 sm:grid-cols-3 mb-4">
+					<div class="rounded-lg border border-gray-800 bg-gray-950/40 px-4 py-3">
+						<p class="text-xs uppercase tracking-wide text-gray-500">Total storage</p>
+						<p class="text-xl font-semibold font-mono mt-1">{ data.StorageTotal }</p>
+					</div>
+					<div class="rounded-lg border border-gray-800 bg-gray-950/40 px-4 py-3">
+						<p class="text-xs uppercase tracking-wide text-gray-500">Catalog items</p>
+						<p class="text-xl font-semibold font-mono mt-1">{ fmt.Sprintf("%d", data.StorageItems) }</p>
+					</div>
+					<div class="rounded-lg border border-gray-800 bg-gray-950/40 px-4 py-3">
+						<p class="text-xs uppercase tracking-wide text-gray-500">Duplicate waste</p>
+						<p class="text-xl font-semibold font-mono mt-1">{ data.StorageDuplicateWaste }</p>
+					</div>
+				</div>
+				if len(data.StorageLibraries) > 0 {
+					<div class="overflow-x-auto">
+						<table class="min-w-full text-sm">
+							<thead class="text-gray-500 border-b border-gray-800">
+								<tr>
+									<th class="text-left py-2 pr-4">Library</th>
+									<th class="text-left py-2 pr-4">Server</th>
+									<th class="text-right py-2 pr-4">Items</th>
+									<th class="text-right py-2">Storage</th>
+								</tr>
+							</thead>
+							<tbody>
+								for _, row := range data.StorageLibraries {
+									<tr class="border-b border-gray-800/60">
+										<td class="py-2 pr-4">{ row.LibraryName }</td>
+										<td class="py-2 pr-4 font-mono text-gray-400">{ row.ServerID }</td>
+										<td class="py-2 pr-4 text-right font-mono">{ fmt.Sprintf("%d", row.ItemCount) }</td>
+										<td class="py-2 text-right font-mono text-gray-300">{ row.TotalBytes }</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</div>
+		}
+		if len(data.StorageHistory) > 0 || data.StorageProjected != "" {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4" data-testid="streams-library-storage-history">
+				<h2 class="text-lg font-semibold mb-3">Storage trend</h2>
+				if data.StorageGrowthPerDay != "" || data.StorageProjected != "" {
+					<p class="text-sm text-gray-400 mb-3">
+						if data.StorageGrowthPerDay != "" {
+							<span>Growth { data.StorageGrowthPerDay }/day</span>
+						}
+						if data.StorageProjected != "" {
+							<span>{ " · 90d projection " }{ data.StorageProjected }</span>
+						}
+					</p>
+				}
+				if len(data.StorageHistory) == 0 {
+					<p class="text-gray-500 text-sm">Daily snapshots appear after catalog sync runs.</p>
+				} else {
+					<div class="overflow-x-auto">
+						<table class="min-w-full text-sm">
+							<thead class="text-gray-500 border-b border-gray-800">
+								<tr>
+									<th class="text-left py-2 pr-4">Day</th>
+									<th class="text-right py-2 pr-4">Items</th>
+									<th class="text-right py-2">Storage</th>
+								</tr>
+							</thead>
+							<tbody>
+								for _, row := range data.StorageHistory {
+									<tr class="border-b border-gray-800/60">
+										<td class="py-2 pr-4 font-mono text-gray-300">{ row.Day }</td>
+										<td class="py-2 pr-4 text-right font-mono">{ fmt.Sprintf("%d", row.ItemCount) }</td>
+										<td class="py-2 text-right font-mono text-gray-300">{ row.TotalBytes }</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</div>
+		}
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+			<h2 class="text-lg font-semibold mb-3">Libraries by plays</h2>
+			if len(data.Libraries) == 0 {
+				<p class="text-gray-500 text-sm">No library stats yet — playback sessions need linked media paths from your libraries.</p>
+			} else {
+				<div class="overflow-x-auto">
+					<table class="min-w-full text-sm">
+						<thead class="text-gray-500 border-b border-gray-800">
+							<tr>
+								<th class="text-left py-2 pr-4">Library</th>
+								<th class="text-left py-2 pr-4">Server</th>
+								<th class="text-right py-2 pr-4">Plays</th>
+								<th class="text-right py-2">Watch time</th>
+							</tr>
+						</thead>
+						<tbody>
+							for _, row := range data.Libraries {
+								<tr class="border-b border-gray-800/60">
+									<td class="py-2 pr-4">{ row.LibraryName }</td>
+									<td class="py-2 pr-4 font-mono text-gray-400">{ row.ServerID }</td>
+									<td class="py-2 pr-4 text-right font-mono">{ fmt.Sprintf("%d", row.PlayCount) }</td>
+									<td class="py-2 text-right font-mono text-gray-300">{ row.WatchMinutes }</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4" data-testid="streams-library-duplicates">
+			<h2 class="text-lg font-semibold mb-3">Duplicate titles</h2>
+			<p class="text-gray-500 text-sm mb-3">Same title appearing on multiple servers or libraries.</p>
+			if len(data.Duplicates) == 0 {
+				<p class="text-gray-500 text-sm">No duplicates detected in catalog yet.</p>
+			} else {
+				<div class="overflow-x-auto">
+					<table class="min-w-full text-sm">
+						<thead class="text-gray-500 border-b border-gray-800">
+							<tr>
+								<th class="text-left py-2 pr-4">Title</th>
+								<th class="text-right py-2 pr-4">Copies</th>
+								<th class="text-left py-2">Servers</th>
+							</tr>
+						</thead>
+						<tbody>
+							for _, row := range data.Duplicates {
+								<tr class="border-b border-gray-800/60">
+									<td class="py-2 pr-4">{ row.Title }</td>
+									<td class="py-2 pr-4 text-right font-mono">{ fmt.Sprintf("%d", row.CopyCount) }</td>
+									<td class="py-2 font-mono text-gray-400">{ row.Servers }</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4" data-testid="streams-library-stale">
+			<h2 class="text-lg font-semibold mb-3">Stale content</h2>
+			<p class="text-gray-500 text-sm mb-3">Never watched or not played in 90+ days</p>
+			if data.StaleNever > 0 || data.StaleOld > 0 {
+				<p class="text-sm text-gray-400 mb-3">{ fmt.Sprintf("%d never watched · %d stale", data.StaleNever, data.StaleOld) }</p>
+			}
+			if len(data.Stale) == 0 {
+				<p class="text-gray-500 text-sm">No stale catalog entries yet.</p>
+			} else {
+				<div class="overflow-x-auto">
+					<table class="min-w-full text-sm">
+						<thead class="text-gray-500 border-b border-gray-800">
+							<tr>
+								<th class="text-left py-2 pr-4">Title</th>
+								<th class="text-left py-2 pr-4">Category</th>
+								<th class="text-right py-2 pr-4">Days</th>
+								<th class="text-left py-2">Server</th>
+							</tr>
+						</thead>
+						<tbody>
+							for _, row := range data.Stale {
+								<tr class="border-b border-gray-800/60">
+									<td class="py-2 pr-4">{ row.Title }</td>
+									<td class="py-2 pr-4 text-gray-400">{ row.Category }</td>
+									<td class="py-2 pr-4 text-right font-mono">{ fmt.Sprintf("%d", row.DaysStale) }</td>
+									<td class="py-2 font-mono text-gray-400">{ row.ServerID }</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+		<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+				<h2 class="text-lg font-semibold mb-3">Top movies</h2>
+				if len(data.Movies) == 0 {
+					<p class="text-gray-500 text-sm">No movie plays yet.</p>
+				} else {
+					<ul class="space-y-2 text-sm">
+						for _, row := range data.Movies {
+							<li class="flex justify-between gap-3"><span>{ row.Title }</span> <span class="font-mono text-gray-300">{ fmt.Sprintf("%d plays", row.PlayCount) }</span></li>
+						}
+					</ul>
+				}
+			</div>
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+				<h2 class="text-lg font-semibold mb-3">Top shows</h2>
+				if len(data.Shows) == 0 {
+					<p class="text-gray-500 text-sm">No episode plays yet.</p>
+				} else {
+					<ul class="space-y-2 text-sm">
+						for _, row := range data.Shows {
+							<li class="flex justify-between gap-3"><span>{ row.Title }</span> <span class="font-mono text-gray-300">{ fmt.Sprintf("%d plays", row.PlayCount) }</span></li>
+						}
+					</ul>
+				}
+			</div>
+		</div>
+	</div>
+}
+
+type StreamsUsersPageData struct {
+	Error    string
+	SoftNote bool
+	Users    []StreamUserRow
+}
+
+templ StreamsUsersPage(data StreamsUsersPageData) {
+	<div class="space-y-6" data-testid="streams-users-page">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Watchers</h1>
+				<p class="text-gray-400 text-sm mt-1">User watch time stats (last 30 days)</p>
+			</div>
+			<a href="/streams" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Back to streams</a>
+		</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">{ data.Error }</div>
+		}
+		if data.SoftNote {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3 text-sm text-gray-400" data-testid="streams-soft-empty">playback-monitor not registered.</div>
+		}
+		if len(data.Users) == 0 {
+			<p class="text-gray-500 text-sm">No watcher stats yet.</p>
+		} else {
+			<div class="overflow-x-auto rounded-xl border border-gray-800">
+				<table class="min-w-full text-sm">
+					<thead class="bg-gray-900/80 text-gray-400 text-left">
+						<tr>
+							<th class="px-3 py-2">User</th>
+							<th class="px-3 py-2">Plays</th>
+							<th class="px-3 py-2">Watch time</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-800">
+						for _, row := range data.Users {
+							<tr class="hover:bg-gray-900/40">
+								<td class="px-3 py-2">{ row.Username }</td>
+								<td class="px-3 py-2 font-mono text-xs">{ fmt.Sprintf("%d", row.PlayCount) }</td>
+								<td class="px-3 py-2">{ row.WatchMinutes }</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+	</div>
+}
+
+type GuardRuleRow struct {
+	Name          string
+	TypeLabel     string
+	Enabled       string
+	ParamsSummary string
+}
+
+type GuardViolationRow struct {
+	ID       string
+	User     string
+	Summary  string
+	Severity string
+	Created  string
+}
+
+type GuardTrustRow struct {
+	UserID   string
+	UserName string
+	User     string
+	Score    int32
+	Updated  string
+}
+
+type GuardActiveSessionRow struct {
+	ExternalSessionID string
+	ServerType        string
+	User              string
+	Title             string
+	Platform          string
+}
+
+type StreamsGuardPageData struct {
+	Error           string
+	Success         string
+	SoftNote        bool
+	Rules           []GuardRuleRow
+	Violations      []GuardViolationRow
+	TrustScores     []GuardTrustRow
+	ActiveSessions  []GuardActiveSessionRow
+	MonitorSoftNote bool
+}
+
+templ StreamsGuardPage(data StreamsGuardPageData) {
+	<div class="space-y-6" data-testid="streams-guard-page">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Playback guard</h1>
+				<p class="text-gray-400 text-sm mt-1">Sharing detection rules and open violations.</p>
+			</div>
+			<a href="/streams" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Back to streams</a>
+		</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">{ data.Error }</div>
+		}
+		if data.Success != "" {
+			<div class="rounded-xl border border-emerald-900/50 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-300">{ data.Success }</div>
+		}
+		if data.SoftNote {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3 text-sm text-gray-400" data-testid="streams-soft-empty">playback-guard not registered.</div>
+		}
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+			<h2 class="text-lg font-semibold mb-3">Rules</h2>
+			if len(data.Rules) == 0 {
+				<p class="text-gray-500 text-sm">No guard rules configured yet.</p>
+			} else {
+				<ul class="space-y-2 text-sm">
+					for _, rule := range data.Rules {
+						<li class="flex flex-wrap justify-between gap-2 border-b border-gray-800 pb-2 last:border-0">
+							<span>{ rule.Name } <span class="text-gray-500">({ rule.TypeLabel })</span></span>
+							<span class="text-gray-400">{ rule.Enabled } · { rule.ParamsSummary }</span>
+						</li>
+					}
+				</ul>
+			}
+		</div>
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+			<h2 class="text-lg font-semibold mb-3">Active streams</h2>
+			if data.MonitorSoftNote {
+				<p class="text-gray-500 text-sm">playback-monitor not registered — cannot list or terminate sessions.</p>
+			} else if len(data.ActiveSessions) == 0 {
+				<p class="text-gray-500 text-sm">No active playback sessions.</p>
+			} else {
+				<div class="overflow-x-auto">
+					<table class="min-w-full text-sm">
+						<thead class="bg-gray-900/80 text-gray-400 text-left">
+							<tr>
+								<th class="px-3 py-2">User</th>
+								<th class="px-3 py-2">Title</th>
+								<th class="px-3 py-2">Platform</th>
+								<th class="px-3 py-2">Server</th>
+								<th class="px-3 py-2"></th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, row := range data.ActiveSessions {
+								<tr class="hover:bg-gray-900/40">
+									<td class="px-3 py-2">{ row.User }</td>
+									<td class="px-3 py-2">{ row.Title }</td>
+									<td class="px-3 py-2 text-gray-400">{ row.Platform }</td>
+									<td class="px-3 py-2 text-gray-400">{ row.ServerType }</td>
+									<td class="px-3 py-2">
+										<form method="POST" action="/streams/guard/terminate" class="inline">
+											<input type="hidden" name="session_id" value={ row.ExternalSessionID }/>
+											<input type="hidden" name="server_type" value={ row.ServerType }/>
+											<button type="submit" class="rounded-lg border border-red-900/60 px-2 py-1 text-xs text-red-300 hover:bg-red-950/40">Terminate</button>
+										</form>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+			<h2 class="text-lg font-semibold mb-3">Merge users</h2>
+			<p class="text-gray-500 text-sm mb-3">Combine duplicate identities so violations and trust scores follow the target user.</p>
+			<form method="POST" action="/streams/guard/merge" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+				<div>
+					<label class="block text-gray-400 mb-1">Source user ID</label>
+					<input name="source_user_id" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2" placeholder="plex-user-old"/>
+				</div>
+				<div>
+					<label class="block text-gray-400 mb-1">Target user ID</label>
+					<input name="target_user_id" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2" placeholder="canonical-user"/>
+				</div>
+				<div>
+					<label class="block text-gray-400 mb-1">Source username</label>
+					<input name="source_user_name" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2"/>
+				</div>
+				<div>
+					<label class="block text-gray-400 mb-1">Target username</label>
+					<input name="target_user_name" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2"/>
+				</div>
+				<div class="md:col-span-2">
+					<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-500">Merge into target</button>
+				</div>
+			</form>
+		</div>
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+			<h2 class="text-lg font-semibold mb-3">Trust scores</h2>
+			if len(data.TrustScores) == 0 {
+				<p class="text-gray-500 text-sm">No trust score changes yet (default 100 per user).</p>
+			} else {
+				<div class="overflow-x-auto rounded-xl border border-gray-800">
+					<table class="min-w-full text-sm">
+						<thead class="bg-gray-900/80 text-gray-400 text-left">
+							<tr>
+								<th class="px-3 py-2">User</th>
+								<th class="px-3 py-2">Score</th>
+								<th class="px-3 py-2">Updated</th>
+								<th class="px-3 py-2 w-28"></th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, row := range data.TrustScores {
+								<tr class="hover:bg-gray-900/40">
+									<td class="px-3 py-2">{ row.User }</td>
+									<td class="px-3 py-2">{ fmt.Sprintf("%d", row.Score) }</td>
+									<td class="px-3 py-2 text-gray-400">{ row.Updated }</td>
+									<td class="px-3 py-2">
+										<form method="POST" action="/streams/guard/trust/reset">
+											<input type="hidden" name="user_id" value={ row.UserID }/>
+											<input type="hidden" name="user_name" value={ row.UserName }/>
+											<button type="submit" class="text-indigo-400 hover:text-indigo-300">Reset</button>
+										</form>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+		<form method="POST" action="/streams/guard/acknowledge" class="space-y-3">
+			<div class="flex items-center justify-between gap-3">
+				<h2 class="text-lg font-semibold">Open violations</h2>
+				if len(data.Violations) > 0 {
+					<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">Acknowledge selected</button>
+				}
+			</div>
+			if len(data.Violations) == 0 {
+				<p class="text-gray-500 text-sm">No open violations.</p>
+			} else {
+				<div class="overflow-x-auto rounded-xl border border-gray-800">
+					<table class="min-w-full text-sm">
+						<thead class="bg-gray-900/80 text-gray-400 text-left">
+							<tr>
+								<th class="px-3 py-2 w-10"></th>
+								<th class="px-3 py-2">User</th>
+								<th class="px-3 py-2">Summary</th>
+								<th class="px-3 py-2">Severity</th>
+								<th class="px-3 py-2">When</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, row := range data.Violations {
+								<tr class="hover:bg-gray-900/40">
+									<td class="px-3 py-2"><input type="checkbox" name="violation_id" value={ row.ID }/></td>
+									<td class="px-3 py-2">{ row.User }</td>
+									<td class="px-3 py-2">{ row.Summary }</td>
+									<td class="px-3 py-2 text-gray-400">{ row.Severity }</td>
+									<td class="px-3 py-2 text-gray-400">{ row.Created }</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</form>
+	</div>
+}
+
+type StreamServerRow struct {
+	ID             string
+	Name           string
+	Type           string
+	SourceModule   string
+	ActiveSessions int
+}
+
+type StreamsServersPageData struct {
+	Error    string
+	SoftNote bool
+	Servers  []StreamServerRow
+}
+
+templ StreamsServersPage(data StreamsServersPageData) {
+	<div class="space-y-6" data-testid="streams-servers-page">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Media servers</h1>
+				<p class="text-gray-400 text-sm mt-1">Registered playback sources connected to MuxCore.</p>
+			</div>
+			<a href="/streams" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Back to streams</a>
+		</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">{ data.Error }</div>
+		}
+		if data.SoftNote {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3 text-sm text-gray-400" data-testid="streams-soft-empty">playback-monitor not registered.</div>
+		}
+		if len(data.Servers) == 0 {
+			<p class="text-gray-500 text-sm">No servers registered yet. Bridge modules register on first session event.</p>
+		} else {
+			<div class="overflow-x-auto rounded-xl border border-gray-800">
+				<table class="min-w-full text-sm">
+					<thead class="bg-gray-900/80 text-gray-400 text-left">
+						<tr>
+							<th class="px-3 py-2">Name</th>
+							<th class="px-3 py-2">Type</th>
+							<th class="px-3 py-2">Module</th>
+							<th class="px-3 py-2">Active</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-800">
+						for _, row := range data.Servers {
+							<tr class="hover:bg-gray-900/40">
+								<td class="px-3 py-2">{ row.Name }</td>
+								<td class="px-3 py-2 text-gray-400">{ row.Type }</td>
+								<td class="px-3 py-2 font-mono text-xs">{ row.SourceModule }</td>
+								<td class="px-3 py-2 font-mono text-xs">{ fmt.Sprintf("%d", row.ActiveSessions) }</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+	</div>
+}
+
+type StreamsMapPageData struct {
+	Error    string
+	SoftNote bool
+	PinCount int
+}
+
+templ StreamsMapPage(data StreamsMapPageData) {
+	<div class="space-y-6" id="stream-map-root" data-testid="streams-map-page">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Stream map</h1>
+				<p class="text-gray-400 text-sm mt-1">Where active streams are playing right now.</p>
+			</div>
+			<a href="/streams" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Back to streams</a>
+		</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">{ data.Error }</div>
+		}
+		if data.SoftNote {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3 text-sm text-gray-400" data-testid="streams-soft-empty">playback-monitor not registered.</div>
+		} else {
+			<p id="stream-map-status" class="text-sm text-gray-400">
+				if data.PinCount > 0 {
+					{ fmt.Sprintf("%d geolocated active stream(s)", data.PinCount) }
+				} else {
+					No geolocated active streams yet.
+				}
+			</p>
+			<div id="stream-map" class="h-[28rem] w-full rounded-xl border border-gray-800 bg-gray-900/40 overflow-hidden"></div>
+			<p class="text-xs text-gray-500">Requires <code class="text-gray-400">PLAYBACK_MONITOR_GEOIP=1</code> and public client IPs on active sessions.</p>
+			<script src="/static/streams-map.js"></script>
+		}
+	</div>
+}
+
+type NotificationDestinationRow struct {
+	ID          string
+	Name        string
+	Type        string
+	Enabled     bool
+	EnabledLabel string
+	EventsLabel string
+}
+
+type NotificationRuleRow struct {
+	ID              string
+	Name            string
+	Enabled         bool
+	EnabledLabel    string
+	EventType       string
+	TitleTemplate   string
+	MessageTemplate string
+	Severity        string
+	TranscodeOnly   bool
+}
+
+type StreamsNotificationsPageData struct {
+	Error        string
+	Success      string
+	SoftNote     bool
+	Destinations []NotificationDestinationRow
+	Rules        []NotificationRuleRow
+}
+
+templ StreamsNotificationsPage(data StreamsNotificationsPageData) {
+	<div class="space-y-6" data-testid="streams-notifications-page">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Notification rules</h1>
+				<p class="text-gray-400 text-sm mt-1">Alert rules and delivery destinations for playback and guard events.</p>
+			</div>
+			<a href="/streams" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Back to streams</a>
+		</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">{ data.Error }</div>
+		}
+		if data.Success != "" {
+			<div class="rounded-xl border border-emerald-900/50 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-300">{ data.Success }</div>
+		}
+		if data.SoftNote {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3 text-sm text-gray-400" data-testid="streams-soft-empty">
+				playback-monitor not registered — deploy the module to manage notification rules.
+			</div>
+		}
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+			<h2 class="text-lg font-semibold mb-3">Destinations</h2>
+			if len(data.Destinations) == 0 {
+				<p class="text-gray-500 text-sm">No destinations yet. Rules without destinations fall back to the global notification-apprise module.</p>
+			} else {
+				<div class="overflow-x-auto rounded-xl border border-gray-800">
+					<table class="min-w-full text-sm">
+						<thead class="bg-gray-900/80 text-gray-400 text-left">
+							<tr>
+								<th class="px-3 py-2">Name</th>
+								<th class="px-3 py-2">Type</th>
+								<th class="px-3 py-2">Events</th>
+								<th class="px-3 py-2">Status</th>
+								<th class="px-3 py-2 w-40"></th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, dest := range data.Destinations {
+								<tr class="hover:bg-gray-900/40">
+									<td class="px-3 py-2 font-medium">{ dest.Name }</td>
+									<td class="px-3 py-2 text-gray-300">{ dest.Type }</td>
+									<td class="px-3 py-2 text-gray-400 text-xs">{ dest.EventsLabel }</td>
+									<td class="px-3 py-2 text-gray-400">{ dest.EnabledLabel }</td>
+									<td class="px-3 py-2">
+										<div class="flex flex-wrap gap-2">
+											<form method="POST" action="/streams/notifications/destinations/test">
+												<input type="hidden" name="id" value={ dest.ID }/>
+												<button type="submit" class="text-indigo-400 hover:text-indigo-300">Test</button>
+											</form>
+											<form method="POST" action="/streams/notifications/destinations/delete">
+												<input type="hidden" name="id" value={ dest.ID }/>
+												<button type="submit" class="text-red-400 hover:text-red-300">Delete</button>
+											</form>
+										</div>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+		if !data.SoftNote {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+				<h2 class="text-lg font-semibold mb-3">Add destination</h2>
+				<form method="POST" action="/streams/notifications/destinations/create" class="grid gap-3 md:grid-cols-2">
+					<label class="block text-sm">
+						<span class="text-gray-400">Name</span>
+						<input name="name" required class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2" placeholder="Discord #playback"/>
+					</label>
+					<label class="block text-sm">
+						<span class="text-gray-400">Type</span>
+						<select name="type" required class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2">
+							<option value="discord">discord</option>
+							<option value="slack">slack</option>
+							<option value="webhook">webhook</option>
+							<option value="apprise">apprise</option>
+						</select>
+					</label>
+					<label class="block text-sm md:col-span-2">
+						<span class="text-gray-400">Webhook URL (discord / slack / webhook)</span>
+						<input name="webhook_url" class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-xs" placeholder="https://discord.com/api/webhooks/..."/>
+					</label>
+					<label class="block text-sm md:col-span-2">
+						<span class="text-gray-400">Apprise URLs (apprise type; semicolon-separated)</span>
+						<input name="apprise_urls" class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-xs" placeholder="discord://...;mailto://..."/>
+					</label>
+					<fieldset class="md:col-span-2 text-sm">
+						<legend class="text-gray-400 mb-2">Events</legend>
+						<div class="flex flex-wrap gap-4">
+							<label class="flex items-center gap-2"><input type="checkbox" name="events" value="playback.started" checked class="rounded border-gray-700"/><span class="text-gray-300">playback.started</span></label>
+							<label class="flex items-center gap-2"><input type="checkbox" name="events" value="playback.stopped" checked class="rounded border-gray-700"/><span class="text-gray-300">playback.stopped</span></label>
+							<label class="flex items-center gap-2"><input type="checkbox" name="events" value="guard.violation" class="rounded border-gray-700"/><span class="text-gray-300">guard.violation</span></label>
+						</div>
+					</fieldset>
+					<label class="flex items-center gap-2 text-sm">
+						<input type="checkbox" name="enabled" value="1" checked class="rounded border-gray-700"/>
+						<span class="text-gray-300">Enabled</span>
+					</label>
+					<div class="md:col-span-2">
+						<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-500">Create destination</button>
+					</div>
+				</form>
+			</div>
+		}
+		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+			<h2 class="text-lg font-semibold mb-3">Rules</h2>
+			if len(data.Rules) == 0 {
+				<p class="text-gray-500 text-sm">No notification rules yet. Legacy env toggles seed defaults on first monitor start.</p>
+			} else {
+				<div class="overflow-x-auto rounded-xl border border-gray-800">
+					<table class="min-w-full text-sm">
+						<thead class="bg-gray-900/80 text-gray-400 text-left">
+							<tr>
+								<th class="px-3 py-2">Name</th>
+								<th class="px-3 py-2">Event</th>
+								<th class="px-3 py-2">Severity</th>
+								<th class="px-3 py-2">Status</th>
+								<th class="px-3 py-2 w-24"></th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, rule := range data.Rules {
+								<tr class="hover:bg-gray-900/40 align-top">
+									<td class="px-3 py-2">
+										<div class="font-medium">{ rule.Name }</div>
+										<div class="text-xs text-gray-500 mt-1">{ rule.TitleTemplate }</div>
+									</td>
+									<td class="px-3 py-2 text-gray-300">{ rule.EventType }</td>
+									<td class="px-3 py-2 text-gray-300">{ rule.Severity }</td>
+									<td class="px-3 py-2 text-gray-400">{ rule.EnabledLabel }</td>
+									<td class="px-3 py-2">
+										<form method="POST" action="/streams/notifications/delete">
+											<input type="hidden" name="id" value={ rule.ID }/>
+											<button type="submit" class="text-red-400 hover:text-red-300">Delete</button>
+										</form>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+		if !data.SoftNote {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+				<h2 class="text-lg font-semibold mb-3">Add rule</h2>
+				<form method="POST" action="/streams/notifications/create" class="grid gap-3 md:grid-cols-2">
+					<label class="block text-sm">
+						<span class="text-gray-400">Name</span>
+						<input name="name" required class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2" placeholder="Playback started"/>
+					</label>
+					<label class="block text-sm">
+						<span class="text-gray-400">Event type</span>
+						<select name="event_type" required class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2">
+							<option value="playback.started">playback.started</option>
+							<option value="playback.stopped">playback.stopped</option>
+							<option value="guard.violation">guard.violation</option>
+						</select>
+					</label>
+					<label class="block text-sm">
+						<span class="text-gray-400">Severity</span>
+						<select name="severity" class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2">
+							<option value="info">info</option>
+							<option value="warning">warning</option>
+							<option value="error">error</option>
+						</select>
+					</label>
+					<label class="flex items-center gap-2 text-sm mt-6">
+						<input type="checkbox" name="enabled" value="1" checked class="rounded border-gray-700"/>
+						<span class="text-gray-300">Enabled</span>
+					</label>
+					<label class="block text-sm md:col-span-2">
+						<span class="text-gray-400">Title template</span>
+						<input name="title_template" required class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-xs" placeholder={ `{{user}} started {{title}}` }/>
+					</label>
+					<label class="block text-sm md:col-span-2">
+						<span class="text-gray-400">Message template</span>
+						<textarea name="message_template" rows="3" required class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-xs" placeholder={ `{{platform}} · {{player}} · {{ip}}` }></textarea>
+					</label>
+					<label class="flex items-center gap-2 text-sm md:col-span-2">
+						<input type="checkbox" name="transcode_only" value="1" class="rounded border-gray-700"/>
+						<span class="text-gray-300">Transcode sessions only</span>
+					</label>
+					if len(data.Destinations) > 0 {
+						<fieldset class="md:col-span-2 text-sm">
+							<legend class="text-gray-400 mb-2">Destinations (optional — empty uses notification-apprise)</legend>
+							<div class="flex flex-wrap gap-4">
+								for _, dest := range data.Destinations {
+									<label class="flex items-center gap-2">
+										<input type="checkbox" name="destination_ids" value={ dest.ID } class="rounded border-gray-700"/>
+										<span class="text-gray-300">{ dest.Name } <span class="text-gray-500">({ dest.Type })</span></span>
+									</label>
+								}
+							</div>
+						</fieldset>
+					}
+					<div class="md:col-span-2">
+						<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-500">Create rule</button>
+					</div>
+				</form>
+				<p class="text-xs text-gray-500 mt-3">Templates support { `{{user}}` }, { `{{title}}` }, { `{{platform}}` }, { `{{player}}` }, { `{{ip}}` }, { `{{state}}` }, { `{{duration}}` }, { `{{rule}}` }, { `{{severity}}` }.</p>
+			</div>
+		}
+	</div>
+}

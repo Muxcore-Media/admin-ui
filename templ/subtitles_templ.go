@@ -114,7 +114,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-6\" data-testid=\"subtitles-page\"><div class=\"flex flex-wrap items-start justify-between gap-4\"><div><h1 class=\"text-2xl font-bold\">Subtitles</h1><p class=\"text-gray-400 text-sm mt-1\">Bazarr-style wanted, history, blacklist, and providers from media-subtitles</p></div><div class=\"flex flex-wrap gap-2\"><form method=\"post\" action=\"/subtitles/sync\"><button type=\"submit\" class=\"rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800\">Sync library</button></form><form method=\"post\" action=\"/subtitles/search-wanted\"><button type=\"submit\" class=\"rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800\">Search wanted</button></form><form method=\"post\" action=\"/subtitles/upgrade\"><button type=\"submit\" class=\"rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500\">Upgrade</button></form><form method=\"post\" action=\"/subtitles/history/clear\" onsubmit=\"return confirm('Clear all subtitle history?')\"><button type=\"submit\" class=\"rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-400 hover:bg-gray-800\">Clear history</button></form><form method=\"post\" action=\"/subtitles/test-arr\"><input type=\"hidden\" name=\"target\" value=\"sonarr\"> <button type=\"submit\" class=\"rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-400 hover:bg-gray-800\">Test Sonarr</button></form><form method=\"post\" action=\"/subtitles/test-arr\"><input type=\"hidden\" name=\"target\" value=\"radarr\"> <button type=\"submit\" class=\"rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-400 hover:bg-gray-800\">Test Radarr</button></form></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-6\" data-testid=\"subtitles-page\"><div class=\"flex flex-wrap items-start justify-between gap-4\"><div><h1 class=\"text-2xl font-bold\">Subtitles</h1><p class=\"text-gray-400 text-sm mt-1\">Find, download, and manage subtitles for your library.</p></div><div class=\"flex flex-wrap gap-2\"><form method=\"post\" action=\"/subtitles/sync\"><button type=\"submit\" class=\"rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800\">Sync library</button></form><form method=\"post\" action=\"/subtitles/search-wanted\"><button type=\"submit\" class=\"rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800\">Search wanted</button></form><form method=\"post\" action=\"/subtitles/upgrade\"><button type=\"submit\" class=\"rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500\">Upgrade</button></form><form method=\"post\" action=\"/subtitles/history/clear\" onsubmit=\"return confirm('Clear all subtitle history?')\"><button type=\"submit\" class=\"rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-400 hover:bg-gray-800\">Clear history</button></form><form method=\"post\" action=\"/subtitles/test-arr\"><input type=\"hidden\" name=\"target\" value=\"sonarr\"> <button type=\"submit\" class=\"rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-400 hover:bg-gray-800\">Test Sonarr</button></form><form method=\"post\" action=\"/subtitles/test-arr\"><input type=\"hidden\" name=\"target\" value=\"radarr\"> <button type=\"submit\" class=\"rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-400 hover:bg-gray-800\">Test Radarr</button></form></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -126,7 +126,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(data.Flash)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 120, Col: 109}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 119, Col: 109}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -145,7 +145,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(data.Error)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 123, Col: 112}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 122, Col: 112}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -173,7 +173,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(hit.Release)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 142, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 140, Col: 48}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
@@ -186,7 +186,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(hit.Provider)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 143, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 141, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -199,7 +199,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(hit.Language)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 143, Col: 69}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 141, Col: 69}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -212,7 +212,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", hit.Score))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 143, Col: 111}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 141, Col: 111}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -225,7 +225,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(hit.Provider)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 146, Col: 65}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 144, Col: 65}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 				if templ_7745c5c3_Err != nil {
@@ -238,7 +238,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(hit.FileID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 147, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 145, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 				if templ_7745c5c3_Err != nil {
@@ -251,7 +251,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(hit.Language)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 148, Col: 65}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 146, Col: 65}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 				if templ_7745c5c3_Err != nil {
@@ -264,7 +264,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(hit.Release)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 149, Col: 63}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 147, Col: 63}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 				if templ_7745c5c3_Err != nil {
@@ -277,7 +277,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("%d", hit.Score))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 150, Col: 78}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 148, Col: 78}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 				if templ_7745c5c3_Err != nil {
@@ -300,7 +300,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(data.WantedTot)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 160, Col: 80}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 157, Col: 80}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -328,7 +328,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var14 templ.SafeURL
 				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/subtitles/media/%s", firstNonEmptyWanted(w.MediaID, w.ID))))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 178, Col: 147}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 175, Col: 147}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 				if templ_7745c5c3_Err != nil {
@@ -341,7 +341,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var15 string
 				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(w.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 178, Col: 159}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 175, Col: 159}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 				if templ_7745c5c3_Err != nil {
@@ -354,7 +354,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(w.Language)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 180, Col: 52}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 177, Col: 52}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
@@ -367,7 +367,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var17 string
 				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(w.Type)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 181, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 178, Col: 48}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 				if templ_7745c5c3_Err != nil {
@@ -381,7 +381,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 					var templ_7745c5c3_Var18 string
 					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("S%02dE%02d", w.Season, w.Episode))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 184, Col: 59}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 181, Col: 59}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 					if templ_7745c5c3_Err != nil {
@@ -405,7 +405,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(data.MediaTot)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 196, Col: 80}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 192, Col: 80}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {
@@ -438,7 +438,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 					var templ_7745c5c3_Var20 string
 					templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.ID)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 211, Col: 29}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 207, Col: 29}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 					if templ_7745c5c3_Err != nil {
@@ -451,7 +451,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 					var templ_7745c5c3_Var21 string
 					templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(p.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 211, Col: 40}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 207, Col: 40}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 					if templ_7745c5c3_Err != nil {
@@ -479,7 +479,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var22 string
 				templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(it.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 231, Col: 63}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 227, Col: 63}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 				if templ_7745c5c3_Err != nil {
@@ -492,7 +492,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var23 templ.SafeURL
 				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/subtitles/media/%s", it.ID)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 234, Col: 117}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 230, Col: 117}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 				if templ_7745c5c3_Err != nil {
@@ -505,7 +505,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var24 string
 				templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(it.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 234, Col: 130}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 230, Col: 130}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 				if templ_7745c5c3_Err != nil {
@@ -518,7 +518,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var25 string
 				templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(it.Type)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 236, Col: 50}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 232, Col: 50}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 				if templ_7745c5c3_Err != nil {
@@ -556,7 +556,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(data.HistoryTot)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 254, Col: 82}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 249, Col: 82}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
@@ -584,7 +584,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(h.At)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 261, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 256, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 				if templ_7745c5c3_Err != nil {
@@ -597,7 +597,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var28 string
 				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(h.Action)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 262, Col: 43}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 257, Col: 43}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 				if templ_7745c5c3_Err != nil {
@@ -610,7 +610,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var29 string
 				templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(h.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 263, Col: 22}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 258, Col: 22}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 				if templ_7745c5c3_Err != nil {
@@ -623,7 +623,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var30 string
 				templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(h.Language)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 264, Col: 47}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 259, Col: 47}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 				if templ_7745c5c3_Err != nil {
@@ -636,7 +636,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var31 string
 				templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(h.Provider)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 265, Col: 47}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 260, Col: 47}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 				if templ_7745c5c3_Err != nil {
@@ -654,7 +654,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 					var templ_7745c5c3_Var32 string
 					templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", h.Score))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 267, Col: 70}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 262, Col: 70}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 					if templ_7745c5c3_Err != nil {
@@ -697,7 +697,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var33 string
 				templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(p.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 284, Col: 56}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 278, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 				if templ_7745c5c3_Err != nil {
@@ -721,7 +721,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 					var templ_7745c5c3_Var34 string
 					templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(p.Languages)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 289, Col: 49}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 283, Col: 49}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 					if templ_7745c5c3_Err != nil {
@@ -749,13 +749,13 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 		var templ_7745c5c3_Var35 string
 		templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", data.LangTot))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 295, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 289, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, " codes (Bazarr-parity list)</p><form method=\"post\" action=\"/subtitles/profiles\" class=\"mt-4 space-y-2 border-t border-gray-800 pt-3\"><div class=\"text-xs font-medium text-gray-400\">Create / update profile</div><input type=\"text\" name=\"name\" required placeholder=\"Profile name\" class=\"w-full rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200\"> <input type=\"text\" name=\"languages\" required placeholder=\"Languages (en,es+hi,fr+forced)\" class=\"w-full rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200\"> <label class=\"flex items-center gap-2 text-xs text-gray-400\"><input type=\"checkbox\" name=\"is_default\" value=\"true\" class=\"rounded border-gray-600\"> Default profile</label> <button type=\"submit\" class=\"rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-800\">Save profile</button></form></div><div class=\"rounded-xl border border-gray-800 bg-gray-900/40 p-4\"><h2 class=\"text-sm font-semibold text-gray-300 mb-3\">Blacklist</h2>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, " supported codes</p><form method=\"post\" action=\"/subtitles/profiles\" class=\"mt-4 space-y-2 border-t border-gray-800 pt-3\"><div class=\"text-xs font-medium text-gray-400\">Create / update profile</div><input type=\"text\" name=\"name\" required placeholder=\"Profile name\" class=\"w-full rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200\"> <input type=\"text\" name=\"languages\" required placeholder=\"Languages (en,es+hi,fr+forced)\" class=\"w-full rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200\"> <label class=\"flex items-center gap-2 text-xs text-gray-400\"><input type=\"checkbox\" name=\"is_default\" value=\"true\" class=\"rounded border-gray-600\"> Default profile</label> <button type=\"submit\" class=\"rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-800\">Save profile</button></form></div><div class=\"rounded-xl border border-gray-800 bg-gray-900/40 p-4\"><h2 class=\"text-sm font-semibold text-gray-300 mb-3\">Blacklist</h2>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -777,7 +777,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var36 string
 				templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(b.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 316, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 310, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 				if templ_7745c5c3_Err != nil {
@@ -790,7 +790,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var37 string
 				templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(b.Provider)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 317, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 311, Col: 48}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 				if templ_7745c5c3_Err != nil {
@@ -803,7 +803,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var38 string
 				templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(b.Language)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 317, Col: 66}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 311, Col: 66}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 				if templ_7745c5c3_Err != nil {
@@ -816,7 +816,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var39 string
 				templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(b.Reason)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 317, Col: 82}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 311, Col: 82}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 				if templ_7745c5c3_Err != nil {
@@ -829,7 +829,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 				var templ_7745c5c3_Var40 templ.SafeURL
 				templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/subtitles/blacklist/%s/delete", b.ID)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 319, Col: 103}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 313, Col: 103}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 				if templ_7745c5c3_Err != nil {
@@ -857,7 +857,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 			var templ_7745c5c3_Var41 string
 			templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(p.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 333, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 327, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 			if templ_7745c5c3_Err != nil {
@@ -880,7 +880,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 			var templ_7745c5c3_Var42 templ.SafeURL
 			templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/subtitles/providers/%s", p.ID)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 338, Col: 95}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 332, Col: 95}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 			if templ_7745c5c3_Err != nil {
@@ -893,7 +893,7 @@ func SubtitlesPage(data SubtitlesPageData) templ.Component {
 			var templ_7745c5c3_Var43 string
 			templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.ResolveAttributeValue(boolStr(!p.Enabled))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 339, Col: 71}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/subtitles.templ`, Line: 333, Col: 71}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var43)
 			if templ_7745c5c3_Err != nil {

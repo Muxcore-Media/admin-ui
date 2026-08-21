@@ -42,7 +42,6 @@ templ UsersPage(users []*authv1.UserInfo, errorMsg string, resets []PasswordRese
 				class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
 			>Add User</button>
 		</div>
-
 		if len(resets) > 0 {
 			<div class="rounded-xl border border-amber-800/40 bg-amber-950/20 p-4 space-y-2" data-testid="password-reset-requests">
 				<h2 class="text-sm font-semibold text-amber-200">Pending password reset requests</h2>
@@ -62,9 +61,7 @@ templ UsersPage(users []*authv1.UserInfo, errorMsg string, resets []PasswordRese
 				</ul>
 			</div>
 		}
-
 		<div id="create-form"></div>
-
 		<div class="rounded-xl border border-gray-800 overflow-hidden">
 			<table class="w-full text-sm">
 				<thead>
@@ -112,7 +109,6 @@ templ UsersPage(users []*authv1.UserInfo, errorMsg string, resets []PasswordRese
 				</tbody>
 			</table>
 		</div>
-
 		<div id="user-detail"></div>
 	</div>
 }
@@ -129,14 +125,18 @@ templ UserCreateForm() {
 			<div>
 				<label class="block text-xs text-gray-500 mb-1">Username</label>
 				<input
-					type="text" name="username" required
+					type="text"
+					name="username"
+					required
 					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"
 				/>
 			</div>
 			<div>
 				<label class="block text-xs text-gray-500 mb-1">Password</label>
 				<input
-					type="password" name="password" required
+					type="password"
+					name="password"
+					required
 					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"
 				/>
 			</div>
@@ -151,7 +151,6 @@ templ UserCreateForm() {
 templ UserDetailPage(user *authv1.UserInfo) {
 	<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 mt-4">
 		<h3 class="text-sm font-semibold text-gray-200 mb-3">Manage: { user.GetUsername() }</h3>
-
 		<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 			<div class="space-y-4">
 				<div>
@@ -163,7 +162,10 @@ templ UserDetailPage(user *authv1.UserInfo) {
 						class="flex gap-2"
 					>
 						<input
-							type="password" name="password" placeholder="New password" required
+							type="password"
+							name="password"
+							placeholder="New password"
+							required
 							class="flex-1 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"
 						/>
 						<button
@@ -172,7 +174,6 @@ templ UserDetailPage(user *authv1.UserInfo) {
 						>Set</button>
 					</form>
 				</div>
-
 				<div>
 					<h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Roles</h4>
 					<form
@@ -192,7 +193,6 @@ templ UserDetailPage(user *authv1.UserInfo) {
 					</form>
 				</div>
 			</div>
-
 			<div class="space-y-4">
 				<div>
 					<h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">TOTP</h4>
@@ -211,7 +211,6 @@ templ UserDetailPage(user *authv1.UserInfo) {
 						class="text-xs text-indigo-400 hover:text-indigo-300 mt-2"
 					>Toggle TOTP</button>
 				</div>
-
 				<div>
 					<h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Passkeys</h4>
 					<div
@@ -224,7 +223,6 @@ templ UserDetailPage(user *authv1.UserInfo) {
 						<span class="text-xs text-gray-500">Loading...</span>
 					</div>
 				</div>
-
 				<div>
 					<h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">API Tokens</h4>
 					<div
@@ -235,7 +233,6 @@ templ UserDetailPage(user *authv1.UserInfo) {
 						<span class="text-xs text-gray-500">Loading...</span>
 					</div>
 				</div>
-
 				<div
 					hx-get={ templ.SafeURL(fmt.Sprintf("/users/%s/parental", user.GetId())) }
 					hx-trigger="load"
@@ -251,7 +248,9 @@ templ UserDetailPage(user *authv1.UserInfo) {
 templ RoleCheckbox(currentRoles []string, role, label string) {
 	<label class="flex items-center gap-2 cursor-pointer">
 		<input
-			type="checkbox" name="roles" value={ role }
+			type="checkbox"
+			name="roles"
+			value={ role }
 			if containsRole(currentRoles, role) {
 				checked
 			}
@@ -366,7 +365,10 @@ templ UserTokens(tokens []*authv1.APITokenInfo, userID string) {
 				class="flex gap-2"
 			>
 				<input
-					type="text" name="name" placeholder="Token name" required
+					type="text"
+					name="name"
+					placeholder="Token name"
+					required
 					class="flex-1 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-white"
 				/>
 				<button

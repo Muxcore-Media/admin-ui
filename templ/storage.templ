@@ -15,7 +15,6 @@ templ StoragePage(providers []StorageProviderCard, globalCaps []string) {
 			<h1 class="text-2xl font-bold">Storage</h1>
 			<p class="text-gray-400 text-sm mt-1">{ fmt.Sprintf("%d storage provider(s)", len(providers)) }</p>
 		</div>
-
 		if len(globalCaps) > 0 {
 			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
 				<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Orchestrator Capabilities</div>
@@ -26,7 +25,6 @@ templ StoragePage(providers []StorageProviderCard, globalCaps []string) {
 				</div>
 			</div>
 		}
-
 		@StorageGrid(providers)
 	</div>
 }
@@ -59,7 +57,6 @@ templ StorageCard(p StorageProviderCard) {
 			</div>
 			@HealthDot(p.Healthy)
 		</div>
-
 		<div>
 			<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Capabilities</div>
 			if len(p.Capabilities) > 0 {
