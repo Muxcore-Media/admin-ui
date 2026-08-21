@@ -21,44 +21,60 @@ const (
 )
 
 var staticNavLinks = []templates.NavLink{
-	{Label: "Dashboard", Path: "/", Icon: "#"},
-	{Label: "Modules", Path: "/modules", Icon: "#"},
-	{Label: "Marketplace", Path: "/marketplace", Icon: "#"},
-	{Label: "Plugins", Path: "/plugins", Icon: "#"},
-	{Label: "Cluster", Path: "/cluster", Icon: "#"},
-	{Label: "Events", Path: "/events", Icon: "#"},
-	{Label: "Activity", Path: "/activity", Icon: "#"},
-	{Label: "Calendar", Path: "/calendar", Icon: "#"},
-	{Label: "Queue", Path: "/queue", Icon: "#"},
-	{Label: "Automation", Path: "/automation", Icon: "#"},
-	{Label: "Subtitles", Path: "/subtitles", Icon: "#"},
-	{Label: "Request", Path: "/request", Icon: "#"},
-	{Label: "Import", Path: "/import", Icon: "#"},
-	{Label: "Migrate", Path: "/migrate", Icon: "#"},
-	{Label: "Jellyfin", Path: "/jellyfin", Icon: "#"},
-	{Label: "List Sync", Path: "/list-sync", Icon: "#"},
-	{Label: "Libraries", Path: "/libraries", Icon: "#"},
-	{Label: "Devices", Path: "/devices", Icon: "#"},
-	{Label: "Tasks", Path: "/tasks", Icon: "#"},
-	{Label: "Playback", Path: "/playback", Icon: "#"},
-	{Label: "Logs", Path: "/logs", Icon: "#"},
-	{Label: "Branding", Path: "/branding", Icon: "#"},
-	{Label: "Networking", Path: "/networking", Icon: "#"},
-	{Label: "API Keys", Path: "/keys", Icon: "#"},
-	{Label: "Backups", Path: "/backups", Icon: "#"},
-	{Label: "Live TV", Path: "/livetv", Icon: "#"},
-	{Label: "Formats", Path: "/formats", Icon: "#"},
-	{Label: "Profiles", Path: "/formats/profiles", Icon: "#"},
-	{Label: "Release Profiles", Path: "/formats/release-profiles", Icon: "#"},
-	{Label: "Root Folders", Path: "/roots", Icon: "#"},
-	{Label: "Naming", Path: "/rename/templates", Icon: "#"},
-	{Label: "Storage", Path: "/storage", Icon: "#"},
-	{Label: "Users", Path: "/users", Icon: "#"},
-	{Label: "Invites", Path: "/invites", Icon: "#"},
-	{Label: "Auth / SSO", Path: "/auth", Icon: "#"},
-	{Label: "Settings", Path: "/settings", Icon: "#"},
-	{Label: "Metadata", Path: "/metadata", Icon: "#"},
-	{Label: "Audit", Path: "/audit", Icon: "#"},
+	// Overview
+	{Label: "Dashboard", Path: "/", Icon: "dashboard", Group: "Overview"},
+
+	// Daily admin — common household operator tasks
+	{Label: "Users", Path: "/users", Icon: "users", Group: "Daily admin"},
+	{Label: "Invites", Path: "/invites", Icon: "mail", Group: "Daily admin"},
+	{Label: "Libraries", Path: "/libraries", Icon: "library", Group: "Daily admin"},
+	{Label: "Request", Path: "/request", Icon: "inbox", Group: "Daily admin"},
+	{Label: "Queue", Path: "/queue", Icon: "list", Group: "Daily admin"},
+	{Label: "Calendar", Path: "/calendar", Icon: "calendar", Group: "Daily admin"},
+	{Label: "Backups", Path: "/backups", Icon: "archive", Group: "Daily admin"},
+	{Label: "Branding", Path: "/branding", Icon: "palette", Group: "Daily admin"},
+	{Label: "Activity", Path: "/activity", Icon: "pulse", Group: "Daily admin"},
+
+	// Library — paths, naming, and quality setup
+	{Label: "Root Folders", Path: "/roots", Icon: "folder", Group: "Library"},
+	{Label: "Naming", Path: "/rename/templates", Icon: "pencil", Group: "Library"},
+	{Label: "Metadata", Path: "/metadata", Icon: "tag", Group: "Library"},
+	{Label: "Formats", Path: "/formats", Icon: "sliders", Group: "Library"},
+	{Label: "Profiles", Path: "/formats/profiles", Icon: "award", Group: "Library"},
+	{Label: "Release Profiles", Path: "/formats/release-profiles", Icon: "badge", Group: "Library"},
+
+	// Automation
+	{Label: "Automation", Path: "/automation", Icon: "zap", Group: "Automation"},
+	{Label: "Import", Path: "/import", Icon: "download", Group: "Automation"},
+	{Label: "Subtitles", Path: "/subtitles", Icon: "captions", Group: "Automation"},
+	{Label: "List Sync", Path: "/list-sync", Icon: "repeat", Group: "Automation"},
+	{Label: "Tasks", Path: "/tasks", Icon: "check-sq", Group: "Automation"},
+
+	// Playback
+	{Label: "Streams", Path: "/streams", Icon: "monitor", Group: "Playback"},
+	{Label: "Transcode", Path: "/transcode", Icon: "film", Group: "Playback"},
+	{Label: "Playback", Path: "/playback", Icon: "play", Group: "Playback"},
+	{Label: "Live TV", Path: "/livetv", Icon: "tv", Group: "Playback"},
+	{Label: "Jellyfin", Path: "/jellyfin", Icon: "server", Group: "Playback"},
+
+	// Monitoring
+	{Label: "Events", Path: "/events", Icon: "radio", Group: "Monitoring"},
+	{Label: "Audit", Path: "/audit", Icon: "shield", Group: "Monitoring"},
+	{Label: "Logs", Path: "/logs", Icon: "file-text", Group: "Monitoring"},
+
+	// Advanced — modules, networking, migrations, and power-user tools
+	{Label: "Modules", Path: "/modules", Icon: "box", Group: "Advanced"},
+	{Label: "Marketplace", Path: "/marketplace", Icon: "bag", Group: "Advanced"},
+	{Label: "Plugins", Path: "/plugins", Icon: "layers", Group: "Advanced"},
+	{Label: "Cluster", Path: "/cluster", Icon: "cluster", Group: "Advanced"},
+	{Label: "Settings", Path: "/settings", Icon: "gear", Group: "Advanced"},
+	{Label: "Networking", Path: "/networking", Icon: "globe", Group: "Advanced"},
+	{Label: "API Keys", Path: "/keys", Icon: "key-round", Group: "Advanced"},
+	{Label: "Storage", Path: "/storage", Icon: "hard-drive", Group: "Advanced"},
+	{Label: "Devices", Path: "/devices", Icon: "smartphone", Group: "Advanced"},
+	{Label: "Auth / SSO", Path: "/auth", Icon: "key", Group: "Advanced"},
+	{Label: "Migrate", Path: "/migrate", Icon: "swap", Group: "Advanced"},
+	{Label: "Maintainer", Path: "/maintainer", Icon: "wrench", Group: "Advanced"},
 }
 
 type AuthStatus struct {

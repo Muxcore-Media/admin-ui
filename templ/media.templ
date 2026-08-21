@@ -96,11 +96,13 @@ templ MediaSubnav(moduleID string, displayName string, features []string, active
 templ MediaListPage(displayName string, items []*mediaadminv1.MediaItem, total, page, pageSize int, moduleID string, features []string, search, tagID string) {
 	<div class="space-y-6" data-testid="media-list-page">
 		@MediaSubnav(moduleID, displayName, features, "browse")
-
 		<div class="flex flex-col sm:flex-row sm:items-end gap-3">
 			<form method="get" action={ templ.SafeURL(fmt.Sprintf("/media/%s", moduleID)) } class="flex flex-wrap gap-2 flex-1">
 				<input
-					type="search" name="q" value={ search } placeholder="Search…"
+					type="search"
+					name="q"
+					value={ search }
+					placeholder="Search…"
 					class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm min-w-[12rem]"
 				/>
 				if tagID != "" {
@@ -112,7 +114,6 @@ templ MediaListPage(displayName string, items []*mediaadminv1.MediaItem, total, 
 				<p class="text-gray-400 text-sm" data-testid="media-item-count">{ strconv.Itoa(total) } items</p>
 			}
 		</div>
-
 		if items == nil {
 			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center" data-testid="media-soft-empty">
 				<p class="text-gray-400">Soft OK without this library module — empty until it is registered or reachable.</p>
@@ -183,12 +184,11 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 	<div class="space-y-6">
 		@MediaSubnav(moduleID, displayName, features, "")
 		<a href={ templ.SafeURL(fmt.Sprintf("/media/%s", moduleID)) } class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Back</a>
-
 		if flash != "" {
 			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300" data-testid="dispatch-flash">
 				Dispatched download_id={ flash }
 				if flashStatus != "" {
-					<span class="text-gray-400"> status={ flashStatus }</span>
+					<span class="text-gray-400">status={ flashStatus }</span>
 				}
 			</div>
 		}
@@ -198,7 +198,6 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 		if errorMsg != "" {
 			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ errorMsg }</div>
 		}
-
 		<div class="flex flex-wrap gap-2" data-testid="item-actions">
 			<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s/refresh", moduleID, item.GetId())) }>
 				<button type="submit" class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800" data-testid="item-refresh">Refresh metadata</button>
@@ -210,7 +209,6 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 				<button type="submit" class="rounded-lg border border-red-900/60 px-3 py-1.5 text-sm text-red-300 hover:bg-red-950/40" data-testid="item-delete">Delete</button>
 			</form>
 		</div>
-
 		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 			<div class="lg:col-span-1">
 				if mediaPosterURL(item) != "" {
@@ -225,7 +223,6 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 					</div>
 				}
 			</div>
-
 			<div class="lg:col-span-2 space-y-4">
 				<div>
 					<h1 class="text-2xl font-bold">{ item.GetTitle() }</h1>
@@ -233,14 +230,12 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 						<p class="text-gray-400 text-sm">{ strconv.FormatInt(item.GetYear(), 10) }</p>
 					}
 				</div>
-
 				if item.GetDescription() != "" {
 					<div>
 						<h3 class="text-sm font-semibold text-gray-300 mb-1">Description</h3>
 						<p class="text-sm text-gray-400">{ item.GetDescription() }</p>
 					</div>
 				}
-
 				<div>
 					<h3 class="text-sm font-semibold text-gray-300 mb-1">Metadata</h3>
 					<form
@@ -253,14 +248,17 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 						<div>
 							<label class="block text-xs text-gray-500 mb-1">Title</label>
 							<input
-								type="text" name="title" value={ item.GetTitle() }
+								type="text"
+								name="title"
+								value={ item.GetTitle() }
 								class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
 							/>
 						</div>
 						<div>
 							<label class="block text-xs text-gray-500 mb-1">Description</label>
 							<textarea
-								name="description" rows="3"
+								name="description"
+								rows="3"
 								class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
 							>{ item.GetDescription() }</textarea>
 						</div>
@@ -332,7 +330,9 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 								<div>
 									<label class="block text-xs text-gray-500 mb-1">{ k }</label>
 									<input
-										type="text" name={ k } value={ v }
+										type="text"
+										name={ k }
+										value={ v }
 										class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
 									/>
 								</div>
@@ -346,7 +346,6 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 				</div>
 			</div>
 		</div>
-
 		if len(files) > 0 {
 			<div data-testid="media-files" class="space-y-3">
 				<h2 class="text-lg font-semibold">Files</h2>
@@ -379,7 +378,6 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 				</div>
 			</div>
 		}
-
 		<div id="alternate-titles" class="space-y-3" data-testid="alternate-titles">
 			<h2 class="text-lg font-semibold">Alternate titles</h2>
 			if len(titles) > 0 {
@@ -401,7 +399,6 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 				<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Add</button>
 			</form>
 		</div>
-
 		if len(trailers) > 0 {
 			<div id="trailers" class="space-y-3" data-testid="trailers">
 				<h2 class="text-lg font-semibold">Trailers &amp; extras</h2>
@@ -415,7 +412,6 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 				</ul>
 			</div>
 		}
-
 		if len(seasons) > 0 {
 			<div id="seasons" class="space-y-3" data-testid="season-tree">
 				<h2 class="text-lg font-semibold">Seasons &amp; episodes</h2>
@@ -458,7 +454,7 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 											<td class="px-2 py-1 text-gray-400 whitespace-nowrap">
 												E{ strconv.Itoa(ep.Number) }
 												if ep.Absolute > 0 {
-													<span class="text-gray-600"> (abs { strconv.Itoa(ep.Absolute) })</span>
+													<span class="text-gray-600">(abs { strconv.Itoa(ep.Absolute) })</span>
 												}
 											</td>
 											<td class="px-2 py-1 text-gray-200">{ ep.Name }</td>
@@ -500,11 +496,9 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 				}
 			</div>
 		}
-
 		<div id="artwork-section" hx-get={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s/artwork", moduleID, item.GetId())) } hx-trigger="load" hx-swap="innerHTML">
 			<div class="text-sm text-gray-500">Loading artwork...</div>
 		</div>
-
 		<div data-testid="indexer-releases">
 			<div class="flex flex-wrap items-center justify-between gap-3 mb-3">
 				<h2 class="text-lg font-semibold">Indexer releases</h2>
@@ -593,7 +587,6 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 				</div>
 			}
 		</div>
-
 		@ItemHistorySection(history)
 	</div>
 }

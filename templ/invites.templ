@@ -29,10 +29,9 @@ templ InvitesPage(data InvitesPageData) {
 		<div>
 			<h1 class="text-2xl font-bold">Invite links</h1>
 			<p class="text-gray-400 text-sm mt-1">
-				Wizarr-style signup invites via auth-local. Share the link; new users redeem once (or up to max uses).
+				Create signup links for new users. Share a link; each invite can be used once or up to a set number of times.
 			</p>
 		</div>
-
 		if data.Error != "" {
 			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" data-testid="invites-error">{ data.Error }</div>
 		}
@@ -50,7 +49,6 @@ templ InvitesPage(data InvitesPageData) {
 		if data.Message != "" {
 			<div class="rounded-xl border border-indigo-900/40 bg-indigo-950/20 p-4 text-sm text-indigo-200">{ data.Message }</div>
 		}
-
 		if !data.SoftEmpty {
 			<form method="post" action="/invites" class="flex flex-wrap gap-3 items-end rounded-xl border border-gray-800 bg-gray-900/40 p-4" data-testid="invites-create-form">
 				<div>
@@ -71,7 +69,6 @@ templ InvitesPage(data InvitesPageData) {
 				</div>
 				<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Create invite</button>
 			</form>
-
 			<section class="space-y-3" data-testid="invites-list">
 				<h2 class="text-lg font-semibold">Existing invites</h2>
 				if len(data.Invites) == 0 {
@@ -86,7 +83,7 @@ templ InvitesPage(data InvitesPageData) {
 										role { inv.Role } · uses { fmt.Sprintf("%d", inv.UseCount) }/{ fmt.Sprintf("%d", inv.MaxUses) }
 										· expires { inv.ExpiresAt }
 										if inv.Revoked {
-											<span class="text-red-400"> · revoked</span>
+											<span class="text-red-400">· revoked</span>
 										}
 									</div>
 								</div>

@@ -36,14 +36,12 @@ templ MarketplaceTrustPage(data MarketplaceTrustData) {
 			</div>
 			<a href="/marketplace" class="text-sm text-indigo-400 hover:text-indigo-300">← Marketplace</a>
 		</div>
-
 		if data.Error != "" {
 			<div class="rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-200" data-testid="marketplace-trust-error">{ data.Error }</div>
 		}
 		if data.Saved {
 			<div class="rounded-xl border border-emerald-900/40 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-200" data-testid="marketplace-trust-saved">Saved. Restart core (or source the env file) so verification picks up changes.</div>
 		}
-
 		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 space-y-2 text-sm" data-testid="marketplace-trust-status">
 			<div class="font-medium text-gray-200">Signature requirement</div>
 			<p class="text-gray-400">
@@ -68,7 +66,6 @@ templ MarketplaceTrustPage(data MarketplaceTrustData) {
 				· core env snippet: <code class="text-gray-400">{ data.EnvFile }</code>
 			</p>
 		</div>
-
 		<form method="POST" action="/marketplace/trust/settings" class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 space-y-4" data-testid="marketplace-trust-settings">
 			<label class="flex items-center gap-2 text-sm text-gray-300">
 				<input type="checkbox" name="require_signature" value="1" checked?={ data.RequireSignaturePref } class="rounded border-gray-600"/>
@@ -80,7 +77,6 @@ templ MarketplaceTrustPage(data MarketplaceTrustData) {
 			</label>
 			<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">Save trust settings</button>
 		</form>
-
 		<form method="POST" action="/marketplace/trust/keys" class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 space-y-4" data-testid="marketplace-trust-add-key">
 			<div class="font-medium text-gray-200">Add trusted public key</div>
 			<label class="block space-y-1 text-sm">
@@ -93,7 +89,6 @@ templ MarketplaceTrustPage(data MarketplaceTrustData) {
 			</label>
 			<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">Trust key</button>
 		</form>
-
 		<div class="rounded-xl border border-gray-800 bg-gray-900/40 overflow-hidden" data-testid="marketplace-trust-keys">
 			<div class="px-4 py-3 border-b border-gray-800 text-sm font-medium text-gray-200">Trusted keys</div>
 			if len(data.Keys) == 0 {

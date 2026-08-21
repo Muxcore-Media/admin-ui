@@ -34,9 +34,9 @@ type MigratePageData struct {
 templ MigratePage(data MigratePageData) {
 	<div class="space-y-6 max-w-4xl" data-testid="migrate-page">
 		<div>
-			<h1 class="text-2xl font-bold">Sonarr / Radarr migrate</h1>
+			<h1 class="text-2xl font-bold">Import from Radarr or Sonarr</h1>
 			<p class="text-gray-400 text-sm mt-1">
-				Import library titles into MuxCore via Arr API (beyond list-sync watchlist ingest). Fixture/mock tested; no live Arr required for CI.
+				Pull existing movie and TV libraries into MuxCore from a connected Radarr or Sonarr server.
 			</p>
 		</div>
 		if data.Error != "" {
@@ -70,25 +70,42 @@ templ MigratePage(data MigratePageData) {
 				<div>
 					<label class="block text-xs text-gray-500 mb-1">Service</label>
 					<select name="service" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
-						<option value="radarr" if data.Service == "radarr" || data.Service == "" { selected }>Radarr</option>
-						<option value="sonarr" if data.Service == "sonarr" { selected }>Sonarr</option>
+						<option value="radarr" if data.Service == "radarr" || data.Service == "" {
+	selected
+}>Radarr</option>
+						<option value="sonarr" if data.Service == "sonarr" {
+	selected
+}>Sonarr</option>
 					</select>
 				</div>
 				<div>
 					<label class="block text-xs text-gray-500 mb-1">Base URL</label>
-					<input type="url" name="base_url" required value={ data.BaseURL }
+					<input
+						type="url"
+						name="base_url"
+						required
+						value={ data.BaseURL }
 						placeholder="http://127.0.0.1:7878"
-						class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+						class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+					/>
 				</div>
 				<div>
 					<label class="block text-xs text-gray-500 mb-1">API key</label>
-					<input type="password" name="api_key" required value={ data.APIKey }
+					<input
+						type="password"
+						name="api_key"
+						required
+						value={ data.APIKey }
 						autocomplete="off"
-						class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+						class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+					/>
 				</div>
 				<div class="flex items-end pb-1">
 					<label class="inline-flex items-center gap-2 text-sm text-gray-300">
-						<input type="checkbox" name="dry_run" value="1"
+						<input
+							type="checkbox"
+							name="dry_run"
+							value="1"
 							if data.DryRun {
 								checked
 							}

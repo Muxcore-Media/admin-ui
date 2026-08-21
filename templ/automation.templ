@@ -83,27 +83,25 @@ templ AutomationPage(data AutomationPageData) {
 	>
 		<div>
 			<h1 class="text-2xl font-bold">Automation</h1>
-			<p class="text-gray-400 text-sm mt-1">Wanted queue and recent download history from media-automation</p>
+			<p class="text-gray-400 text-sm mt-1">Downloads in progress and recent history</p>
 		</div>
-
 		if data.Flash != "" {
 			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300" data-testid="dispatch-flash">
 				Dispatched download_id={ data.Flash }
 				if data.FlashStatus != "" {
-					<span class="text-gray-400"> status={ data.FlashStatus }</span>
+					<span class="text-gray-400">status={ data.FlashStatus }</span>
 				}
 			</div>
 		}
 		if data.Error != "" {
 			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ data.Error }</div>
 		}
-
 		<div data-testid="acquisition-peers" class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
 			<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
 				<h2 class="text-sm font-semibold text-gray-300">Acquisition peers</h2>
 				<a href="/settings" class="text-xs text-indigo-400 hover:underline">Configure via Settings</a>
 			</div>
-			<p class="text-xs text-gray-500 mb-3">Indexer and download-client knobs live on each peer’s SettingsProvider (Arr-style CRUD).</p>
+			<p class="text-xs text-gray-500 mb-3">Indexer and download-client settings live on each peer’s Settings page.</p>
 			<div class="grid gap-3 sm:grid-cols-2 text-sm">
 				<div>
 					<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Indexers</div>
@@ -114,7 +112,7 @@ templ AutomationPage(data AutomationPageData) {
 							for _, p := range data.Indexers {
 								<li class="text-gray-200">
 									<span class="font-medium">{ p.Name }</span>
-									<span class="text-gray-500"> ({ p.ID })</span>
+									<span class="text-gray-500">({ p.ID })</span>
 									<span class="ml-2 text-xs text-green-400" data-testid="peer-health-ok">up</span>
 								</li>
 							}
@@ -130,7 +128,7 @@ templ AutomationPage(data AutomationPageData) {
 							for _, p := range data.Downloaders {
 								<li class="text-gray-200">
 									<span class="font-medium">{ p.Name }</span>
-									<span class="text-gray-500"> ({ p.ID })</span>
+									<span class="text-gray-500">({ p.ID })</span>
 									<span class="ml-2 text-xs text-green-400" data-testid="peer-health-ok">up</span>
 								</li>
 							}
@@ -139,7 +137,6 @@ templ AutomationPage(data AutomationPageData) {
 				</div>
 			</div>
 		</div>
-
 		<form class="flex flex-wrap gap-3 items-end" method="get" action="/automation">
 			<div>
 				<label class="block text-xs font-medium text-gray-500 mb-1">Filter</label>
@@ -151,7 +148,6 @@ templ AutomationPage(data AutomationPageData) {
 			</div>
 			<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Apply</button>
 		</form>
-
 		<div>
 			<h2 class="text-lg font-semibold mb-3">Wanted queue <span class="text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", data.Total) })</span></h2>
 			if len(data.Items) == 0 {
@@ -175,7 +171,7 @@ templ AutomationPage(data AutomationPageData) {
 									<td class="px-4 py-2 text-gray-200">
 										{ it.Title }
 										if it.Year > 0 {
-											<span class="text-gray-500"> ({ fmt.Sprintf("%d", it.Year) })</span>
+											<span class="text-gray-500">({ fmt.Sprintf("%d", it.Year) })</span>
 										}
 									</td>
 									<td class="px-4 py-2 text-gray-400">{ it.ItemType }</td>
@@ -211,7 +207,6 @@ templ AutomationPage(data AutomationPageData) {
 				</div>
 			}
 		</div>
-
 		<div>
 			<h2 class="text-lg font-semibold mb-3">Recent history</h2>
 			if len(data.History) == 0 {
@@ -221,9 +216,9 @@ templ AutomationPage(data AutomationPageData) {
 					for _, h := range data.History {
 						<li class="rounded-lg border border-gray-800 bg-gray-900/40 px-3 py-2 text-sm">
 							<span class="text-gray-200">{ h.Title }</span>
-							<span class="text-gray-500"> · { h.Status }</span>
+							<span class="text-gray-500">· { h.Status }</span>
 							if h.Source != "" {
-								<span class="text-gray-600"> — { h.Source }</span>
+								<span class="text-gray-600">— { h.Source }</span>
 							}
 							if h.At != "" {
 								<span class="text-xs text-gray-600 float-right">{ h.At }</span>
@@ -233,7 +228,6 @@ templ AutomationPage(data AutomationPageData) {
 				</ul>
 			}
 		</div>
-
 		<div data-testid="cutoff-unmet">
 			<h2 class="text-lg font-semibold mb-3">Cutoff unmet <span class="text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", len(data.Cutoff)) })</span></h2>
 			if len(data.Cutoff) == 0 {
@@ -256,7 +250,7 @@ templ AutomationPage(data AutomationPageData) {
 									<td class="px-3 py-2 text-gray-200">
 										{ it.Title }
 										if it.Year > 0 {
-											<span class="text-gray-500"> ({ fmt.Sprintf("%d", it.Year) })</span>
+											<span class="text-gray-500">({ fmt.Sprintf("%d", it.Year) })</span>
 										}
 									</td>
 									<td class="px-3 py-2 text-gray-400">{ it.ItemType }</td>
@@ -278,7 +272,6 @@ templ AutomationPage(data AutomationPageData) {
 				</div>
 			}
 		</div>
-
 		<div data-testid="delay-profiles">
 			<h2 class="text-lg font-semibold mb-3">Delay profiles</h2>
 			if len(data.DelayProfiles) == 0 {
@@ -302,7 +295,6 @@ templ AutomationPage(data AutomationPageData) {
 				</div>
 			}
 		</div>
-
 		<div data-testid="blocklist">
 			<div class="flex flex-wrap items-center justify-between gap-2 mb-3">
 				<h2 class="text-lg font-semibold">Release blocklist <span class="text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", len(data.Blocklist)) })</span></h2>

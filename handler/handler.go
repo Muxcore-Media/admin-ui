@@ -36,13 +36,13 @@ type LoginMetrics interface {
 }
 
 type Handler struct {
-	Core           *client.Client
-	Sessions       *session.Store
-	secure         bool
-	events         *eventRing
-	version        string
-	loginMetrics   LoginMetrics
-	coreConnected  bool
+	Core             *client.Client
+	Sessions         *session.Store
+	secure           bool
+	events           *eventRing
+	version          string
+	loginMetrics     LoginMetrics
+	coreConnected    bool
 	AuthAddr         string // browser-facing auth base (e.g. https://auth.gringotts)
 	AuthInternalAddr string // server-side auth base for code exchange (defaults to AuthAddr)
 	PublicURL        string // optional public origin override for OAuth callbacks
@@ -180,9 +180,29 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /list-sync", h.requireAuth(h.ListSyncPage))
 	mux.HandleFunc("GET /list-sync/history", h.requireAuth(h.ListSyncHistoryPage))
+	mux.HandleFunc("GET /list-sync/items", h.requireAuth(h.ListSyncItemsPage))
+	mux.HandleFunc("GET /list-sync/sources/{id}/edit", h.requireAuth(h.ListSyncEditPage))
 	mux.HandleFunc("POST /list-sync/sync", h.requireAuth(h.ListSyncNow))
 	mux.HandleFunc("POST /list-sync/sources", h.requireAuth(h.ListSyncAddSource))
+	mux.HandleFunc("POST /list-sync/sources/{id}", h.requireAuth(h.ListSyncUpdateSource))
+	mux.HandleFunc("POST /list-sync/sources/{id}/sync", h.requireAuth(h.ListSyncSourceNow))
+	mux.HandleFunc("POST /list-sync/sources/{id}/toggle", h.requireAuth(h.ListSyncToggleSource))
+	mux.HandleFunc("POST /list-sync/sources/{id}/test", h.requireAuth(h.ListSyncTestSource))
 	mux.HandleFunc("POST /list-sync/sources/{id}/delete", h.requireAuth(h.ListSyncRemoveSource))
+
+	mux.HandleFunc("GET /maintainer", h.requireAuth(h.MaintainerPage))
+	mux.HandleFunc("POST /maintainer/scan", h.requireAuth(h.MaintainerScan))
+	mux.HandleFunc("POST /maintainer/act", h.requireAuth(h.MaintainerAct))
+	mux.HandleFunc("POST /maintainer/act/free-up", h.requireAuth(h.MaintainerFreeUp))
+	mux.HandleFunc("POST /maintainer/exclusions", h.requireAuth(h.MaintainerAddExclusion))
+	mux.HandleFunc("POST /maintainer/exclusions/sync", h.requireAuth(h.MaintainerSyncExclusions))
+	mux.HandleFunc("POST /maintainer/exclusions/{id}/delete", h.requireAuth(h.MaintainerDeleteExclusion))
+	mux.HandleFunc("POST /maintainer/rules", h.requireAuth(h.MaintainerAddRule))
+	mux.HandleFunc("GET /maintainer/rules/export", h.requireAuth(h.MaintainerExportRules))
+	mux.HandleFunc("POST /maintainer/rules/import", h.requireAuth(h.MaintainerImportRules))
+	mux.HandleFunc("POST /maintainer/rules/{id}/delete", h.requireAuth(h.MaintainerDeleteRule))
+	mux.HandleFunc("POST /maintainer/candidates/{id}/approve", h.requireAuth(h.MaintainerApproveCandidate))
+	mux.HandleFunc("POST /maintainer/candidates/{id}/cancel", h.requireAuth(h.MaintainerCancelCandidate))
 
 	mux.HandleFunc("GET /config", h.requireAuth(h.ConfigPage))
 
@@ -278,6 +298,35 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /tasks/{id}/cancel", h.requireAuth(h.TasksCancel))
 	mux.HandleFunc("GET /playback", h.requireAuth(h.PlaybackAdminPage))
 	mux.HandleFunc("POST /playback", h.requireAuth(h.PlaybackAdminSave))
+	mux.HandleFunc("GET /streams", h.requireAuth(h.StreamsPage))
+	mux.HandleFunc("GET /streams/events", h.requireAuth(h.StreamsLiveEvents))
+	mux.HandleFunc("GET /streams/active.json", h.requireAuth(h.StreamsActiveJSON))
+	mux.HandleFunc("GET /streams/history", h.requireAuth(h.StreamsHistoryPage))
+	mux.HandleFunc("GET /streams/stats", h.requireAuth(h.StreamsStatsPage))
+	mux.HandleFunc("GET /streams/libraries", h.requireAuth(h.StreamsLibrariesPage))
+	mux.HandleFunc("GET /streams/users", h.requireAuth(h.StreamsUsersPage))
+	mux.HandleFunc("GET /streams/guard", h.requireAuth(h.StreamsGuardPage))
+	mux.HandleFunc("GET /streams/notifications", h.requireAuth(h.StreamsNotificationsPage))
+	mux.HandleFunc("POST /streams/notifications/create", h.requireAuth(h.StreamsNotificationsCreate))
+	mux.HandleFunc("POST /streams/notifications/delete", h.requireAuth(h.StreamsNotificationsDelete))
+	mux.HandleFunc("POST /streams/notifications/destinations/create", h.requireAuth(h.StreamsNotificationsDestinationCreate))
+	mux.HandleFunc("POST /streams/notifications/destinations/delete", h.requireAuth(h.StreamsNotificationsDestinationDelete))
+	mux.HandleFunc("POST /streams/notifications/destinations/test", h.requireAuth(h.StreamsNotificationsDestinationTest))
+	mux.HandleFunc("POST /streams/guard/acknowledge", h.requireAuth(h.StreamsGuardAcknowledge))
+	mux.HandleFunc("POST /streams/guard/trust/reset", h.requireAuth(h.StreamsGuardResetTrust))
+	mux.HandleFunc("POST /streams/guard/merge", h.requireAuth(h.StreamsGuardMerge))
+	mux.HandleFunc("POST /streams/guard/terminate", h.requireAuth(h.StreamsGuardTerminate))
+	mux.HandleFunc("GET /streams/servers", h.requireAuth(h.StreamsServersPage))
+	mux.HandleFunc("GET /streams/map", h.requireAuth(h.StreamsMapPage))
+	mux.HandleFunc("GET /streams/map/data", h.requireAuth(h.StreamsMapData))
+	mux.HandleFunc("GET /transcode", h.requireAuth(h.TranscodePage))
+	mux.HandleFunc("GET /transcode/edit", h.requireAuth(h.TranscodeEditPage))
+	mux.HandleFunc("POST /transcode/save", h.requireAuth(h.TranscodeSave))
+	mux.HandleFunc("POST /transcode/delete/{id}", h.requireAuth(h.TranscodeDelete))
+	mux.HandleFunc("POST /transcode/scan", h.requireAuth(h.TranscodeScan))
+	mux.HandleFunc("POST /transcode/review/{id}/approve", h.requireAuth(h.TranscodeReviewApprove))
+	mux.HandleFunc("POST /transcode/review/{id}/reject", h.requireAuth(h.TranscodeReviewReject))
+	mux.HandleFunc("POST /transcode/apply-template/{id}", h.requireAuth(h.TranscodeApplyTemplate))
 	mux.HandleFunc("GET /libraries", h.requireAuth(h.LibrariesAdminPage))
 	mux.HandleFunc("GET /plugins", h.requireAuth(h.PluginsPage))
 	mux.HandleFunc("GET /metadata", h.requireAuth(h.MetadataManagerPage))
@@ -300,7 +349,8 @@ func (h *Handler) nav(currentPath string) templ.Component {
 		links = append(links, templates.NavLink{
 			Label: mod.GetName(),
 			Path:  "/media/" + mod.GetId(),
-			Icon:  "#",
+			Icon:  "disc",
+			Group: "Media",
 		})
 	}
 	h.mediaMu.RUnlock()

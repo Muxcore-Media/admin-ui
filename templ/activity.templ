@@ -33,7 +33,6 @@ templ ActivityPage(data ActivityPageData) {
 			<h1 class="text-2xl font-bold">Activity</h1>
 			<p class="text-gray-400 text-sm mt-1">Grab, import, and delete history across media libraries</p>
 		</div>
-
 		<form
 			class="flex flex-wrap gap-3 items-end"
 			hx-get="/activity"
@@ -59,9 +58,7 @@ templ ActivityPage(data ActivityPageData) {
 				class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition-colors"
 			>Filter</button>
 		</form>
-
 		@ActivityTable(data.Entries)
-
 		if data.TotalPages > 1 {
 			@Pagination(data.Page, data.TotalPages, "/activity")
 		}

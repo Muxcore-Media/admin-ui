@@ -12,10 +12,9 @@ templ DevicesLivePage(sessions []session.SessionInfo) {
 		<div>
 			<h1 class="text-2xl font-bold">Devices</h1>
 			<p class="text-gray-400 text-sm mt-1">
-				Active admin-ui sessions (Jellyfin Devices stand-in). Revoke ends that browser’s cookie.
+				Browsers signed in to this admin panel. Revoke ends that session immediately.
 			</p>
 		</div>
-
 		if len(sessions) == 0 {
 			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500">
 				No active admin sessions.
@@ -85,12 +84,11 @@ templ LogsLivePage(data LogsPageData) {
 			<div>
 				<h1 class="text-2xl font-bold">Logs</h1>
 				<p class="text-gray-400 text-sm mt-1">
-					Module log files from ADMIN_UI_LOG_DIR / MVP_RUN (Jellyfin log viewer). Mesh event ring below.
+					Module log files from ADMIN_UI_LOG_DIR / MVP_RUN. Live mesh events appear below.
 				</p>
 			</div>
 			<a href="/events" class="text-sm text-indigo-400 hover:text-indigo-300">Open live Events →</a>
 		</div>
-
 		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 space-y-3" data-testid="log-files">
 			<div class="text-xs text-gray-500 font-mono truncate">{ data.LogDir }</div>
 			if len(data.Files) == 0 {
@@ -136,7 +134,6 @@ templ LogsLivePage(data LogsPageData) {
 				</div>
 			}
 		</div>
-
 		<div>
 			<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Mesh event ring</h2>
 			<div
@@ -177,17 +174,15 @@ templ BrandingEditPage(data BrandingData) {
 		<div>
 			<h1 class="text-2xl font-bold">Branding</h1>
 			<p class="text-gray-400 text-sm mt-1">
-				Server name, login banner, splash URL, and custom CSS (Jellyfin branding).
+				Server name, login banner, splash image, and custom CSS for the login page.
 			</p>
 		</div>
-
 		if data.Saved {
 			<div class="rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300">Saved.</div>
 		}
 		if data.Error != "" {
 			<div class="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-2 text-sm text-red-300">{ data.Error }</div>
 		}
-
 		<form method="POST" action="/branding" class="space-y-4 rounded-xl border border-gray-800 bg-gray-900/50 p-4">
 			<label class="block space-y-1 text-sm">
 				<span class="text-gray-400">Server name</span>
@@ -209,7 +204,6 @@ templ BrandingEditPage(data BrandingData) {
 				Save branding
 			</button>
 		</form>
-
 		if data.CustomCSS != "" {
 			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400">
 				{ "Custom CSS saved (" + cssBytes(data.CustomCSS) + " bytes). Served at " }

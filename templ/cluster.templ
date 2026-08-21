@@ -3,14 +3,16 @@ package templates
 import "fmt"
 
 const tenantClusterMapExample = `{"tenant-a":"core-a:9090"}`
+const tenantRegionMapExample = `{"tenant-a":"us-east"}`
+const tenantStorageSyncExample = `{"tenant-a":{"targets":["file:///mirror/a"],"mode":"mirror","interval_sec":3600}}`
 
 type NodeCardData struct {
-	ID           string
-	GRPCAddr     string
-	HTTPAddr     string
-	IsLeader     bool
-	ModuleCount  int
-	Modules      []NodeModuleEntry
+	ID          string
+	GRPCAddr    string
+	HTTPAddr    string
+	IsLeader    bool
+	ModuleCount int
+	Modules     []NodeModuleEntry
 }
 
 type NodeModuleEntry struct {
@@ -19,8 +21,8 @@ type NodeModuleEntry struct {
 }
 
 type ClusterPageData struct {
-	Nodes   []NodeCardData
-	Term    uint64
+	Nodes []NodeCardData
+	Term  uint64
 }
 
 templ ClusterPage(data ClusterPageData) {
@@ -29,7 +31,6 @@ templ ClusterPage(data ClusterPageData) {
 			<h1 class="text-2xl font-bold">Cluster</h1>
 			<p class="text-gray-400 text-sm mt-1">{ fmt.Sprintf("%d nodes in cluster", len(data.Nodes)) }</p>
 		</div>
-
 		<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400 space-y-2" data-testid="tenant-cluster-map-note">
 			<div class="font-medium text-gray-200">Multi-cluster tenant routing</div>
 			<p>
@@ -43,20 +44,19 @@ templ ClusterPage(data ClusterPageData) {
 			<p>
 				<strong class="text-gray-300">Multi-region placement:</strong>
 				<code class="text-gray-300">MUXCORE_TENANT_REGION_MAP</code>
-				(e.g. <code class="text-gray-300">{"tenant-a":"us-east"}</code>) plus
+				(e.g. <code class="text-gray-300">{ tenantRegionMapExample }</code>) plus
 				<code class="text-gray-300">MUXCORE_NODE_REGION</code> on each node.
 				Placement picks mesh nodes by <code class="text-gray-300">region</code> label before the cluster map fallback.
 			</p>
 			<p>
 				<strong class="text-gray-300">Cross-cluster storage sync:</strong>
 				<code class="text-gray-300">MUXCORE_TENANT_STORAGE_SYNC</code>
-				(e.g. <code class="text-gray-300">{"tenant-a":{"targets":["file:///mirror/a"],"mode":"mirror","interval_sec":3600}}</code>).
+				(e.g. <code class="text-gray-300">{ tenantStorageSyncExample }</code>).
 				Mirror runs copy tenant partitions to <code class="text-gray-300">file://</code> targets (fixture) or
 				<code class="text-gray-300">s3://</code> peers via storage-s3 in production.
 			</p>
 			<p class="text-xs text-gray-500">This page shows mesh membership on this loom; the cluster map is process env / deploy config, not edited here.</p>
 		</div>
-
 		<div
 			id="cluster-grid"
 			class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
@@ -98,13 +98,11 @@ templ NodeCard(node NodeCardData) {
 				</span>
 			}
 		</div>
-
 		if node.HTTPAddr != "" {
 			<div class="text-xs text-gray-500 mb-3">
 				HTTP: { node.HTTPAddr }
 			</div>
 		}
-
 		<div>
 			<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
 				{ fmt.Sprintf("Modules (%d)", node.ModuleCount) }
@@ -113,15 +111,19 @@ templ NodeCard(node NodeCardData) {
 				for _, m := range node.Modules {
 					<a
 						href={ templ.SafeURL("/modules/" + m.ID) }
-						class={ "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium transition-colors",
+						class={
+							"inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium transition-colors",
 							templ.KV("bg-green-900/20 text-green-400 border border-green-800/30 hover:bg-green-900/40", m.Healthy),
 							templ.KV("bg-red-900/20 text-red-400 border border-red-800/30 hover:bg-red-900/40", !m.Healthy),
 						}
 					>
-						<span class={ "w-1 h-1 rounded-full",
-							templ.KV("bg-green-400", m.Healthy),
-							templ.KV("bg-red-400", !m.Healthy),
-						}></span>
+						<span
+							class={
+								"w-1 h-1 rounded-full",
+								templ.KV("bg-green-400", m.Healthy),
+								templ.KV("bg-red-400", !m.Healthy),
+							}
+						></span>
 						{ m.ID }
 					</a>
 				}

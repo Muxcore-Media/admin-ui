@@ -36,7 +36,7 @@ func ProfilesListPage(profiles []*formatsv1.QualityProfile, errMsg string) templ
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-6\"><div class=\"flex items-center justify-between\"><div><h1 class=\"text-2xl font-bold\">Quality Profiles</h1><p class=\"text-gray-400 text-sm mt-1\">Scoring profiles from media-custom-formats</p></div><a href=\"/formats/profiles/new\" class=\"rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500\">New profile</a></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-6\"><div class=\"flex items-center justify-between\"><div><h1 class=\"text-2xl font-bold\">Quality Profiles</h1><p class=\"text-gray-400 text-sm mt-1\">Quality scoring rules for accepted releases</p></div><a href=\"/formats/profiles/new\" class=\"rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500\">New profile</a></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -248,7 +248,7 @@ func ProfileEditPage(profile *formatsv1.QualityProfile, isNew bool, errMsg strin
 			var templ_7745c5c3_Var11 templ.SafeURL
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/formats/profiles/%s", profile.GetId())))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/profiles.templ`, Line: 66, Col: 94}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/profiles.templ`, Line: 69, Col: 80}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -266,7 +266,7 @@ func ProfileEditPage(profile *formatsv1.QualityProfile, isNew bool, errMsg strin
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(profile.GetName())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/profiles.templ`, Line: 71, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/profiles.templ`, Line: 79, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 		if templ_7745c5c3_Err != nil {
@@ -279,7 +279,7 @@ func ProfileEditPage(profile *formatsv1.QualityProfile, isNew bool, errMsg strin
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(int(profile.GetMinScore())))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/profiles.templ`, Line: 77, Col: 91}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/profiles.templ`, Line: 89, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 		if templ_7745c5c3_Err != nil {
@@ -292,7 +292,7 @@ func ProfileEditPage(profile *formatsv1.QualityProfile, isNew bool, errMsg strin
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(int(profile.GetCutoffScore())))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/profiles.templ`, Line: 82, Col: 97}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/profiles.templ`, Line: 98, Col: 57}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 		if templ_7745c5c3_Err != nil {
@@ -320,7 +320,7 @@ func ProfileEditPage(profile *formatsv1.QualityProfile, isNew bool, errMsg strin
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(int(profile.GetUpgradeDelayMinutes())))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/profiles.templ`, Line: 97, Col: 114}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/profiles.templ`, Line: 117, Col: 65}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 		if templ_7745c5c3_Err != nil {
@@ -333,7 +333,7 @@ func ProfileEditPage(profile *formatsv1.QualityProfile, isNew bool, errMsg strin
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(formatScoresText(profile.GetFormatScores()))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/profiles.templ`, Line: 104, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/profiles.templ`, Line: 124, Col: 178}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {

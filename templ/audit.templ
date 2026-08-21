@@ -38,7 +38,6 @@ templ AuditPage(data AuditPageData) {
 			<h1 class="text-2xl font-bold">Audit Log</h1>
 			<p class="text-gray-400 text-sm mt-1">Browse and filter audit entries</p>
 		</div>
-
 		<div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
 			<div class="xl:col-span-3 space-y-4">
 				@AuditTable(data)
@@ -46,7 +45,6 @@ templ AuditPage(data AuditPageData) {
 					@Pagination(data.Page, data.TotalPages, "/audit")
 				}
 			</div>
-
 			<div>
 				@AuditFilterPanel(data.Filter)
 			</div>
@@ -57,7 +55,6 @@ templ AuditPage(data AuditPageData) {
 templ AuditFilterPanel(filter AuditFilterState) {
 	<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
 		<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Filters</h2>
-
 		<form
 			class="space-y-3"
 			hx-get="/audit"
@@ -68,55 +65,61 @@ templ AuditFilterPanel(filter AuditFilterState) {
 			<div>
 				<label class="block text-xs font-medium text-gray-500 mb-1">Actor</label>
 				<input
-					type="text" name="actor" value={ filter.Actor }
+					type="text"
+					name="actor"
+					value={ filter.Actor }
 					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
 					placeholder="user ID or name"
 				/>
 			</div>
-
 			<div>
 				<label class="block text-xs font-medium text-gray-500 mb-1">Action</label>
 				<input
-					type="text" name="action" value={ filter.Action }
+					type="text"
+					name="action"
+					value={ filter.Action }
 					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
 					placeholder="e.g. http.request"
 				/>
 			</div>
-
 			<div>
 				<label class="block text-xs font-medium text-gray-500 mb-1">Resource</label>
 				<input
-					type="text" name="resource" value={ filter.Resource }
+					type="text"
+					name="resource"
+					value={ filter.Resource }
 					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
 					placeholder="path or type"
 				/>
 			</div>
-
 			<div>
 				<label class="block text-xs font-medium text-gray-500 mb-1">Trace ID</label>
 				<input
-					type="text" name="trace_id" value={ filter.TraceID }
+					type="text"
+					name="trace_id"
+					value={ filter.TraceID }
 					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono text-xs"
 					placeholder="uuid"
 				/>
 			</div>
-
 			<div>
 				<label class="block text-xs font-medium text-gray-500 mb-1">From</label>
 				<input
-					type="datetime-local" name="from" value={ filter.From }
+					type="datetime-local"
+					name="from"
+					value={ filter.From }
 					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
 				/>
 			</div>
-
 			<div>
 				<label class="block text-xs font-medium text-gray-500 mb-1">To</label>
 				<input
-					type="datetime-local" name="to" value={ filter.To }
+					type="datetime-local"
+					name="to"
+					value={ filter.To }
 					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
 				/>
 			</div>
-
 			<div class="flex gap-2 pt-2">
 				<button
 					type="submit"
