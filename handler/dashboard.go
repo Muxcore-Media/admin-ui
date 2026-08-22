@@ -1,12 +1,15 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
+
+	automationv1 "github.com/Muxcore-Media/media-automation/proto/automationv1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
@@ -42,6 +45,15 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	h.mediaMu.RLock()
 	data.LibraryCount = len(h.mediaModules)
 	h.mediaMu.RUnlock()
+
+	failCtx, failCancel := context.WithTimeout(r.Context(), automationDialTimeout+automationReadTimeout)
+	data.QueueFailureCount = h.countQueueFailures(failCtx)
+	data.WantedQueueCount = h.wantedQueueTotal(failCtx)
+	failCancel()
+
+	calCtx, calCancel := context.WithTimeout(r.Context(), automationDialTimeout+2*automationReadTimeout+time.Second)
+	data.UpcomingCalendar = h.upcomingCalendarPreview(calCtx, 5)
+	calCancel()
 
 	for _, m := range members {
 		if m.GetId() == leaderID {
@@ -170,4 +182,24 @@ func (h *Handler) MonitorSummary(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	h.render(w, r, templates.MonitorSummary(data))
+}
+
+func (h *Handler) countQueueFailures(ctx context.Context) int {
+	client, closer, err := h.withAutomationClient(ctx)
+	if err != nil {
+		return 0
+	}
+	defer closer()
+	hist, err := client.GetHistory(ctx, &automationv1.GetHistoryRequest{Page: 1, PageSize: 50})
+	if err != nil {
+		return 0
+	}
+	n := 0
+	for _, rec := range hist.GetRecords() {
+		st := rec.GetStatus()
+		if st == "import_failed" || st == "stalled" || st == "failed" {
+			n++
+		}
+	}
+	return n
 }

@@ -10,6 +10,9 @@ type DashboardData struct {
 	LeaderModuleCount int
 	SessionCount      int
 	LibraryCount      int
+	QueueFailureCount int
+	WantedQueueCount  int
+	UpcomingCalendar  []UnifiedCalendarItem
 	Disconnected      bool
 }
 
@@ -78,6 +81,56 @@ templ DashboardPage(data DashboardData) {
 				@ClusterStatCard("Sessions", fmt.Sprintf("%d", data.SessionCount), "Signed-in admin users")
 				@ClusterStatCard("Libraries", fmt.Sprintf("%d", data.LibraryCount), "Media libraries")
 				@ClusterStatCard("Version", "v0.1.0", "MuxCore version")
+			</div>
+			if data.QueueFailureCount > 0 {
+				<div class="rounded-[var(--radius-lg)] border border-amber-800/60 bg-amber-950/20 p-4" data-testid="dashboard-queue-alert">
+					<div class="flex flex-wrap items-center justify-between gap-3">
+						<p class="text-sm text-amber-200">
+							<span class="font-semibold">{ fmt.Sprintf("%d", data.QueueFailureCount) }</span>
+							queue item(s) need attention — failed, stalled, or import errors.
+						</p>
+						<a href="/queue" class="text-sm font-medium text-amber-300 hover:underline">Review queue</a>
+					</div>
+				</div>
+			}
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-4" data-testid="dashboard-daily-driver">
+				<div class="rounded-[var(--radius-lg)] border border-gray-800 bg-gray-900/50 p-4 space-y-3">
+					<div class="flex items-center justify-between gap-2">
+						<h2 class="text-sm font-semibold text-gray-300">Download queue</h2>
+						<a href="/queue" class="text-xs text-[var(--accent-color)] hover:underline">Open queue</a>
+					</div>
+					<div class="flex flex-wrap gap-4 text-sm">
+						<div>
+							<div class="text-2xl font-bold text-[var(--text-primary)]">{ fmt.Sprintf("%d", data.WantedQueueCount) }</div>
+							<div class="text-xs text-gray-500">Wanted items</div>
+						</div>
+						<div>
+							<div class="text-2xl font-bold text-amber-300">{ fmt.Sprintf("%d", data.QueueFailureCount) }</div>
+							<div class="text-xs text-gray-500">Need attention</div>
+						</div>
+					</div>
+				</div>
+				<div class="rounded-[var(--radius-lg)] border border-gray-800 bg-gray-900/50 p-4 space-y-3">
+					<div class="flex items-center justify-between gap-2">
+						<h2 class="text-sm font-semibold text-gray-300">Upcoming releases</h2>
+						<a href="/calendar" class="text-xs text-[var(--accent-color)] hover:underline">Full calendar</a>
+					</div>
+					if len(data.UpcomingCalendar) == 0 {
+						<p class="text-sm text-gray-500">No upcoming airings in the next two weeks.</p>
+					} else {
+						<ul class="space-y-2">
+							for _, it := range data.UpcomingCalendar {
+								<li class="flex items-start justify-between gap-3 text-sm">
+									<div class="min-w-0">
+										<div class="truncate text-gray-200">{ it.Title }</div>
+										<div class="text-xs text-gray-500 truncate">{ it.ModuleName } · { it.Kind }</div>
+									</div>
+									<span class="shrink-0 text-xs text-gray-400">{ it.Date }</span>
+								</li>
+							}
+						</ul>
+					}
+				</div>
 			</div>
 			<div class="rounded-[var(--radius-lg)] border border-gray-800 bg-gray-900/50 p-4">
 				<h2 class="text-sm font-semibold text-gray-300 mb-3">Common tasks</h2>
