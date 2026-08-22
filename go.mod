@@ -6,7 +6,7 @@ require (
 	github.com/Muxcore-Media/backup-local v0.1.2
 	github.com/Muxcore-Media/contracts-media-admin v0.1.0
 	github.com/Muxcore-Media/contracts-playback v0.1.0
-	github.com/Muxcore-Media/core v0.5.4
+	github.com/Muxcore-Media/core v0.5.8
 	github.com/Muxcore-Media/core/sdk/go/client v0.5.2
 	github.com/Muxcore-Media/jellyfin v0.3.0
 	github.com/Muxcore-Media/media-automation v0.1.5
@@ -79,8 +79,6 @@ replace github.com/Muxcore-Media/jellyfin => ../jellyfin
 replace github.com/Muxcore-Media/contracts-media => ../contracts-media
 
 replace github.com/Muxcore-Media/contracts-playback => ../contracts-playback
-
-replace github.com/Muxcore-Media/core => ../core
 
 replace github.com/Muxcore-Media/core/pkg/contracts => ../core/pkg/contracts
 

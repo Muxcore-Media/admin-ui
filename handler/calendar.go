@@ -10,6 +10,7 @@ import (
 
 	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
 	discoveryv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/discovery/v1"
+	automationv1 "github.com/Muxcore-Media/media-automation/proto/automationv1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
@@ -35,11 +36,20 @@ func (h *Handler) UnifiedCalendarPage(w http.ResponseWriter, r *http.Request) {
 		End:   end,
 	}
 
-	mods := h.mediaLibraryModules(pageCtx)
+	items, errs := h.fetchUnifiedCalendar(pageCtx, start, end, includeUnmon)
+	data.Items = items
+	if len(errs) > 0 && len(items) == 0 {
+		data.Error = strings.Join(errs, "; ")
+	} else if len(errs) > 0 {
+		data.Warning = strings.Join(errs, "; ")
+	}
+	h.renderUnifiedCalendar(w, r, data)
+}
+
+func (h *Handler) fetchUnifiedCalendar(ctx context.Context, start, end string, includeUnmon bool) ([]templates.UnifiedCalendarItem, []string) {
+	mods := h.mediaLibraryModules(ctx)
 	if len(mods) == 0 {
-		data.Error = "no media.library modules registered"
-		h.renderUnifiedCalendar(w, r, data)
-		return
+		return nil, []string{"no media.library modules registered"}
 	}
 
 	var items []templates.UnifiedCalendarItem
@@ -56,14 +66,13 @@ func (h *Handler) UnifiedCalendarPage(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		kind := automationItemType(moduleID, mod.GetName())
-		cCtx, cCancel := context.WithTimeout(pageCtx, automationReadTimeout)
+		cCtx, cCancel := context.WithTimeout(ctx, automationReadTimeout)
 		resp, err := client.GetCalendar(cCtx, &mediaadminv1.GetCalendarRequest{
 			StartDate: start, EndDate: end, IncludeUnmonitored: includeUnmon,
 		})
 		cCancel()
 		_ = conn.Close()
 		if err != nil {
-			// Movies may return Unimplemented — soft-skip.
 			if strings.Contains(strings.ToLower(err.Error()), "unimplemented") ||
 				strings.Contains(strings.ToLower(err.Error()), "not supported") {
 				slog.Debug("calendar: module unimplemented", "module", moduleID)
@@ -99,13 +108,36 @@ func (h *Handler) UnifiedCalendarPage(w http.ResponseWriter, r *http.Request) {
 		}
 		return items[i].Date < items[j].Date
 	})
-	data.Items = items
-	if len(errs) > 0 && len(items) == 0 {
-		data.Error = strings.Join(errs, "; ")
-	} else if len(errs) > 0 {
-		data.Warning = strings.Join(errs, "; ")
+	return items, errs
+}
+
+func (h *Handler) upcomingCalendarPreview(ctx context.Context, limit int) []templates.UnifiedCalendarItem {
+	if limit < 1 {
+		limit = 5
 	}
-	h.renderUnifiedCalendar(w, r, data)
+	now := time.Now().UTC()
+	start := now.Format("2006-01-02")
+	end := now.AddDate(0, 0, 14).Format("2006-01-02")
+	items, _ := h.fetchUnifiedCalendar(ctx, start, end, false)
+	if len(items) > limit {
+		items = items[:limit]
+	}
+	return items
+}
+
+func (h *Handler) wantedQueueTotal(ctx context.Context) int {
+	client, closer, err := h.withAutomationClient(ctx)
+	if err != nil {
+		return 0
+	}
+	defer closer()
+	qCtx, cancel := context.WithTimeout(ctx, automationReadTimeout)
+	defer cancel()
+	q, err := client.GetQueue(qCtx, &automationv1.GetQueueRequest{Page: 1, PageSize: 1})
+	if err != nil {
+		return 0
+	}
+	return int(q.GetTotal())
 }
 
 func (h *Handler) mediaLibraryModules(ctx context.Context) []*discoveryv1.ModuleInfoProto {
