@@ -100,12 +100,12 @@ func TestRunDryAndImport(t *testing.T) {
 		{Source: "sonarr", Title: "B", TMDBID: 2},
 		{Source: "sonarr", Title: "NoTMDB", TVDBID: 9},
 	}
-	dry := Run(context.Background(), items, true, nil, nil, nil)
+	dry := Run(context.Background(), items, true, nil, nil, nil, nil)
 	if dry.Fetched != 3 || dry.Imported != 0 {
 		t.Fatalf("%+v", dry)
 	}
 	m, tv := &stubMovies{}, &stubTV{}
-	res := Run(context.Background(), items, false, m, tv, func(context.Context, string) string { return "qp1" })
+	res := Run(context.Background(), items, false, m, tv, nil, func(context.Context, string) string { return "qp1" })
 	if res.Imported != 2 || res.Skipped != 1 || m.n != 1 || tv.n != 1 {
 		t.Fatalf("imported=%d skipped=%d movies=%d tv=%d errors=%v", res.Imported, res.Skipped, m.n, tv.n, res.Errors)
 	}

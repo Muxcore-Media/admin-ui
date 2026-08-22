@@ -16,6 +16,7 @@ import (
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 	mgmntv1 "github.com/Muxcore-Media/media-movies/proto/mgmntv1"
 	tvmgmtv1 "github.com/Muxcore-Media/media-tvshows/proto/tvmgmtv1"
+	musicv1 "github.com/Muxcore-Media/media-music/proto/gen/muxcore/music/v1"
 )
 
 type movieImporterAdapter struct {
@@ -68,12 +69,34 @@ func (a tvImporterAdapter) ImportSeries(ctx context.Context, title string, year,
 	return id, nil
 }
 
-func (h *Handler) resolveMigrateImporters(ctx context.Context) (arrmigrate.MovieImporter, arrmigrate.TVImporter, func(), error) {
-	if h.MigrateMovies != nil || h.MigrateTV != nil {
-		return h.MigrateMovies, h.MigrateTV, func() {}, nil
+type musicImporterAdapter struct {
+	client musicv1.MusicManagementServiceClient
+}
+
+func (a musicImporterAdapter) ImportArtist(ctx context.Context, name, musicbrainzID, qualityProfileID, rootFolder string, monitored bool) (string, error) {
+	resp, err := a.client.AddArtist(ctx, &musicv1.AddArtistRequest{
+		Name:             name,
+		MusicbrainzId:    musicbrainzID,
+		Monitored:        monitored,
+		QualityProfileId: qualityProfileID,
+		RootFolderPath:   rootFolder,
+	})
+	if err != nil {
+		return "", err
+	}
+	if ar := resp.GetArtist(); ar != nil {
+		return ar.GetId(), nil
+	}
+	return "", nil
+}
+
+func (h *Handler) resolveMigrateImporters(ctx context.Context) (arrmigrate.MovieImporter, arrmigrate.TVImporter, arrmigrate.MusicImporter, func(), error) {
+	if h.MigrateMovies != nil || h.MigrateTV != nil || h.MigrateMusic != nil {
+		return h.MigrateMovies, h.MigrateTV, h.MigrateMusic, func() {}, nil
 	}
 	var movies arrmigrate.MovieImporter
 	var tv arrmigrate.TVImporter
+	var music arrmigrate.MusicImporter
 	var closers []func()
 
 	if addr, err := h.findCapabilityDialAddr(ctx, "media.library.movies"); err == nil {
@@ -90,16 +113,23 @@ func (h *Handler) resolveMigrateImporters(ctx context.Context) (arrmigrate.Movie
 			tv = tvImporterAdapter{client: tvmgmtv1.NewTvManagementServiceClient(conn)}
 		}
 	}
+	if addr, err := h.findCapabilityDialAddr(ctx, "media.library.music"); err == nil {
+		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err == nil {
+			closers = append(closers, func() { _ = conn.Close() })
+			music = musicImporterAdapter{client: musicv1.NewMusicManagementServiceClient(conn)}
+		}
+	}
 	closeAll := func() {
 		for _, c := range closers {
 			c()
 		}
 	}
-	if movies == nil && tv == nil {
+	if movies == nil && tv == nil && music == nil {
 		closeAll()
-		return nil, nil, nil, fmt.Errorf("no media.library.movies or media.library.tv module")
+		return nil, nil, nil, nil, fmt.Errorf("no media.library movies, tv, or music module")
 	}
-	return movies, tv, closeAll, nil
+	return movies, tv, music, closeAll, nil
 }
 
 func (h *Handler) findCapabilityDialAddr(ctx context.Context, cap string) (string, error) {
@@ -168,8 +198,10 @@ func (h *Handler) MigratePost(w http.ResponseWriter, r *http.Request) {
 		items, err = cli.FetchRadarr(ctx, data.BaseURL, data.APIKey)
 	case "sonarr":
 		items, err = cli.FetchSonarr(ctx, data.BaseURL, data.APIKey)
+	case "lidarr":
+		items, err = cli.FetchLidarr(ctx, data.BaseURL, data.APIKey)
 	default:
-		err = fmt.Errorf("service must be radarr or sonarr")
+		err = fmt.Errorf("service must be radarr, sonarr, or lidarr")
 	}
 	if err != nil {
 		data.Error = err.Error()
@@ -177,7 +209,7 @@ func (h *Handler) MigratePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	movies, tv, closer, resolveErr := h.resolveMigrateImporters(ctx)
+	movies, tv, music, closer, resolveErr := h.resolveMigrateImporters(ctx)
 	if !data.DryRun {
 		if resolveErr != nil {
 			data.Error = resolveErr.Error()
@@ -189,7 +221,7 @@ func (h *Handler) MigratePost(w http.ResponseWriter, r *http.Request) {
 		closer()
 	}
 
-	res := arrmigrate.Run(ctx, items, data.DryRun, movies, tv, h.resolveProfileByName)
+	res := arrmigrate.Run(ctx, items, data.DryRun, movies, tv, music, h.resolveProfileByName)
 	data.Result = migrateResultToView(res)
 	if sess := SessionFromContext(r.Context()); sess != nil && !data.DryRun {
 		h.auditLog(r.Context(), sess.UserID, "admin.migrate.arr", "migrate", data.Service, map[string]string{

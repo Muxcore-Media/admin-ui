@@ -63,9 +63,10 @@ type Handler struct {
 	FormatsClient formatsv1.FormatServiceClient
 	// ArrHTTPClient overrides the Arr migrate HTTP client (tests).
 	ArrHTTPClient *http.Client
-	// MigrateMovies / MigrateTV inject library Add RPCs for Arr migrate tests.
+	// MigrateMovies / MigrateTV / MigrateMusic inject library Add RPCs for Arr migrate tests.
 	MigrateMovies arrmigrate.MovieImporter
 	MigrateTV     arrmigrate.TVImporter
+	MigrateMusic  arrmigrate.MusicImporter
 	// ResolveProfileID maps quality profile name → MuxCore id (tests / optional).
 	ResolveProfileID func(ctx context.Context, name string) string
 

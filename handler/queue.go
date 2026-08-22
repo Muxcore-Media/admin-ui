@@ -85,12 +85,17 @@ func (h *Handler) UnifiedQueuePage(w http.ResponseWriter, r *http.Request) {
 			if src == "" {
 				src = rec.GetDownloadProtocol()
 			}
-			data.History = append(data.History, templates.UnifiedQueueHistory{
+			row := templates.UnifiedQueueHistory{
 				ID: rec.GetId(), WantedItemID: rec.GetWantedItemId(), GUID: rec.GetGuid(),
 				Status: st, Title: rec.GetTitle(), Source: src, At: rec.GetCreatedAt(),
 				DownloadID: rec.GetDownloadId(), Warning: warn, Stuck: st == "import_failed" || st == "stalled",
-			})
+			}
+			data.History = append(data.History, row)
+			if warn {
+				data.Failures = append(data.Failures, row)
+			}
 		}
+		data.FailureCount = len(data.Failures)
 	}
 
 	h.renderUnifiedQueue(w, r, data)
