@@ -1,5 +1,10 @@
 github.com/Muxcore-Media/contracts-media-admin v0.1.0 h1:HaT4FiI0wTzGRO3w62Ln5CuPH9W/f1cUvg+WAsoZ4fk=
 github.com/Muxcore-Media/contracts-media-admin v0.1.0/go.mod h1:FnXzE5nlrbgdRdlSiQlJ/xW6bJh5WWf+J2Q6BcOPp5M=
+github.com/Muxcore-Media/core v0.5.4 h1:N13USUVusPKYgGPDdeJgSEpkerNyUEyOOJi1oh3BWes=
+github.com/Muxcore-Media/core v0.5.4/go.mod h1:dPC03/h+ap/geLApar3OA3OM7S+gZtF4Qbl5Vo+oPfg=
+github.com/Muxcore-Media/core/pkg/contracts v0.5.4/go.mod h1:gbI+28IlviQlGYYoQj2DJVet/5LXLQtjFeSRo0a+8BI=
+github.com/Muxcore-Media/core/sdk/go/client v0.5.2 h1:sQ5UeQOFLHFzLrW+4YbvpffmKKPr5gmalQh/ceY4Sfk=
+github.com/Muxcore-Media/core/sdk/go/client v0.5.2/go.mod h1:4MuSsKTdm00jD/o8YnTrNbw4kYAeopkgMoIuy055pbI=
 github.com/Muxcore-Media/media-rename v0.2.1 h1:n+h4MDIesLTQMi7Fk8wI8AB4P8HU3aUFaVs0uiY9Dq0=
 github.com/Muxcore-Media/media-rename v0.2.1/go.mod h1:q4dy1R3WZRbF+3cT+RfxdO3HAeGI4cpkrsv5gBzgL5g=
 github.com/Muxcore-Media/media-root-folders v0.1.1 h1:1uQh1GdsRif6GE+7Jpk3zEFtpO4ZUsHeqX8UGvkFUr8=

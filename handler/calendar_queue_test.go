@@ -225,6 +225,9 @@ func TestUnifiedQueuePageFixture(t *testing.T) {
 	if !strings.Contains(body, "Fight Club") {
 		t.Fatalf("expected wanted title, got: %s", truncate(body, 500))
 	}
+	if !strings.Contains(body, `data-testid="queue-failures-section"`) {
+		t.Fatalf("expected failures section, got: %s", truncate(body, 800))
+	}
 	if !strings.Contains(body, `data-testid="stuck-badge"`) || !strings.Contains(body, "import_failed") {
 		t.Fatalf("expected stuck import_failed badge, got: %s", truncate(body, 800))
 	}

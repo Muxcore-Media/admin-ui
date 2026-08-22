@@ -12,7 +12,7 @@ func TestAutomationItemType(t *testing.T) {
 	}{
 		{"media-movies", "Movies", "movie"},
 		{"media-tvshows", "TV Shows", "tv"},
-		{"library", "Music", "movie"},
+		{"library", "Music", "music"},
 	}
 	for _, tt := range tests {
 		if got := automationItemType(tt.moduleID, tt.displayName); got != tt.want {

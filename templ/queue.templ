@@ -28,9 +28,11 @@ type UnifiedQueueHistory struct {
 }
 
 type UnifiedQueueData struct {
-	Wanted     []UnifiedQueueWanted
-	History    []UnifiedQueueHistory
-	Filter     string
+	Wanted      []UnifiedQueueWanted
+	History     []UnifiedQueueHistory
+	Failures    []UnifiedQueueHistory
+	FailureCount int
+	Filter      string
 	Page       int
 	PageSize   int
 	Total      int
@@ -58,6 +60,52 @@ templ UnifiedQueuePage(data UnifiedQueueData) {
 		}
 		if data.Error != "" {
 			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" data-testid="queue-error">{ data.Error }</div>
+		}
+		if data.FailureCount > 0 {
+			<section class="space-y-3" data-testid="queue-failures-section">
+				<div class="flex flex-wrap items-center justify-between gap-2">
+					<h2 class="text-lg font-semibold text-amber-200">
+						Needs attention
+						<span class="text-sm font-normal text-amber-300/80">({ fmt.Sprintf("%d", data.FailureCount) })</span>
+					</h2>
+					<a href="/automation" class="text-xs text-indigo-400 hover:underline">Automation details</a>
+				</div>
+				<ul class="space-y-2">
+					for _, h := range data.Failures {
+						<li class={ "rounded-lg border px-3 py-2 text-sm", templ.KV("border-amber-800/60 bg-amber-950/20", h.Stuck), templ.KV("border-red-900/40 bg-red-950/10", h.Warning && !h.Stuck) }>
+							<div class="flex flex-wrap items-center gap-2">
+								<span class="text-gray-200">{ h.Title }</span>
+								if h.Stuck {
+									<span class="rounded bg-amber-900/50 px-1.5 py-0.5 text-xs text-amber-200" data-testid="stuck-badge">{ h.Status }</span>
+								} else {
+									<span class="rounded bg-red-900/40 px-1.5 py-0.5 text-xs text-red-200" data-testid="warn-badge">{ h.Status }</span>
+								}
+								if h.Source != "" {
+									<span class="text-gray-600">— { h.Source }</span>
+								}
+								if h.At != "" {
+									<span class="text-xs text-gray-600 ml-auto">{ h.At }</span>
+								}
+							</div>
+							<div class="mt-2 flex flex-wrap gap-2">
+								if h.Status == "import_failed" || h.Status == "stalled" {
+									<form method="POST" action="/queue/retry-import" class="inline">
+										<input type="hidden" name="history_id" value={ h.ID }/>
+										<button type="submit" class="rounded bg-indigo-600 px-2 py-1 text-xs text-white hover:bg-indigo-500" data-testid="retry-import">Retry import</button>
+									</form>
+								}
+								if h.WantedItemID != "" && h.GUID != "" {
+									<form method="POST" action="/queue/blocklist" class="inline">
+										<input type="hidden" name="wanted_item_id" value={ h.WantedItemID }/>
+										<input type="hidden" name="guid" value={ h.GUID }/>
+										<button type="submit" class="rounded border border-gray-700 px-2 py-1 text-xs text-gray-300 hover:bg-gray-800" data-testid="blocklist-release">Blocklist</button>
+									</form>
+								}
+							</div>
+						</li>
+					}
+				</ul>
+			</section>
 		}
 		<form class="flex flex-wrap gap-3 items-end" method="get" action="/queue">
 			<div>

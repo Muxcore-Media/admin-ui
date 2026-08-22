@@ -34,9 +34,9 @@ type MigratePageData struct {
 templ MigratePage(data MigratePageData) {
 	<div class="space-y-6 max-w-4xl" data-testid="migrate-page">
 		<div>
-			<h1 class="text-2xl font-bold">Import from Radarr or Sonarr</h1>
+			<h1 class="text-2xl font-bold">Import from Radarr, Sonarr, or Lidarr</h1>
 			<p class="text-gray-400 text-sm mt-1">
-				Pull existing movie and TV libraries into MuxCore from a connected Radarr or Sonarr server.
+				Pull existing movie, TV, and music libraries into MuxCore from a connected *arr server.
 			</p>
 		</div>
 		if data.Error != "" {
@@ -76,6 +76,9 @@ templ MigratePage(data MigratePageData) {
 						<option value="sonarr" if data.Service == "sonarr" {
 	selected
 }>Sonarr</option>
+						<option value="lidarr" if data.Service == "lidarr" {
+	selected
+}>Lidarr</option>
 					</select>
 				</div>
 				<div>
