@@ -1,12 +1,18 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	monitorv1 "github.com/Muxcore-Media/playback-monitor/proto/monitorv1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
+)
+
+const (
+	streamsMapPageTimeout = playbackMonitorDialTimeout + playbackMonitorReadTimeout + time.Second
 )
 
 type streamMapPin struct {
@@ -22,10 +28,14 @@ type streamMapPin struct {
 }
 
 func (h *Handler) StreamsMapPage(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), streamsMapPageTimeout)
+	defer pageCancel()
+
 	data := templates.StreamsMapPageData{}
 
-	client, closer, err := h.withPlaybackMonitorClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, playbackMonitorDialTimeout)
+	client, closer, err := h.withPlaybackMonitorClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		data.SoftNote = true
 		if h.Core != nil {
@@ -36,22 +46,31 @@ func (h *Handler) StreamsMapPage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer closer()
 
-	if active, err := client.ListActiveSessions(ctx, &monitorv1.ListActiveSessionsRequest{Limit: 200}); err == nil {
+	readCtx, readCancel := context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	active, err := client.ListActiveSessions(readCtx, &monitorv1.ListActiveSessionsRequest{Limit: 200})
+	readCancel()
+	if err == nil {
 		data.PinCount = len(mapPinsFromSessions(active.GetSessions()))
 	}
 	h.renderStreamsMap(w, r, data)
 }
 
 func (h *Handler) StreamsMapData(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	client, closer, err := h.withPlaybackMonitorClient(ctx)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), streamsMapPageTimeout)
+	defer pageCancel()
+
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, playbackMonitorDialTimeout)
+	client, closer, err := h.withPlaybackMonitorClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 	defer closer()
 
-	resp, err := client.ListActiveSessions(ctx, &monitorv1.ListActiveSessionsRequest{Limit: 200})
+	readCtx, readCancel := context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	resp, err := client.ListActiveSessions(readCtx, &monitorv1.ListActiveSessionsRequest{Limit: 200})
+	readCancel()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return

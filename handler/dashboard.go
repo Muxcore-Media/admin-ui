@@ -9,9 +9,14 @@ import (
 	"strings"
 	"time"
 
-	automationv1 "github.com/Muxcore-Media/media-automation/proto/automationv1"
+	automationv1 "github.com/Muxcore-Media/contracts-automation/muxcore/automation/v1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
+)
+
+const (
+	dashboardDialTimeout = 3 * time.Second
+	dashboardReadTimeout = 5 * time.Second
 )
 
 func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
@@ -23,7 +28,12 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	members, leaderID, err := h.Core.Discovery.Members(r.Context())
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), 3*dashboardDialTimeout+3*dashboardReadTimeout+time.Second)
+	defer pageCancel()
+
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, dashboardDialTimeout)
+	members, leaderID, err := h.Core.Discovery.Members(dialCtx)
+	dialCancel()
 	if err != nil {
 		slog.Warn("dashboard: Members call failed", "error", err)
 		nav := h.nav(r.URL.Path)
@@ -41,19 +51,26 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	if h.Sessions != nil {
 		data.SessionCount = len(h.Sessions.List())
 	}
-	h.refreshMediaNavLinks(r.Context())
+
+	dialCtx, dialCancel = context.WithTimeout(pageCtx, dashboardDialTimeout)
+	h.refreshMediaNavLinks(dialCtx)
+	dialCancel()
 	h.mediaMu.RLock()
 	data.LibraryCount = len(h.mediaModules)
 	h.mediaMu.RUnlock()
 
-	failCtx, failCancel := context.WithTimeout(r.Context(), automationDialTimeout+automationReadTimeout)
-	data.QueueFailureCount = h.countQueueFailures(failCtx)
-	data.WantedQueueCount = h.wantedQueueTotal(failCtx)
-	failCancel()
+	dialCtx, dialCancel = context.WithTimeout(pageCtx, dashboardDialTimeout)
+	client, closer, err := h.withAutomationClient(dialCtx)
+	dialCancel()
+	if err == nil {
+		defer closer()
+		data.QueueFailureCount = h.countQueueFailures(pageCtx, client)
+		data.WantedQueueCount = h.dashboardWantedQueueTotal(pageCtx, client)
+	}
 
-	calCtx, calCancel := context.WithTimeout(r.Context(), automationDialTimeout+2*automationReadTimeout+time.Second)
-	data.UpcomingCalendar = h.upcomingCalendarPreview(calCtx, 5)
-	calCancel()
+	readCtx, readCancel := context.WithTimeout(pageCtx, dashboardReadTimeout)
+	data.UpcomingCalendar = h.upcomingCalendarPreview(readCtx, 5)
+	readCancel()
 
 	for _, m := range members {
 		if m.GetId() == leaderID {
@@ -184,13 +201,10 @@ func (h *Handler) MonitorSummary(w http.ResponseWriter, r *http.Request) {
 	h.render(w, r, templates.MonitorSummary(data))
 }
 
-func (h *Handler) countQueueFailures(ctx context.Context) int {
-	client, closer, err := h.withAutomationClient(ctx)
-	if err != nil {
-		return 0
-	}
-	defer closer()
-	hist, err := client.GetHistory(ctx, &automationv1.GetHistoryRequest{Page: 1, PageSize: 50})
+func (h *Handler) countQueueFailures(pageCtx context.Context, client automationv1.AutomationServiceClient) int {
+	readCtx, readCancel := context.WithTimeout(pageCtx, dashboardReadTimeout)
+	defer readCancel()
+	hist, err := client.GetHistory(readCtx, &automationv1.GetHistoryRequest{Page: 1, PageSize: 50})
 	if err != nil {
 		return 0
 	}
@@ -202,4 +216,14 @@ func (h *Handler) countQueueFailures(ctx context.Context) int {
 		}
 	}
 	return n
+}
+
+func (h *Handler) dashboardWantedQueueTotal(pageCtx context.Context, client automationv1.AutomationServiceClient) int {
+	readCtx, cancel := context.WithTimeout(pageCtx, dashboardReadTimeout)
+	defer cancel()
+	q, err := client.GetQueue(readCtx, &automationv1.GetQueueRequest{Page: 1, PageSize: 1})
+	if err != nil {
+		return 0
+	}
+	return int(q.GetTotal())
 }

@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime/debug"
+	"strings"
 	"syscall"
 	"time"
 
@@ -48,7 +49,7 @@ type Config struct {
 
 func loadConfig() Config {
 	ttl, _ := time.ParseDuration(env("ADMIN_UI_SESSION_TTL", "30m"))
-	authAddr := env("ADMIN_UI_AUTH_ADDR", "http://localhost:9401")
+	authAddr := resolveBrowserAuthAddr(env("ADMIN_UI_AUTH_ADDR", "http://localhost:9401"))
 	return Config{
 		Addr:             env("ADMIN_UI_ADDR", ":8080"),
 		CoreAddr:         env("ADMIN_UI_CORE_ADDR", "localhost:9090"),
@@ -71,6 +72,34 @@ func env(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// resolveBrowserAuthAddr keeps browser login redirects on the public auth URL when
+// ADMIN_UI_AUTH_ADDR is mistakenly set to vault LAN/ZT (breaks CSRF on auth-local).
+func resolveBrowserAuthAddr(configured string) string {
+	configured = strings.TrimRight(strings.TrimSpace(configured), "/")
+	if configured == "" {
+		return configured
+	}
+	public := strings.TrimRight(strings.TrimSpace(os.Getenv("AUTH_HTTP_URL")), "/")
+	if public == "" || !looksLikeInternalAuthURL(configured) {
+		return configured
+	}
+	return public
+}
+
+func looksLikeInternalAuthURL(addr string) bool {
+	lower := strings.ToLower(addr)
+	if strings.HasPrefix(lower, "http://127.") || strings.HasPrefix(lower, "http://localhost") {
+		return true
+	}
+	if strings.Contains(addr, "[") { // ZT/LAN IPv6 literal
+		return true
+	}
+	if strings.HasPrefix(lower, "http://192.168.") || strings.HasPrefix(lower, "http://10.") {
+		return true
+	}
+	return false
 }
 
 func main() {

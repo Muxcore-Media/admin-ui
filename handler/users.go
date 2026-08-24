@@ -1,13 +1,20 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	authv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/auth/v1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
+)
+
+const (
+	usersDialTimeout = 3 * time.Second
+	usersReadTimeout = 5 * time.Second
 )
 
 func (h *Handler) UsersCreateForm(w http.ResponseWriter, r *http.Request) {
@@ -17,16 +24,21 @@ func (h *Handler) UsersCreateForm(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) UsersDetail(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
-	ctx := r.Context()
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), usersDialTimeout+usersReadTimeout+time.Second)
+	defer pageCancel()
 
-	client, conn, err := h.authClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, usersDialTimeout)
+	client, conn, err := h.authClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
 	defer conn.Close()
 
-	resp, err := client.ListUsers(ctx, &authv1.ListUsersRequest{})
+	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
+	resp, err := client.ListUsers(readCtx, &authv1.ListUsersRequest{})
+	readCancel()
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">list users failed</div>`))
 		return
@@ -45,14 +57,21 @@ func (h *Handler) UsersDetail(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) UsersTOTPStatus(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
-	client, conn, err := h.authClient(r.Context())
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), usersDialTimeout+usersReadTimeout+time.Second)
+	defer pageCancel()
+
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, usersDialTimeout)
+	client, conn, err := h.authClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		w.Write([]byte(`<span class="text-xs text-red-400">auth unavailable</span>`))
 		return
 	}
 	defer conn.Close()
 
-	status, err := client.TOTPStatus(r.Context(), &authv1.TOTPStatusRequest{UserId: userID})
+	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
+	status, err := client.TOTPStatus(readCtx, &authv1.TOTPStatusRequest{UserId: userID})
+	readCancel()
 	if err != nil {
 		w.Write([]byte(`<span class="text-xs text-red-400">totp status failed</span>`))
 		return
@@ -66,7 +85,12 @@ func (h *Handler) UsersTOTPStatus(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) UsersPage(w http.ResponseWriter, r *http.Request) {
 	resets := loadPasswordResetRequests()
-	client, conn, err := h.authClient(r.Context())
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), usersDialTimeout+usersReadTimeout+time.Second)
+	defer pageCancel()
+
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, usersDialTimeout)
+	client, conn, err := h.authClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		slog.Warn("users: auth client failed", "error", err)
 		content := templates.UsersPage(nil, "", resets)
@@ -77,7 +101,9 @@ func (h *Handler) UsersPage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	resp, err := client.ListUsers(r.Context(), &authv1.ListUsersRequest{})
+	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
+	resp, err := client.ListUsers(readCtx, &authv1.ListUsersRequest{})
+	readCancel()
 	if err != nil {
 		slog.Warn("users: ListUsers failed", "error", err)
 		content := templates.UsersPage(nil, "", resets)
@@ -99,7 +125,12 @@ func (h *Handler) UsersCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, conn, err := h.authClient(r.Context())
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), usersDialTimeout+usersReadTimeout+time.Second)
+	defer pageCancel()
+
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, usersDialTimeout)
+	client, conn, err := h.authClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
@@ -113,10 +144,12 @@ func (h *Handler) UsersCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := client.CreateUser(r.Context(), &authv1.CreateUserRequest{
+	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
+	resp, err := client.CreateUser(readCtx, &authv1.CreateUserRequest{
 		Username: username,
 		Password: password,
 	})
+	readCancel()
 	if err != nil {
 		slog.Warn("users: CreateUser failed", "error", err)
 		w.Write([]byte(`<div class="text-xs text-red-400">create failed</div>`))
@@ -139,15 +172,21 @@ func (h *Handler) UsersCreate(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) UsersDelete(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), usersDialTimeout+usersReadTimeout+time.Second)
+	defer pageCancel()
 
-	client, conn, err := h.authClient(r.Context())
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, usersDialTimeout)
+	client, conn, err := h.authClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
 	defer conn.Close()
 
-	resp, err := client.DeleteUser(r.Context(), &authv1.DeleteUserRequest{UserId: userID})
+	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
+	resp, err := client.DeleteUser(readCtx, &authv1.DeleteUserRequest{UserId: userID})
+	readCancel()
 	if err != nil {
 		slog.Warn("users: DeleteUser failed", "error", err)
 		w.Write([]byte(`<div class="text-xs text-red-400">delete failed</div>`))
@@ -173,7 +212,12 @@ func (h *Handler) UsersSetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, conn, err := h.authClient(r.Context())
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), usersDialTimeout+usersReadTimeout+time.Second)
+	defer pageCancel()
+
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, usersDialTimeout)
+	client, conn, err := h.authClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
@@ -186,10 +230,12 @@ func (h *Handler) UsersSetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := client.SetPassword(r.Context(), &authv1.SetPasswordRequest{
+	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
+	resp, err := client.SetPassword(readCtx, &authv1.SetPasswordRequest{
 		UserId:   userID,
 		Password: password,
 	})
+	readCancel()
 	if err != nil {
 		slog.Warn("users: SetPassword failed", "error", err)
 		w.Write([]byte(`<div class="text-xs text-red-400">set password failed</div>`))
@@ -215,7 +261,12 @@ func (h *Handler) UsersSetRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, conn, err := h.authClient(r.Context())
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), usersDialTimeout+usersReadTimeout+time.Second)
+	defer pageCancel()
+
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, usersDialTimeout)
+	client, conn, err := h.authClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
@@ -224,10 +275,12 @@ func (h *Handler) UsersSetRoles(w http.ResponseWriter, r *http.Request) {
 
 	roles := r.Form["roles"]
 
-	resp, err := client.SetRoles(r.Context(), &authv1.SetRolesRequest{
+	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
+	resp, err := client.SetRoles(readCtx, &authv1.SetRolesRequest{
 		UserId: userID,
 		Roles:  roles,
 	})
+	readCancel()
 	if err != nil {
 		slog.Warn("users: SetRoles failed", "error", err)
 		w.Write([]byte(`<div class="text-xs text-red-400">set roles failed</div>`))
@@ -249,22 +302,30 @@ func (h *Handler) UsersSetRoles(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) UsersTOTP(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), usersDialTimeout+2*usersReadTimeout+time.Second)
+	defer pageCancel()
 
-	client, conn, err := h.authClient(r.Context())
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, usersDialTimeout)
+	client, conn, err := h.authClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
 	defer conn.Close()
 
-	status, err := client.TOTPStatus(r.Context(), &authv1.TOTPStatusRequest{UserId: userID})
+	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
+	status, err := client.TOTPStatus(readCtx, &authv1.TOTPStatusRequest{UserId: userID})
+	readCancel()
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">totp status failed</div>`))
 		return
 	}
 
 	if status.GetEnabled() {
-		resp, err := client.DisableTOTP(r.Context(), &authv1.DisableTOTPRequest{UserId: userID})
+		readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
+		resp, err := client.DisableTOTP(readCtx, &authv1.DisableTOTPRequest{UserId: userID})
+		readCancel()
 		if err != nil {
 			w.Write([]byte(`<div class="text-xs text-red-400">disable totp failed</div>`))
 			return
@@ -278,7 +339,9 @@ func (h *Handler) UsersTOTP(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Write([]byte(`<span class="text-xs text-green-400">TOTP disabled</span>`))
 	} else {
-		resp, err := client.EnableTOTP(r.Context(), &authv1.EnableTOTPRequest{UserId: userID})
+		readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
+		resp, err := client.EnableTOTP(readCtx, &authv1.EnableTOTPRequest{UserId: userID})
+		readCancel()
 		if err != nil {
 			w.Write([]byte(`<div class="text-xs text-red-400">enable totp failed</div>`))
 			return
@@ -297,8 +360,12 @@ func (h *Handler) UsersTOTP(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) UsersTokens(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), usersDialTimeout+usersReadTimeout+time.Second)
+	defer pageCancel()
 
-	client, conn, err := h.authClient(r.Context())
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, usersDialTimeout)
+	client, conn, err := h.authClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
@@ -307,7 +374,9 @@ func (h *Handler) UsersTokens(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
-		resp, err := client.ListAPITokens(r.Context(), &authv1.ListAPITokensRequest{UserId: userID})
+		readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
+		resp, err := client.ListAPITokens(readCtx, &authv1.ListAPITokensRequest{UserId: userID})
+		readCancel()
 		if err != nil {
 			w.Write([]byte(`<div class="text-xs text-red-400">list tokens failed</div>`))
 			return
@@ -325,10 +394,12 @@ func (h *Handler) UsersTokens(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(`<div class="text-xs text-red-400">name required</div>`))
 			return
 		}
-		resp, err := client.CreateAPIToken(r.Context(), &authv1.CreateAPITokenRequest{
+		readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
+		resp, err := client.CreateAPIToken(readCtx, &authv1.CreateAPITokenRequest{
 			UserId: userID,
 			Name:   name,
 		})
+		readCancel()
 		if err != nil {
 			w.Write([]byte(`<div class="text-xs text-red-400">create token failed</div>`))
 			return
@@ -346,7 +417,9 @@ func (h *Handler) UsersTokens(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodDelete:
 		tokenID := r.PathValue("tokenId")
-		_, err := client.DeleteAPIToken(r.Context(), &authv1.DeleteAPITokenRequest{TokenId: tokenID})
+		readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
+		_, err := client.DeleteAPIToken(readCtx, &authv1.DeleteAPITokenRequest{TokenId: tokenID})
+		readCancel()
 		if err != nil {
 			w.Write([]byte(`<div class="text-xs text-red-400">delete token failed</div>`))
 			return

@@ -4,12 +4,13 @@ go 1.26.5
 
 require (
 	github.com/Muxcore-Media/backup-local v0.1.2
+	github.com/Muxcore-Media/contracts-automation v0.1.0
 	github.com/Muxcore-Media/contracts-media-admin v0.1.0
 	github.com/Muxcore-Media/contracts-playback v0.1.0
+	github.com/Muxcore-Media/contracts-scanner v0.1.0
 	github.com/Muxcore-Media/core v0.5.8
-	github.com/Muxcore-Media/core/sdk/go/client v0.5.2
+	github.com/Muxcore-Media/core/sdk/go/client v0.5.8
 	github.com/Muxcore-Media/jellyfin v0.3.0
-	github.com/Muxcore-Media/media-automation v0.1.5
 	github.com/Muxcore-Media/media-custom-formats v0.1.1
 	github.com/a-h/templ v0.3.1020
 	github.com/google/uuid v1.6.0
@@ -27,14 +28,14 @@ require github.com/Muxcore-Media/media-library-maintainer v0.1.12
 require (
 	github.com/Muxcore-Media/media-movies v0.1.9
 	github.com/Muxcore-Media/media-music v0.3.0
-	github.com/Muxcore-Media/media-scanner v0.1.1
 	github.com/Muxcore-Media/media-subtitles v0.4.8
 	github.com/Muxcore-Media/media-transcoder v0.3.0
 )
 
 require (
 	github.com/Muxcore-Media/contracts-media v0.1.0 // indirect
-	github.com/Muxcore-Media/core/pkg/contracts v0.5.4 // indirect
+	github.com/Muxcore-Media/core/pkg/contracts v0.5.8 // indirect
+	github.com/Muxcore-Media/core/pkg/tenant v0.5.8 // indirect
 )
 
 require (
@@ -80,6 +81,16 @@ replace github.com/Muxcore-Media/contracts-media => ../contracts-media
 
 replace github.com/Muxcore-Media/contracts-playback => ../contracts-playback
 
+replace github.com/Muxcore-Media/core => ../core
+
 replace github.com/Muxcore-Media/core/pkg/contracts => ../core/pkg/contracts
 
+replace github.com/Muxcore-Media/core/pkg/tenant => ../core/pkg/tenant
+
 replace github.com/Muxcore-Media/core/sdk/go/client => ../core/sdk/go/client
+
+replace github.com/Muxcore-Media/contracts-scanner => ../contracts-scanner
+
+replace github.com/Muxcore-Media/contracts-automation => ../contracts-automation
+
+replace github.com/Muxcore-Media/contracts-metadata => ../contracts-metadata

@@ -23,9 +23,25 @@ import (
 )
 
 const (
-	capBackup    = "backup"
-	capScheduler = "scheduler"
+	capBackup            = "backup"
+	capScheduler         = "scheduler"
+	backupDialTimeout    = 3 * time.Second
+	backupReadTimeout    = 5 * time.Second
+	backupListPageTimeout = backupDialTimeout + backupReadTimeout + time.Second
+	backupActionTimeout  = backupDialTimeout + backupReadTimeout + time.Second
+	schedulerDialTimeout = 3 * time.Second
+	schedulerReadTimeout = 5 * time.Second
+	schedulerPageTimeout = schedulerDialTimeout + schedulerReadTimeout + time.Second
+	metadataDialTimeout  = 3 * time.Second
+	metadataPageTimeout  = metadataDialTimeout + time.Second
+	moduleListDialTimeout = 3 * time.Second
+	moduleListReadTimeout = 5 * time.Second
+	moduleListPageTimeout = moduleListDialTimeout + moduleListReadTimeout + time.Second
 )
+
+func schedulerHTTPDo(_ context.Context, req *http.Request) (*http.Response, error) {
+	return (&http.Client{Timeout: schedulerReadTimeout}).Do(req)
+}
 
 var (
 	networkingMu   sync.Mutex
@@ -39,7 +55,9 @@ var (
 // --- API Keys catalog ---
 
 func (h *Handler) APIKeysPage(w http.ResponseWriter, r *http.Request) {
-	rows, errMsg := h.collectAPIKeys(r.Context())
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), usersDialTimeout+usersReadTimeout+time.Second)
+	defer pageCancel()
+	rows, errMsg := h.collectAPIKeys(pageCtx)
 	content := templates.APIKeysLivePage(rows, errMsg)
 	nav := h.nav(r.URL.Path)
 	h.render(w, r, templates.Layout("API Keys", nav, content))
@@ -62,18 +80,24 @@ func (h *Handler) APIKeysRevoke(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) collectAPIKeys(ctx context.Context) ([]templates.APIKeyRow, string) {
-	client, conn, err := h.authClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(ctx, usersDialTimeout)
+	client, conn, err := h.authClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		return nil, "auth unavailable: " + err.Error()
 	}
 	defer conn.Close()
-	users, err := client.ListUsers(ctx, &authv1.ListUsersRequest{})
+	readCtx, readCancel := context.WithTimeout(ctx, usersReadTimeout)
+	users, err := client.ListUsers(readCtx, &authv1.ListUsersRequest{})
+	readCancel()
 	if err != nil {
 		return nil, "list users: " + err.Error()
 	}
 	var rows []templates.APIKeyRow
 	for _, u := range users.GetUsers() {
-		tok, err := client.ListAPITokens(ctx, &authv1.ListAPITokensRequest{UserId: u.GetId()})
+		readCtx, readCancel := context.WithTimeout(ctx, usersReadTimeout)
+		tok, err := client.ListAPITokens(readCtx, &authv1.ListAPITokensRequest{UserId: u.GetId()})
+		readCancel()
 		if err != nil {
 			continue
 		}
@@ -117,7 +141,9 @@ func (h *Handler) backupClient(ctx context.Context) (backupv1.BackupServiceClien
 }
 
 func (h *Handler) BackupsPage(w http.ResponseWriter, r *http.Request) {
-	rows, errMsg := h.listBackupRows(r.Context())
+	pageCtx, cancel := context.WithTimeout(r.Context(), backupListPageTimeout)
+	defer cancel()
+	rows, errMsg := h.listBackupRows(pageCtx)
 	flash := r.URL.Query().Get("ok")
 	content := templates.BackupsLivePage(rows, errMsg, flash)
 	nav := h.nav(r.URL.Path)
@@ -125,12 +151,16 @@ func (h *Handler) BackupsPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) listBackupRows(ctx context.Context) ([]templates.BackupRow, string) {
-	client, conn, err := h.backupClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(ctx, backupDialTimeout)
+	client, conn, err := h.backupClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		return nil, err.Error()
 	}
 	defer conn.Close()
-	resp, err := client.ListBackups(ctx, &backupv1.ListBackupsRequest{})
+	readCtx, readCancel := context.WithTimeout(ctx, backupReadTimeout)
+	resp, err := client.ListBackups(readCtx, &backupv1.ListBackupsRequest{})
+	readCancel()
 	if err != nil {
 		return nil, err.Error()
 	}
@@ -159,14 +189,20 @@ func formatBytes(n int64) string {
 }
 
 func (h *Handler) BackupsCreate(w http.ResponseWriter, r *http.Request) {
-	client, conn, err := h.backupClient(r.Context())
+	pageCtx, cancel := context.WithTimeout(r.Context(), backupActionTimeout)
+	defer cancel()
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, backupDialTimeout)
+	client, conn, err := h.backupClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/backups?ok="+urlQuery(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer conn.Close()
-	sourcePaths := h.libraryBackupSourcePaths(r.Context())
-	resp, err := client.CreateBackup(r.Context(), &backupv1.CreateBackupRequest{SourcePaths: sourcePaths})
+	sourcePaths := h.libraryBackupSourcePaths(pageCtx)
+	readCtx, readCancel := context.WithTimeout(pageCtx, backupReadTimeout)
+	resp, err := client.CreateBackup(readCtx, &backupv1.CreateBackupRequest{SourcePaths: sourcePaths})
+	readCancel()
 	if err != nil {
 		http.Redirect(w, r, "/backups?ok="+urlQuery(err.Error()), http.StatusSeeOther)
 		return
@@ -209,13 +245,19 @@ func (h *Handler) libraryBackupSourcePaths(ctx context.Context) []string {
 
 func (h *Handler) BackupsDelete(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	client, conn, err := h.backupClient(r.Context())
+	pageCtx, cancel := context.WithTimeout(r.Context(), backupActionTimeout)
+	defer cancel()
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, backupDialTimeout)
+	client, conn, err := h.backupClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/backups?ok="+urlQuery(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer conn.Close()
-	_, err = client.DeleteBackup(r.Context(), &backupv1.DeleteBackupRequest{BackupId: id})
+	readCtx, readCancel := context.WithTimeout(pageCtx, backupReadTimeout)
+	_, err = client.DeleteBackup(readCtx, &backupv1.DeleteBackupRequest{BackupId: id})
+	readCancel()
 	msg := "deleted " + id
 	if err != nil {
 		msg = err.Error()
@@ -227,13 +269,19 @@ func (h *Handler) BackupsRestore(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	_ = r.ParseForm()
 	target := r.FormValue("target_path")
-	client, conn, err := h.backupClient(r.Context())
+	pageCtx, cancel := context.WithTimeout(r.Context(), backupActionTimeout)
+	defer cancel()
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, backupDialTimeout)
+	client, conn, err := h.backupClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/backups?ok="+urlQuery(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer conn.Close()
-	resp, err := client.RestoreBackup(r.Context(), &backupv1.RestoreBackupRequest{BackupId: id, TargetPath: target})
+	readCtx, readCancel := context.WithTimeout(pageCtx, backupReadTimeout)
+	resp, err := client.RestoreBackup(readCtx, &backupv1.RestoreBackupRequest{BackupId: id, TargetPath: target})
+	readCancel()
 	msg := "restored"
 	if err != nil {
 		msg = err.Error()
@@ -272,7 +320,9 @@ func (h *Handler) schedulerHTTPBase(ctx context.Context) (string, error) {
 }
 
 func (h *Handler) TasksPage(w http.ResponseWriter, r *http.Request) {
-	rows, errMsg := h.listTaskRows(r.Context())
+	ctx, cancel := context.WithTimeout(r.Context(), schedulerPageTimeout)
+	defer cancel()
+	rows, errMsg := h.listTaskRows(ctx)
 	flash := r.URL.Query().Get("ok")
 	content := templates.TasksLivePage(rows, errMsg, flash)
 	nav := h.nav(r.URL.Path)
@@ -280,7 +330,9 @@ func (h *Handler) TasksPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) listTaskRows(ctx context.Context) ([]templates.TaskRow, string) {
-	base, err := h.schedulerHTTPBase(ctx)
+	dialCtx, dialCancel := context.WithTimeout(ctx, schedulerDialTimeout)
+	base, err := h.schedulerHTTPBase(dialCtx)
+	dialCancel()
 	if err != nil {
 		return nil, err.Error()
 	}
@@ -288,7 +340,7 @@ func (h *Handler) listTaskRows(ctx context.Context) ([]templates.TaskRow, string
 	if err != nil {
 		return nil, err.Error()
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := schedulerHTTPDo(ctx, req)
 	if err != nil {
 		return nil, err.Error()
 	}
@@ -316,18 +368,22 @@ func (h *Handler) listTaskRows(ctx context.Context) ([]templates.TaskRow, string
 }
 
 func (h *Handler) TasksCancel(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), schedulerDialTimeout+schedulerReadTimeout)
+	defer cancel()
 	id := r.PathValue("id")
-	base, err := h.schedulerHTTPBase(r.Context())
+	dialCtx, dialCancel := context.WithTimeout(ctx, schedulerDialTimeout)
+	base, err := h.schedulerHTTPBase(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/tasks?ok="+urlQuery(err.Error()), http.StatusSeeOther)
 		return
 	}
-	req, err := http.NewRequestWithContext(r.Context(), http.MethodDelete, base+"/cancel/"+id, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, base+"/cancel/"+id, nil)
 	if err != nil {
 		http.Redirect(w, r, "/tasks?ok="+urlQuery(err.Error()), http.StatusSeeOther)
 		return
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := schedulerHTTPDo(ctx, req)
 	msg := "cancelled " + id
 	if err != nil {
 		msg = err.Error()
@@ -654,8 +710,12 @@ func savePlayback(p playbackFile) error {
 }
 
 const (
-	capTranscoder     = "transcoder"
-	capMediaTranscode = "media.transcoder"
+	capTranscoder        = "transcoder"
+	capMediaTranscode    = "media.transcoder"
+	playbackDialTimeout  = 3 * time.Second
+	playbackReadTimeout  = 5 * time.Second
+	playbackPageTimeout  = playbackDialTimeout + playbackReadTimeout + time.Second
+	playbackActionTimeout = playbackDialTimeout + playbackReadTimeout + time.Second
 )
 
 func (h *Handler) resolveTranscoder(ctx context.Context) (id, httpAddr string, ok bool) {
@@ -678,11 +738,15 @@ func (h *Handler) resolveTranscoder(ctx context.Context) (id, httpAddr string, o
 }
 
 func (h *Handler) loadTranscoderFFmpeg(ctx context.Context) (moduleID, ffmpeg string, present bool) {
-	id, addr, ok := h.resolveTranscoder(ctx)
+	dialCtx, dialCancel := context.WithTimeout(ctx, playbackDialTimeout)
+	id, addr, ok := h.resolveTranscoder(dialCtx)
+	dialCancel()
 	if !ok {
 		return "", "", false
 	}
-	raw, err := h.settingsMeshCall(ctx, id, addr, methodGet, nil)
+	readCtx, readCancel := context.WithTimeout(ctx, playbackReadTimeout)
+	raw, err := h.settingsMeshCall(readCtx, id, addr, methodGet, nil)
+	readCancel()
 	if err != nil {
 		return id, "", true
 	}
@@ -703,7 +767,9 @@ func (h *Handler) loadTranscoderFFmpeg(ctx context.Context) (moduleID, ffmpeg st
 }
 
 func (h *Handler) pushTranscoderFFmpeg(ctx context.Context, ffmpeg string) (moduleID string, err error) {
-	id, addr, ok := h.resolveTranscoder(ctx)
+	dialCtx, dialCancel := context.WithTimeout(ctx, playbackDialTimeout)
+	id, addr, ok := h.resolveTranscoder(dialCtx)
+	dialCancel()
 	if !ok {
 		return "", fmt.Errorf("transcoder absent")
 	}
@@ -715,13 +781,18 @@ func (h *Handler) pushTranscoderFFmpeg(ctx context.Context, ffmpeg string) (modu
 	if err != nil {
 		return id, err
 	}
-	_, err = h.settingsMeshCall(ctx, id, addr, methodUpdate, payload)
+	readCtx, readCancel := context.WithTimeout(ctx, playbackReadTimeout)
+	_, err = h.settingsMeshCall(readCtx, id, addr, methodUpdate, payload)
+	readCancel()
 	return id, err
 }
 
 func (h *Handler) PlaybackAdminPage(w http.ResponseWriter, r *http.Request) {
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), playbackPageTimeout)
+	defer pageCancel()
+
 	p := loadPlayback()
-	tid, ffmpeg, present := h.loadTranscoderFFmpeg(r.Context())
+	tid, ffmpeg, present := h.loadTranscoderFFmpeg(pageCtx)
 	if present && ffmpeg != "" {
 		p.FFmpegBin = ffmpeg
 	}
@@ -766,7 +837,9 @@ func (h *Handler) PlaybackAdminSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	notice := ""
-	if _, err := h.pushTranscoderFFmpeg(r.Context(), p.FFmpegBin); err != nil {
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), playbackActionTimeout)
+	defer pageCancel()
+	if _, err := h.pushTranscoderFFmpeg(pageCtx, p.FFmpegBin); err != nil {
 		if strings.Contains(err.Error(), "absent") {
 			notice = "Local policy saved; media-transcoder not registered (soft-empty)."
 		} else {
@@ -781,7 +854,13 @@ func (h *Handler) PlaybackAdminSave(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) LibrariesAdminPage(w http.ResponseWriter, r *http.Request) {
-	h.refreshMediaNavLinks(r.Context())
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), metadataPageTimeout)
+	defer pageCancel()
+
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, metadataDialTimeout)
+	h.refreshMediaNavLinks(dialCtx)
+	dialCancel()
+
 	var rows []templates.LibraryModRow
 	h.mediaMu.RLock()
 	for _, mod := range h.mediaModules {
@@ -798,14 +877,22 @@ func (h *Handler) LibrariesAdminPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) PluginsPage(w http.ResponseWriter, r *http.Request) {
-	mods := h.loadModuleList(r)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), moduleListPageTimeout)
+	defer pageCancel()
+	mods := h.loadModuleList(pageCtx)
 	content := templates.PluginsCatalogPage(mods)
 	nav := h.nav(r.URL.Path)
 	h.render(w, r, templates.Layout("Plugins", nav, content))
 }
 
 func (h *Handler) MetadataManagerPage(w http.ResponseWriter, r *http.Request) {
-	h.refreshMediaNavLinks(r.Context())
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), metadataPageTimeout)
+	defer pageCancel()
+
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, metadataDialTimeout)
+	h.refreshMediaNavLinks(dialCtx)
+	dialCancel()
+
 	var rows []templates.MetadataLibRow
 	h.mediaMu.RLock()
 	for _, mod := range h.mediaModules {
@@ -822,7 +909,9 @@ func (h *Handler) MetadataManagerPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) AuthSSOPage(w http.ResponseWriter, r *http.Request) {
-	all := h.loadModuleList(r)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), moduleListPageTimeout)
+	defer pageCancel()
+	all := h.loadModuleList(pageCtx)
 	var authMods []templates.ModuleListItem
 	for _, m := range all {
 		id := strings.ToLower(m.ID)

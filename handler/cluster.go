@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,8 +12,19 @@ import (
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
+const (
+	clusterDialTimeout = 3 * time.Second
+	clusterReadTimeout = 5 * time.Second
+	clusterPageTimeout = clusterDialTimeout + clusterReadTimeout + time.Second
+)
+
 func (h *Handler) ClusterPage(w http.ResponseWriter, r *http.Request) {
-	members, leaderID, err := h.Core.Discovery.Members(r.Context())
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), clusterPageTimeout)
+	defer pageCancel()
+
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, clusterDialTimeout)
+	members, leaderID, err := h.Core.Discovery.Members(dialCtx)
+	dialCancel()
 	if err != nil {
 		slog.Warn("cluster: Members call failed", "error", err)
 		nav := h.nav(r.URL.Path)
@@ -54,7 +66,12 @@ func (h *Handler) ClusterNodes(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.Header().Set("Cache-Control", "no-cache")
 
-	members, leaderID, err := h.Core.Discovery.Members(r.Context())
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), clusterPageTimeout)
+	defer pageCancel()
+
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, clusterDialTimeout)
+	members, leaderID, err := h.Core.Discovery.Members(dialCtx)
+	dialCancel()
 	if err != nil {
 		slog.Warn("cluster nodes: Members call failed", "error", err)
 		w.Write([]byte(`<div class="col-span-full text-sm text-red-400">Failed to load nodes</div>`))

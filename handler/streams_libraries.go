@@ -1,20 +1,31 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 
 	monitorv1 "github.com/Muxcore-Media/playback-monitor/proto/monitorv1"
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
+const (
+	streamsLibrariesReads      = 6
+	streamsLibrariesPageTimeout = playbackMonitorDialTimeout + streamsLibrariesReads*playbackMonitorReadTimeout + time.Second
+)
+
 func (h *Handler) StreamsLibrariesPage(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), streamsLibrariesPageTimeout)
+	defer pageCancel()
+
 	data := templates.StreamsLibrariesPageData{}
 
-	client, closer, err := h.withPlaybackMonitorClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, playbackMonitorDialTimeout)
+	client, closer, err := h.withPlaybackMonitorClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		data.SoftNote = true
 		if h.Core != nil {
@@ -25,7 +36,10 @@ func (h *Handler) StreamsLibrariesPage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer closer()
 
-	if storageResp, err := client.GetLibraryStorageSummary(ctx, &monitorv1.GetLibraryStorageSummaryRequest{}); err == nil {
+	readCtx, readCancel := context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	storageResp, storageErr := client.GetLibraryStorageSummary(readCtx, &monitorv1.GetLibraryStorageSummaryRequest{})
+	readCancel()
+	if storageErr == nil {
 		data.StorageTotal = formatStorageBytes(storageResp.GetTotalBytes())
 		data.StorageItems = int(storageResp.GetTotalItems())
 		data.StorageDuplicateWaste = formatStorageBytes(storageResp.GetDuplicateWasteBytes())
@@ -39,7 +53,10 @@ func (h *Handler) StreamsLibrariesPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if histResp, err := client.GetLibraryStorageHistory(ctx, &monitorv1.GetLibraryStorageHistoryRequest{Days: 30, PredictDays: 90}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	histResp, histErr := client.GetLibraryStorageHistory(readCtx, &monitorv1.GetLibraryStorageHistoryRequest{Days: 30, PredictDays: 90})
+	readCancel()
+	if histErr == nil {
 		data.StorageProjected = formatStorageBytes(histResp.GetPrediction().GetProjectedBytes())
 		growth := histResp.GetPrediction().GetGrowthBytesPerDay()
 		if growth > 0 {
@@ -54,7 +71,9 @@ func (h *Handler) StreamsLibrariesPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	libResp, err := client.ListLibraryStats(ctx, &monitorv1.ListLibraryStatsRequest{Days: 30, Limit: 50})
+	readCtx, readCancel = context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	libResp, err := client.ListLibraryStats(readCtx, &monitorv1.ListLibraryStatsRequest{Days: 30, Limit: 50})
+	readCancel()
 	if err != nil {
 		data.Error = err.Error()
 		h.renderStreamsLibraries(w, r, data)
@@ -69,8 +88,10 @@ func (h *Handler) StreamsLibrariesPage(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	topResp, err := client.ListTopContent(ctx, &monitorv1.ListTopContentRequest{Days: 30, Limit: 10})
-	if err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	topResp, topErr := client.ListTopContent(readCtx, &monitorv1.ListTopContentRequest{Days: 30, Limit: 10})
+	readCancel()
+	if topErr == nil {
 		for _, row := range topResp.GetMovies() {
 			data.Movies = append(data.Movies, topContentRowFromProto(row))
 		}
@@ -79,7 +100,10 @@ func (h *Handler) StreamsLibrariesPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if dupResp, err := client.ListLibraryDuplicates(ctx, &monitorv1.ListLibraryDuplicatesRequest{Limit: 15}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	dupResp, dupErr := client.ListLibraryDuplicates(readCtx, &monitorv1.ListLibraryDuplicatesRequest{Limit: 15})
+	readCancel()
+	if dupErr == nil {
 		for _, g := range dupResp.GetGroups() {
 			servers := map[string]bool{}
 			for _, c := range g.GetCopies() {
@@ -98,7 +122,10 @@ func (h *Handler) StreamsLibrariesPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if staleResp, err := client.ListStaleLibraryItems(ctx, &monitorv1.ListStaleLibraryItemsRequest{StaleDays: 90, Limit: 15}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	staleResp, staleErr := client.ListStaleLibraryItems(readCtx, &monitorv1.ListStaleLibraryItemsRequest{StaleDays: 90, Limit: 15})
+	readCancel()
+	if staleErr == nil {
 		data.StaleNever = int(staleResp.GetNeverWatchedCount())
 		data.StaleOld = int(staleResp.GetStaleCount())
 		for _, item := range staleResp.GetItems() {

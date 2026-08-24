@@ -1,12 +1,19 @@
 package handler
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
+)
+
+const (
+	auditDialTimeout  = 3 * time.Second
+	auditReadTimeout  = 5 * time.Second
+	auditPageTimeout  = auditDialTimeout + auditReadTimeout + time.Second
 )
 
 func (h *Handler) AuditPage(w http.ResponseWriter, r *http.Request) {
@@ -47,7 +54,12 @@ func (h *Handler) AuditPage(w http.ResponseWriter, r *http.Request) {
 		maxResults = 500
 	}
 
-	entries, err := h.Core.Audit.Query(r.Context(), filter.Actor, filter.Action, filter.Resource, filter.TraceID, from, to, maxResults)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), auditPageTimeout)
+	defer pageCancel()
+
+	readCtx, readCancel := context.WithTimeout(pageCtx, auditReadTimeout)
+	entries, err := h.Core.Audit.Query(readCtx, filter.Actor, filter.Action, filter.Resource, filter.TraceID, from, to, maxResults)
+	readCancel()
 	if err != nil {
 		slog.Warn("audit: query failed", "error", err)
 		nav := h.nav(r.URL.Path)

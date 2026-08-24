@@ -1,19 +1,34 @@
 package handler
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
+	"time"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
+const (
+	storageDialTimeout = 3 * time.Second
+	storageReadTimeout = 5 * time.Second
+	storagePageTimeout = storageDialTimeout + 2*storageReadTimeout + time.Second
+)
+
 func (h *Handler) StoragePage(w http.ResponseWriter, r *http.Request) {
-	modules, err := h.Core.Discovery.FindByCapability(r.Context(), "storage")
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), storagePageTimeout)
+	defer pageCancel()
+
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, storageDialTimeout)
+	modules, err := h.Core.Discovery.FindByCapability(dialCtx, "storage")
+	dialCancel()
 	if err != nil {
 		slog.Warn("storage: FindByCapability failed", "error", err)
 	}
 
-	caps, err := h.Core.Storage.Capabilities(r.Context())
+	readCtx, readCancel := context.WithTimeout(pageCtx, storageReadTimeout)
+	caps, err := h.Core.Storage.Capabilities(readCtx)
+	readCancel()
 	if err != nil {
 		slog.Warn("storage: Capabilities call failed", "error", err)
 	}

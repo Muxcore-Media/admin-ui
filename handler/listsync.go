@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -17,7 +18,11 @@ import (
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
-const capMediaListSync = "media.listsync"
+const (
+	capMediaListSync     = "media.listsync"
+	listSyncDialTimeout  = 3 * time.Second
+	listSyncReadTimeout  = 5 * time.Second
+)
 
 func (h *Handler) listSyncModuleAddr(ctx context.Context) (string, error) {
 	if h.Core == nil {
@@ -127,7 +132,9 @@ func (h *Handler) listSyncFormOptions(ctx context.Context) ([]templates.ProfileO
 }
 
 func (h *Handler) ListSyncPage(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), 3*listSyncDialTimeout+3*listSyncReadTimeout+time.Second)
+	defer pageCancel()
+
 	data := templates.ListSyncPageData{
 		Flash: r.URL.Query().Get("synced"),
 		Error: r.URL.Query().Get("error"),
@@ -136,7 +143,9 @@ func (h *Handler) ListSyncPage(w http.ResponseWriter, r *http.Request) {
 		data.Flash = flash
 	}
 
-	client, closer, err := h.withListSyncClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, listSyncDialTimeout)
+	client, closer, err := h.withListSyncClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		slog.Warn("list-sync: resolve failed", "error", err)
 		data.Error = err.Error()
@@ -145,7 +154,9 @@ func (h *Handler) ListSyncPage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer closer()
 
-	resp, err := client.ListSources(ctx, &listsyncv1.ListSourcesRequest{})
+	readCtx, readCancel := context.WithTimeout(pageCtx, listSyncReadTimeout)
+	resp, err := client.ListSources(readCtx, &listsyncv1.ListSourcesRequest{})
+	readCancel()
 	if err != nil {
 		slog.Warn("list-sync: ListSources failed", "error", err)
 		data.Error = err.Error()
@@ -155,7 +166,7 @@ func (h *Handler) ListSyncPage(w http.ResponseWriter, r *http.Request) {
 	for _, s := range resp.GetSources() {
 		data.Sources = append(data.Sources, sourceRowFromProto(s))
 	}
-	data.Profiles, data.Roots = h.listSyncFormOptions(ctx)
+	data.Profiles, data.Roots = h.listSyncFormOptions(pageCtx)
 	h.renderListSync(w, r, data)
 }
 

@@ -32,6 +32,17 @@ func TestLoadConfigDefaults(t *testing.T) {
 	}
 }
 
+func TestResolveBrowserAuthAddrPrefersPublicURL(t *testing.T) {
+	t.Setenv("AUTH_HTTP_URL", "https://auth.zem.systems")
+	internal := "http://[fd2c:a2fd:5d9e:ab72:9d99:930d:f160:3e95]:9401"
+	if got := resolveBrowserAuthAddr(internal); got != "https://auth.zem.systems" {
+		t.Fatalf("got %q", got)
+	}
+	if got := resolveBrowserAuthAddr("https://auth.example.com"); got != "https://auth.example.com" {
+		t.Fatalf("got %q", got)
+	}
+}
+
 func TestLoadConfigEnv(t *testing.T) {
 	t.Setenv("ADMIN_UI_ADDR", ":9999")
 	t.Setenv("ADMIN_UI_CORE_ADDR", "core:9090")

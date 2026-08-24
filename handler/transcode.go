@@ -18,9 +18,11 @@ import (
 )
 
 const (
-	capMediaTranscoderAdmin = "media.transcoder"
-	transcodeDialTimeout    = 3 * time.Second
-	transcodeReadTimeout    = 8 * time.Second
+	capMediaTranscoderAdmin  = "media.transcoder"
+	transcodeDialTimeout     = 3 * time.Second
+	transcodeReadTimeout     = 5 * time.Second
+	transcodePageTimeout     = transcodeDialTimeout + 5*transcodeReadTimeout + time.Second
+	transcodeEditPageTimeout = transcodeDialTimeout + transcodeReadTimeout + time.Second
 )
 
 func (h *Handler) withTranscoderClient(ctx context.Context) (transcodev1.TranscodeServiceClient, func(), error) {
@@ -54,8 +56,8 @@ func (h *Handler) TranscodePage(w http.ResponseWriter, r *http.Request) {
 		Flash: r.URL.Query().Get("ok"),
 		Error: r.URL.Query().Get("error"),
 	}
-	pageCtx, cancel := context.WithTimeout(r.Context(), transcodeDialTimeout+2*transcodeReadTimeout)
-	defer cancel()
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), transcodePageTimeout)
+	defer pageCancel()
 
 	dialCtx, dialCancel := context.WithTimeout(pageCtx, transcodeDialTimeout)
 	client, closer, err := h.withTranscoderClient(dialCtx)
@@ -69,21 +71,29 @@ func (h *Handler) TranscodePage(w http.ResponseWriter, r *http.Request) {
 	defer closer()
 
 	readCtx, readCancel := context.WithTimeout(pageCtx, transcodeReadTimeout)
-	defer readCancel()
-
-	if profs, err := client.ListProfiles(readCtx, &transcodev1.ListProfilesRequest{}); err == nil {
+	profs, err := client.ListProfiles(readCtx, &transcodev1.ListProfilesRequest{})
+	readCancel()
+	if err == nil {
 		for _, p := range profs.GetProfiles() {
 			data.Profiles = append(data.Profiles, templates.TranscodeProfileRow{ID: p.GetId(), Name: p.GetName()})
 		}
 	}
-	if setups, err := client.ListSetups(readCtx, &transcodev1.ListSetupsRequest{}); err == nil {
+
+	readCtx, readCancel = context.WithTimeout(pageCtx, transcodeReadTimeout)
+	setups, err := client.ListSetups(readCtx, &transcodev1.ListSetupsRequest{})
+	readCancel()
+	if err == nil {
 		for _, s := range setups.GetSetups() {
 			data.Setups = append(data.Setups, mapSetupRow(s))
 		}
 	} else if data.Error == "" {
 		data.Error = err.Error()
 	}
-	if runs, err := client.ListPipelineRuns(readCtx, &transcodev1.ListPipelineRunsRequest{Page: 1, PageSize: 25}); err == nil {
+
+	readCtx, readCancel = context.WithTimeout(pageCtx, transcodeReadTimeout)
+	runs, err := client.ListPipelineRuns(readCtx, &transcodev1.ListPipelineRunsRequest{Page: 1, PageSize: 25})
+	readCancel()
+	if err == nil {
 		for _, run := range runs.GetRuns() {
 			row := mapPipelineRunRow(run)
 			if run.GetStatus() == "pending_review" {
@@ -95,7 +105,10 @@ func (h *Handler) TranscodePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if editID := strings.TrimSpace(r.URL.Query().Get("id")); editID != "" {
-		if resp, err := client.GetSetup(readCtx, &transcodev1.GetSetupRequest{Id: editID}); err == nil && resp.GetSetup() != nil {
+		readCtx, readCancel = context.WithTimeout(pageCtx, transcodeReadTimeout)
+		resp, err := client.GetSetup(readCtx, &transcodev1.GetSetupRequest{Id: editID})
+		readCancel()
+		if err == nil && resp.GetSetup() != nil {
 			row := mapSetupRow(resp.GetSetup())
 			data.Edit = &row
 		}
@@ -104,7 +117,10 @@ func (h *Handler) TranscodePage(w http.ResponseWriter, r *http.Request) {
 		data.FlowInitJSON = flowInitJSON(data.Profiles, data.Edit)
 	}
 	if data.Edit != nil && data.Edit.ID != "" {
-		if tpls, err := client.ListStepTemplates(readCtx, &transcodev1.ListStepTemplatesRequest{}); err == nil {
+		readCtx, readCancel = context.WithTimeout(pageCtx, transcodeReadTimeout)
+		tpls, err := client.ListStepTemplates(readCtx, &transcodev1.ListStepTemplatesRequest{})
+		readCancel()
+		if err == nil {
 			for _, t := range tpls.GetTemplates() {
 				data.StepTemplates = append(data.StepTemplates, templates.TranscodeStepTemplateRow{
 					ID: t.GetId(), Name: t.GetName(), Description: t.GetDescription(),
@@ -137,18 +153,25 @@ func (h *Handler) TranscodeEditPage(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 	}
-	pageCtx, cancel := context.WithTimeout(r.Context(), transcodeDialTimeout+transcodeReadTimeout)
-	defer cancel()
-	if client, closer, err := h.withTranscoderClient(pageCtx); err == nil {
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), transcodeEditPageTimeout)
+	defer pageCancel()
+
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, transcodeDialTimeout)
+	client, closer, err := h.withTranscoderClient(dialCtx)
+	dialCancel()
+	if err != nil {
+		data.SoftEmpty = true
+		data.Error = err.Error()
+	} else {
 		defer closer()
-		if profs, err := client.ListProfiles(pageCtx, &transcodev1.ListProfilesRequest{}); err == nil {
+		readCtx, readCancel := context.WithTimeout(pageCtx, transcodeReadTimeout)
+		profs, err := client.ListProfiles(readCtx, &transcodev1.ListProfilesRequest{})
+		readCancel()
+		if err == nil {
 			for _, p := range profs.GetProfiles() {
 				data.Profiles = append(data.Profiles, templates.TranscodeProfileRow{ID: p.GetId(), Name: p.GetName()})
 			}
 		}
-	} else {
-		data.SoftEmpty = true
-		data.Error = err.Error()
 	}
 	data.FlowInitJSON = flowInitJSON(data.Profiles, data.Edit)
 	h.renderTranscode(w, r, data)

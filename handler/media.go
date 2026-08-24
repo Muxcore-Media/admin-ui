@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -15,6 +16,12 @@ import (
 	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
+)
+
+const (
+	mediaDialTimeout = 3 * time.Second
+	mediaReadTimeout = 5 * time.Second
+	mediaPageTimeout = mediaDialTimeout + 2*mediaReadTimeout + time.Second
 )
 
 func automationItemType(moduleID, displayName string) string {
@@ -67,9 +74,12 @@ func (h *Handler) dialMediaModule(addr string) (*grpc.ClientConn, mediaadminv1.M
 
 func (h *Handler) MediaLibraryList(w http.ResponseWriter, r *http.Request) {
 	moduleID := r.PathValue("moduleID")
-	ctx := r.Context()
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), mediaPageTimeout)
+	defer pageCancel()
 
-	addr, err := h.mediaModuleAddr(ctx, moduleID)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, mediaDialTimeout)
+	addr, err := h.mediaModuleAddr(dialCtx, moduleID)
+	dialCancel()
 	if err != nil {
 		slog.Warn("media: resolve failed", "module", moduleID, "error", err)
 		content := templates.MediaListPage(moduleID, nil, 0, 0, 0, moduleID, nil, "", "")
@@ -98,7 +108,9 @@ func (h *Handler) MediaLibraryList(w http.ResponseWriter, r *http.Request) {
 	search := r.URL.Query().Get("q")
 	tagID := r.URL.Query().Get("tag")
 
-	info, err := client.GetMediaTypeInfo(ctx, &mediaadminv1.GetMediaTypeInfoRequest{})
+	readCtx, readCancel := context.WithTimeout(pageCtx, mediaReadTimeout)
+	info, err := client.GetMediaTypeInfo(readCtx, &mediaadminv1.GetMediaTypeInfoRequest{})
+	readCancel()
 	displayName := moduleID
 	var features []string
 	if err == nil {
@@ -106,13 +118,15 @@ func (h *Handler) MediaLibraryList(w http.ResponseWriter, r *http.Request) {
 		features = info.GetFeatures()
 	}
 
-	resp, err := client.ListItems(ctx, &mediaadminv1.ListItemsRequest{
+	readCtx, readCancel = context.WithTimeout(pageCtx, mediaReadTimeout)
+	resp, err := client.ListItems(readCtx, &mediaadminv1.ListItemsRequest{
 		Page:     int32(page),
 		PageSize: int32(pageSize),
 		Search:   search,
 		SortBy:   r.URL.Query().Get("sort"),
 		TagId:    tagID,
 	})
+	readCancel()
 	if err != nil {
 		slog.Warn("media: ListItems failed", "module", moduleID, "error", err)
 		content := templates.MediaListPage(displayName, nil, 0, 0, 0, moduleID, features, search, tagID)

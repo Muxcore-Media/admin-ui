@@ -18,6 +18,13 @@ import (
 
 const capPlaybackGuard = "playback.guard"
 
+const (
+	playbackGuardDialTimeout  = 3 * time.Second
+	playbackGuardReadTimeout  = 5 * time.Second
+	playbackGuardPageTimeout  = playbackGuardDialTimeout + 3*playbackGuardReadTimeout + playbackMonitorDialTimeout + playbackMonitorReadTimeout + time.Second
+	playbackGuardActionTimeout = playbackGuardDialTimeout + playbackGuardReadTimeout + time.Second
+)
+
 func (h *Handler) playbackGuardAddr(ctx context.Context) (string, error) {
 	if h.Core == nil {
 		return "", fmt.Errorf("core unavailable")
@@ -49,7 +56,9 @@ func (h *Handler) withPlaybackGuardClient(ctx context.Context) (guardv1.Playback
 }
 
 func (h *Handler) StreamsGuardPage(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), playbackGuardPageTimeout)
+	defer pageCancel()
+
 	data := templates.StreamsGuardPageData{}
 	if msg := strings.TrimSpace(r.URL.Query().Get("success")); msg != "" {
 		data.Success = msg
@@ -58,7 +67,9 @@ func (h *Handler) StreamsGuardPage(w http.ResponseWriter, r *http.Request) {
 		data.Error = msg
 	}
 
-	client, closer, err := h.withPlaybackGuardClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, playbackGuardDialTimeout)
+	client, closer, err := h.withPlaybackGuardClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		data.SoftNote = true
 		if h.Core != nil {
@@ -69,13 +80,12 @@ func (h *Handler) StreamsGuardPage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer closer()
 
-	h.populateGuardPage(ctx, client, &data)
-	h.populateGuardActiveSessions(ctx, &data)
+	h.populateGuardPage(pageCtx, client, &data)
+	h.populateGuardActiveSessions(pageCtx, &data)
 	h.renderStreamsGuard(w, r, data)
 }
 
 func (h *Handler) StreamsGuardAcknowledge(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -86,14 +96,21 @@ func (h *Handler) StreamsGuardAcknowledge(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	client, closer, err := h.withPlaybackGuardClient(ctx)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), playbackGuardActionTimeout)
+	defer pageCancel()
+
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, playbackGuardDialTimeout)
+	client, closer, err := h.withPlaybackGuardClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/streams/guard", http.StatusSeeOther)
 		return
 	}
 	defer closer()
 
-	resp, err := client.AcknowledgeViolations(ctx, &guardv1.AcknowledgeViolationsRequest{ViolationIds: ids})
+	readCtx, readCancel := context.WithTimeout(pageCtx, playbackGuardReadTimeout)
+	resp, err := client.AcknowledgeViolations(readCtx, &guardv1.AcknowledgeViolationsRequest{ViolationIds: ids})
+	readCancel()
 	if err != nil {
 		http.Redirect(w, r, "/streams/guard", http.StatusSeeOther)
 		return
@@ -103,7 +120,6 @@ func (h *Handler) StreamsGuardAcknowledge(w http.ResponseWriter, r *http.Request
 }
 
 func (h *Handler) StreamsGuardResetTrust(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -111,17 +127,25 @@ func (h *Handler) StreamsGuardResetTrust(w http.ResponseWriter, r *http.Request)
 	userID := strings.TrimSpace(r.FormValue("user_id"))
 	userName := strings.TrimSpace(r.FormValue("user_name"))
 
-	client, closer, err := h.withPlaybackGuardClient(ctx)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), playbackGuardActionTimeout)
+	defer pageCancel()
+
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, playbackGuardDialTimeout)
+	client, closer, err := h.withPlaybackGuardClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/streams/guard", http.StatusSeeOther)
 		return
 	}
 	defer closer()
 
-	if _, err := client.ResetTrustScore(ctx, &guardv1.ResetTrustScoreRequest{
+	readCtx, readCancel := context.WithTimeout(pageCtx, playbackGuardReadTimeout)
+	_, err = client.ResetTrustScore(readCtx, &guardv1.ResetTrustScoreRequest{
 		UserId:   userID,
 		UserName: userName,
-	}); err != nil {
+	})
+	readCancel()
+	if err != nil {
 		http.Redirect(w, r, "/streams/guard", http.StatusSeeOther)
 		return
 	}
@@ -137,19 +161,25 @@ func (h *Handler) StreamsGuardMerge(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/streams/guard", http.StatusSeeOther)
 		return
 	}
-	ctx := r.Context()
-	client, closer, err := h.withPlaybackGuardClient(ctx)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), playbackGuardActionTimeout)
+	defer pageCancel()
+
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, playbackGuardDialTimeout)
+	client, closer, err := h.withPlaybackGuardClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/streams/guard", http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	resp, err := client.MergeUsers(ctx, &guardv1.MergeUsersRequest{
+	readCtx, readCancel := context.WithTimeout(pageCtx, playbackGuardReadTimeout)
+	resp, err := client.MergeUsers(readCtx, &guardv1.MergeUsersRequest{
 		SourceUserId:   r.FormValue("source_user_id"),
 		SourceUserName: r.FormValue("source_user_name"),
 		TargetUserId:   r.FormValue("target_user_id"),
 		TargetUserName: r.FormValue("target_user_name"),
 	})
+	readCancel()
 	if err != nil {
 		http.Redirect(w, r, "/streams/guard?error="+strings.ReplaceAll(err.Error(), " ", "+"), http.StatusSeeOther)
 		return
@@ -167,19 +197,25 @@ func (h *Handler) StreamsGuardTerminate(w http.ResponseWriter, r *http.Request) 
 		http.Redirect(w, r, "/streams/guard", http.StatusSeeOther)
 		return
 	}
-	ctx := r.Context()
-	client, closer, err := h.withPlaybackGuardClient(ctx)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), playbackGuardActionTimeout)
+	defer pageCancel()
+
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, playbackGuardDialTimeout)
+	client, closer, err := h.withPlaybackGuardClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/streams/guard?error=playback-guard+unavailable", http.StatusSeeOther)
 		return
 	}
 	defer closer()
 
-	resp, err := client.TerminateSession(ctx, &guardv1.TerminateSessionRequest{
+	readCtx, readCancel := context.WithTimeout(pageCtx, playbackGuardReadTimeout)
+	resp, err := client.TerminateSession(readCtx, &guardv1.TerminateSessionRequest{
 		SessionId:  strings.TrimSpace(r.FormValue("session_id")),
 		ServerType: strings.TrimSpace(r.FormValue("server_type")),
 		Reason:     "operator terminate from admin-ui",
 	})
+	readCancel()
 	if err != nil {
 		http.Redirect(w, r, "/streams/guard?error="+strings.ReplaceAll(err.Error(), " ", "+"), http.StatusSeeOther)
 		return
@@ -196,13 +232,17 @@ func (h *Handler) StreamsGuardTerminate(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) populateGuardActiveSessions(ctx context.Context, data *templates.StreamsGuardPageData) {
-	client, closer, err := h.withPlaybackMonitorClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(ctx, playbackMonitorDialTimeout)
+	client, closer, err := h.withPlaybackMonitorClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		data.MonitorSoftNote = true
 		return
 	}
 	defer closer()
-	resp, err := client.ListActiveSessions(ctx, &monitorv1.ListActiveSessionsRequest{Limit: 50})
+	readCtx, readCancel := context.WithTimeout(ctx, playbackMonitorReadTimeout)
+	resp, err := client.ListActiveSessions(readCtx, &monitorv1.ListActiveSessionsRequest{Limit: 50})
+	readCancel()
 	if err != nil {
 		data.MonitorSoftNote = true
 		return
@@ -223,7 +263,10 @@ func (h *Handler) populateGuardActiveSessions(ctx context.Context, data *templat
 }
 
 func (h *Handler) populateGuardPage(ctx context.Context, client guardv1.PlaybackGuardServiceClient, data *templates.StreamsGuardPageData) {
-	if rules, err := client.ListRules(ctx, &guardv1.ListRulesRequest{}); err == nil {
+	readCtx, readCancel := context.WithTimeout(ctx, playbackGuardReadTimeout)
+	rules, err := client.ListRules(readCtx, &guardv1.ListRulesRequest{})
+	readCancel()
+	if err == nil {
 		for _, rule := range rules.GetRules() {
 			data.Rules = append(data.Rules, templates.GuardRuleRow{
 				Name:          rule.GetName(),
@@ -233,7 +276,10 @@ func (h *Handler) populateGuardPage(ctx context.Context, client guardv1.Playback
 			})
 		}
 	}
-	if violations, err := client.ListViolations(ctx, &guardv1.ListViolationsRequest{Limit: 100}); err == nil {
+	readCtx, readCancel = context.WithTimeout(ctx, playbackGuardReadTimeout)
+	violations, err := client.ListViolations(readCtx, &guardv1.ListViolationsRequest{Limit: 100})
+	readCancel()
+	if err == nil {
 		for _, v := range violations.GetViolations() {
 			user := v.GetUserName()
 			if user == "" {
@@ -252,7 +298,10 @@ func (h *Handler) populateGuardPage(ctx context.Context, client guardv1.Playback
 			})
 		}
 	}
-	if trust, err := client.ListTrustScores(ctx, &guardv1.ListTrustScoresRequest{Limit: 50}); err == nil {
+	readCtx, readCancel = context.WithTimeout(ctx, playbackGuardReadTimeout)
+	trust, err := client.ListTrustScores(readCtx, &guardv1.ListTrustScoresRequest{Limit: 50})
+	readCancel()
+	if err == nil {
 		for _, ts := range trust.GetScores() {
 			user := ts.GetUserName()
 			if user == "" {

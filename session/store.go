@@ -2,6 +2,7 @@ package session
 
 import (
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -9,13 +10,14 @@ import (
 )
 
 type Session struct {
-	UserID      string
-	Username    string
-	Roles       []string
-	Permissions []string
-	TenantID    string
-	CreatedAt   time.Time
-	ExpiresAt   time.Time
+	UserID         string
+	Username       string
+	Roles          []string
+	Permissions    []string
+	TenantID       string
+	AuthLocalToken string
+	CreatedAt      time.Time
+	ExpiresAt      time.Time
 }
 
 type Store struct {
@@ -79,6 +81,18 @@ func (s *Store) Get(token string) (*Session, bool) {
 	}
 
 	return sess, true
+}
+
+func (s *Store) BindAuthLocalToken(adminSessionToken, authLocalToken string) {
+	authLocalToken = strings.TrimSpace(authLocalToken)
+	if authLocalToken == "" {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if sess, ok := s.sessions[adminSessionToken]; ok {
+		sess.AuthLocalToken = authLocalToken
+	}
 }
 
 func (s *Store) Revoke(token string) {
