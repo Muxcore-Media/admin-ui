@@ -528,21 +528,24 @@ templ MetadataManagerPage(rows []MetadataLibRow) {
 			</p>
 		</div>
 		if len(rows) == 0 {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500" role="status">
 				No media libraries registered. Metadata editing appears on item detail once libraries are online.
 			</div>
 		} else {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800">
+			<section aria-labelledby="metadata-list-heading">
+				<h2 id="metadata-list-heading" class="sr-only">Libraries with metadata editing</h2>
+				<ul class="rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800" role="list">
 				for _, r := range rows {
-					<div class="flex items-center justify-between px-4 py-3">
+					<li class="flex items-center justify-between px-4 py-3">
 						<div>
 							<div class="text-sm font-medium text-gray-200">{ r.Name }</div>
 							<div class="text-xs text-gray-500">Browse → open an item → Refresh metadata / edit fields</div>
 						</div>
-						<a href={ templ.SafeURL(r.Path) } class="text-sm text-indigo-400 hover:text-indigo-300">Open library →</a>
-					</div>
+						<a href={ templ.SafeURL(r.Path) } class="text-sm text-indigo-400 hover:text-indigo-300" aria-label={ fmt.Sprintf("Open library %s for metadata editing", r.Name) }>Open library →</a>
+					</li>
 				}
-			</div>
+				</ul>
+			</section>
 		}
 		<p class="text-xs text-gray-500">
 			Provider knobs (TMDB, etc.) live under <a href="/settings" class="text-indigo-400">Settings</a>.

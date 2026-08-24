@@ -1442,24 +1442,24 @@ func MetadataManagerPage(rows []MetadataLibRow) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if len(rows) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500\">No media libraries registered. Metadata editing appears on item detail once libraries are online.</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500\" role=\"status\">No media libraries registered. Metadata editing appears on item detail once libraries are online.</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "<section aria-labelledby=\"metadata-list-heading\"><h2 id=\"metadata-list-heading\" class=\"sr-only\">Libraries with metadata editing</h2><ul class=\"rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800\" role=\"list\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, r := range rows {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 130, "<div class=\"flex items-center justify-between px-4 py-3\"><div><div class=\"text-sm font-medium text-gray-200\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 130, "<li class=\"flex items-center justify-between px-4 py-3\"><div><div class=\"text-sm font-medium text-gray-200\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var67 string
 				templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.JoinStringErrs(r.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 539, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 541, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var67))
 				if templ_7745c5c3_Err != nil {
@@ -1472,23 +1472,36 @@ func MetadataManagerPage(rows []MetadataLibRow) templ.Component {
 				var templ_7745c5c3_Var68 templ.SafeURL
 				templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(r.Path))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 542, Col: 37}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 544, Col: 37}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var68))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 132, "\" class=\"text-sm text-indigo-400 hover:text-indigo-300\">Open library →</a></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 132, "\" class=\"text-sm text-indigo-400 hover:text-indigo-300\" aria-label=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var69 string
+				templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("Open library %s for metadata editing", r.Name))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 544, Col: 166}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var69)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 133, "\">Open library →</a></li>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 133, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 134, "</ul></section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 134, "<p class=\"text-xs text-gray-500\">Provider knobs (TMDB, etc.) live under <a href=\"/settings\" class=\"text-indigo-400\">Settings</a>.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 135, "<p class=\"text-xs text-gray-500\">Provider knobs (TMDB, etc.) live under <a href=\"/settings\" class=\"text-indigo-400\">Settings</a>.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1517,17 +1530,17 @@ func AuthSSOPage(data AuthSSOData) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var69 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var69 == nil {
-			templ_7745c5c3_Var69 = templ.NopComponent
+		templ_7745c5c3_Var70 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var70 == nil {
+			templ_7745c5c3_Var70 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 135, "<div class=\"space-y-6 max-w-4xl\" data-testid=\"auth-sso-page\"><div><h1 class=\"text-2xl font-bold\">Authentication / SSO</h1><p class=\"text-gray-400 text-sm mt-1\">Sign-in options: local users, passkeys, and single sign-on modules.</p></div><div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-4 space-y-2 text-sm\"><a href=\"/users\" class=\"block text-indigo-400 hover:text-indigo-300\">Users — passwords, roles, TOTP, passkeys, tokens</a> <a href=\"/settings\" class=\"block text-indigo-400 hover:text-indigo-300\">Settings — auth-local / auth-oidc SettingsProvider entries</a> <a href=\"/branding\" class=\"block text-indigo-400 hover:text-indigo-300\">Branding — login banner / splash</a></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 136, "<div class=\"space-y-6 max-w-4xl\" data-testid=\"auth-sso-page\"><div><h1 class=\"text-2xl font-bold\">Authentication / SSO</h1><p class=\"text-gray-400 text-sm mt-1\">Sign-in options: local users, passkeys, and single sign-on modules.</p></div><div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-4 space-y-2 text-sm\"><a href=\"/users\" class=\"block text-indigo-400 hover:text-indigo-300\">Users — passwords, roles, TOTP, passkeys, tokens</a> <a href=\"/settings\" class=\"block text-indigo-400 hover:text-indigo-300\">Settings — auth-local / auth-oidc SettingsProvider entries</a> <a href=\"/branding\" class=\"block text-indigo-400 hover:text-indigo-300\">Branding — login banner / splash</a></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(data.AuthModules) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 136, "<div><h2 class=\"text-sm font-semibold text-gray-300 mb-2\">Registered auth modules</h2>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 137, "<div><h2 class=\"text-sm font-semibold text-gray-300 mb-2\">Registered auth modules</h2>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1535,46 +1548,46 @@ func AuthSSOPage(data AuthSSOData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 137, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 138, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 138, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500\">No auth* modules discovered yet.</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 139, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500\">No auth* modules discovered yet.</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if len(data.Notes) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 139, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 140, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, n := range data.Notes {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 140, "<div class=\"px-4 py-3 text-sm text-gray-300\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 141, "<div class=\"px-4 py-3 text-sm text-gray-300\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var70 string
-				templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.JoinStringErrs(n)
+				var templ_7745c5c3_Var71 string
+				templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.JoinStringErrs(n)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 584, Col: 53}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 587, Col: 53}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var70))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var71))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 141, "</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 142, "</div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 142, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 143, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 143, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 144, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

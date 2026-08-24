@@ -19,13 +19,13 @@ templ FormatsListPage(data FormatsListPageData) {
 			</div>
 		</div>
 		if data.Error != "" {
-			<div class="rounded-xl border border-amber-800 bg-amber-950/40 p-4 text-sm text-amber-200" data-testid="formats-error">{ data.Error }</div>
+			<div class="rounded-xl border border-amber-800 bg-amber-950/40 p-4 text-sm text-amber-200" data-testid="formats-error" role="alert">{ data.Error }</div>
 		}
 		if data.SyncResult != nil {
 			if data.SyncResult.Error != "" {
-				<div class="rounded-xl border border-red-800 bg-red-950/40 p-4 text-sm text-red-200" data-testid="formats-sync-error">{ data.SyncResult.Error }</div>
+				<div class="rounded-xl border border-red-800 bg-red-950/40 p-4 text-sm text-red-200" data-testid="formats-sync-error" role="alert">{ data.SyncResult.Error }</div>
 			} else {
-				<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300 space-y-1" data-testid="formats-sync-result">
+				<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300 space-y-1" data-testid="formats-sync-result" role="status">
 					<p>
 						TRaSH sync: imported/updated { strconv.Itoa(data.SyncResult.FormatsUpserted) },
 						skipped { strconv.Itoa(data.SyncResult.FormatsSkipped) },
@@ -40,16 +40,17 @@ templ FormatsListPage(data FormatsListPageData) {
 				</div>
 			}
 		}
-		<form method="post" action="/formats/sync-trash" class="rounded-xl border border-gray-800 bg-gray-900/40 p-4 space-y-3" data-testid="formats-sync-trash-form">
-			<h2 class="text-sm font-semibold text-gray-300">Sync TRaSH Guides</h2>
+		<form method="post" action="/formats/sync-trash" class="rounded-xl border border-gray-800 bg-gray-900/40 p-4 space-y-3" data-testid="formats-sync-trash-form" aria-labelledby="formats-sync-heading">
+			<h2 id="formats-sync-heading" class="text-sm font-semibold text-gray-300">Sync TRaSH Guides</h2>
 			<p class="text-xs text-gray-500">
 				Imports Recyclarr-compatible custom formats (and optional quality profiles) via media-custom-formats <code class="text-gray-400">SyncTrashGuides</code>.
 				Scheduled sync: set <code class="text-gray-400">FORMATS_TRASH_SYNC=true</code> on the module (or use settings / an external cron hitting this button). scheduler-cron wiring is not required for manual sync.
 			</p>
 			<div class="grid gap-3 sm:grid-cols-3">
 				<div>
-					<label class="block text-xs text-gray-500 mb-1">Score set</label>
+					<label for="formats-score-set" class="block text-xs text-gray-500 mb-1">Score set</label>
 					<input
+						id="formats-score-set"
 						type="text"
 						name="score_set"
 						value={ DefaultScoreSet(data.ScoreSet) }
@@ -100,15 +101,17 @@ templ FormatsListPage(data FormatsListPageData) {
 			</button>
 		</form>
 		if len(data.Formats) == 0 && data.Error == "" {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center" role="status">
 				<p class="text-gray-400">No custom formats yet.</p>
 			</div>
 		} else if len(data.Formats) > 0 {
-			<ul class="space-y-2">
+			<section aria-labelledby="formats-list-heading">
+				<h2 id="formats-list-heading" class="sr-only">Custom formats</h2>
+				<ul class="space-y-2" role="list">
 				for _, f := range data.Formats {
 					<li class="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3">
 						<div>
-							<a href={ templ.SafeURL(fmt.Sprintf("/formats/item/%s", f.ID)) } class="font-medium text-indigo-400 hover:text-indigo-300">
+							<a href={ templ.SafeURL(fmt.Sprintf("/formats/item/%s", f.ID)) } class="font-medium text-indigo-400 hover:text-indigo-300" aria-label={ fmt.Sprintf("Edit custom format %s", f.Name) }>
 								{ f.Name }
 							</a>
 							<p class="text-xs text-gray-500 mt-1">
@@ -116,11 +119,12 @@ templ FormatsListPage(data FormatsListPageData) {
 							</p>
 						</div>
 						<form method="post" action={ templ.SafeURL(fmt.Sprintf("/formats/item/%s/delete", f.ID)) }>
-							<button type="submit" class="text-xs text-red-400 hover:text-red-300">Delete</button>
+							<button type="submit" class="text-xs text-red-400 hover:text-red-300" aria-label={ fmt.Sprintf("Delete custom format %s", f.Name) }>Delete</button>
 						</form>
 					</li>
 				}
-			</ul>
+				</ul>
+			</section>
 		}
 	</div>
 }
