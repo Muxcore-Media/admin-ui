@@ -39,7 +39,7 @@ func Nav(links []NavLink, activePath string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex h-full flex-col\"><div class=\"flex items-center gap-2 px-4 pt-5 pb-4\"><a href=\"/\" class=\"flex items-center gap-2.5\"><div class=\"flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] bg-[var(--accent-color)] text-sm font-bold text-black\">M</div><span class=\"text-base font-bold tracking-tight text-[var(--text-primary)]\">MuxCore <span class=\"text-[var(--accent-color)]\">Admin</span></span></a></div><nav class=\"flex-1 overflow-y-auto px-3 pb-3\" aria-label=\"Primary\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex h-full flex-col\"><div class=\"flex items-center gap-2 px-4 pt-5 pb-4\"><a href=\"/\" class=\"flex items-center gap-2.5\"><div class=\"flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] bg-[var(--accent-color)] text-sm font-bold text-black\" aria-hidden=\"true\">M</div><span class=\"text-base font-bold tracking-tight text-[var(--text-primary)]\">MuxCore <span class=\"text-[var(--accent-color)]\">Admin</span></span></a></div><nav class=\"flex-1 overflow-y-auto px-3 pb-3\" aria-label=\"Primary\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

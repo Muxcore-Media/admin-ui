@@ -73,7 +73,7 @@ func NoAuthPage() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex min-h-full items-center justify-center\"><div class=\"text-center max-w-md\"><div class=\"mx-auto w-12 h-12 rounded-[var(--radius-lg)] bg-yellow-600/20 border border-yellow-700/50 flex items-center justify-center text-xl mb-4\">!</div><h1 class=\"text-2xl font-bold mb-2\">No Auth Provider</h1><p class=\"text-gray-400 text-sm mb-4\">No <code class=\"text-gray-300 bg-gray-800 px-1 rounded\">AuthProvider</code> module is registered with core. The admin UI requires an auth module to handle login.</p><p class=\"text-gray-500 text-xs\">Register an auth module with core, then restart the admin UI.</p></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex min-h-full items-center justify-center\"><div class=\"text-center max-w-md\"><div class=\"mx-auto w-12 h-12 rounded-[var(--radius-lg)] bg-yellow-600/20 border border-yellow-700/50 flex items-center justify-center text-xl mb-4\" aria-hidden=\"true\">!</div><h1 class=\"text-2xl font-bold mb-2\">No Auth Provider</h1><p class=\"text-gray-400 text-sm mb-4\">No <code class=\"text-gray-300 bg-gray-800 px-1 rounded\">AuthProvider</code> module is registered with core. The admin UI requires an auth module to handle login.</p><p class=\"text-gray-500 text-xs\">Register an auth module with core, then restart the admin UI.</p></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -103,7 +103,7 @@ func DashboardPage(data DashboardData) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if data.Disconnected {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"flex min-h-full items-center justify-center\"><div class=\"text-center max-w-md\"><div class=\"mx-auto w-12 h-12 rounded-[var(--radius-lg)] bg-red-600/20 border border-red-700/50 flex items-center justify-center text-xl mb-4\">!</div><h1 class=\"text-2xl font-bold mb-2\">Disconnected</h1><p class=\"text-gray-400 text-sm\">Could not connect to core at the configured gRPC address.</p></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"flex min-h-full items-center justify-center\"><div class=\"text-center max-w-md\"><div class=\"mx-auto w-12 h-12 rounded-[var(--radius-lg)] bg-red-600/20 border border-red-700/50 flex items-center justify-center text-xl mb-4\" aria-hidden=\"true\">!</div><h1 class=\"text-2xl font-bold mb-2\">Disconnected</h1><p class=\"text-gray-400 text-sm\">Could not connect to core at the configured gRPC address.</p></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -137,7 +137,7 @@ func DashboardPage(data DashboardData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.QueueFailureCount > 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"rounded-[var(--radius-lg)] border border-amber-800/60 bg-amber-950/20 p-4\" data-testid=\"dashboard-queue-alert\"><div class=\"flex flex-wrap items-center justify-between gap-3\"><p class=\"text-sm text-amber-200\"><span class=\"font-semibold\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"rounded-[var(--radius-lg)] border border-amber-800/60 bg-amber-950/20 p-4\" data-testid=\"dashboard-queue-alert\" role=\"alert\"><div class=\"flex flex-wrap items-center justify-between gap-3\"><p class=\"text-sm text-amber-200\"><span class=\"font-semibold\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -155,7 +155,7 @@ func DashboardPage(data DashboardData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"grid grid-cols-1 lg:grid-cols-2 gap-4\" data-testid=\"dashboard-daily-driver\"><div class=\"rounded-[var(--radius-lg)] border border-gray-800 bg-gray-900/50 p-4 space-y-3\"><div class=\"flex items-center justify-between gap-2\"><h2 class=\"text-sm font-semibold text-gray-300\">Download queue</h2><a href=\"/queue\" class=\"text-xs text-[var(--accent-color)] hover:underline\">Open queue</a></div><div class=\"flex flex-wrap gap-4 text-sm\"><div><div class=\"text-2xl font-bold text-[var(--text-primary)]\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"grid grid-cols-1 lg:grid-cols-2 gap-4\" data-testid=\"dashboard-daily-driver\"><section class=\"rounded-[var(--radius-lg)] border border-gray-800 bg-gray-900/50 p-4 space-y-3\" aria-labelledby=\"dashboard-queue-heading\"><div class=\"flex items-center justify-between gap-2\"><h2 id=\"dashboard-queue-heading\" class=\"text-sm font-semibold text-gray-300\">Download queue</h2><a href=\"/queue\" class=\"text-xs text-[var(--accent-color)] hover:underline\">Open queue</a></div><div class=\"flex flex-wrap gap-4 text-sm\"><div><div class=\"text-2xl font-bold text-[var(--text-primary)]\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -181,7 +181,7 @@ func DashboardPage(data DashboardData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div><div class=\"text-xs text-gray-500\">Need attention</div></div></div></div><div class=\"rounded-[var(--radius-lg)] border border-gray-800 bg-gray-900/50 p-4 space-y-3\"><div class=\"flex items-center justify-between gap-2\"><h2 class=\"text-sm font-semibold text-gray-300\">Upcoming releases</h2><a href=\"/calendar\" class=\"text-xs text-[var(--accent-color)] hover:underline\">Full calendar</a></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div><div class=\"text-xs text-gray-500\">Need attention</div></div></div></section><section class=\"rounded-[var(--radius-lg)] border border-gray-800 bg-gray-900/50 p-4 space-y-3\" aria-labelledby=\"dashboard-calendar-heading\"><div class=\"flex items-center justify-between gap-2\"><h2 id=\"dashboard-calendar-heading\" class=\"text-sm font-semibold text-gray-300\">Upcoming releases</h2><a href=\"/calendar\" class=\"text-xs text-[var(--accent-color)] hover:underline\">Full calendar</a></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -258,7 +258,7 @@ func DashboardPage(data DashboardData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div></div><div class=\"rounded-[var(--radius-lg)] border border-gray-800 bg-gray-900/50 p-4\"><h2 class=\"text-sm font-semibold text-gray-300 mb-3\">Common tasks</h2><div class=\"grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-sm\"><a href=\"/users\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Manage users</a> <a href=\"/invites\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Invite someone</a> <a href=\"/libraries\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Libraries</a> <a href=\"/request\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Media requests</a> <a href=\"/backups\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Backups</a> <a href=\"/queue\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Download queue</a> <a href=\"/calendar\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Release calendar</a> <a href=\"/activity\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Recent activity</a> <a href=\"/branding\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Login branding</a> <a href=\"/streams\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Who is watching</a> <a href=\"/settings\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-gray-400 hover:border-gray-700 hover:bg-gray-900/60\">Advanced settings</a></div></div><div><h2 class=\"text-lg font-semibold mb-3\">Module Health</h2><div id=\"health-grid\" class=\"grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4\" hx-get=\"/dashboard/health\" hx-trigger=\"load, every 5s\" hx-target=\"this\" hx-swap=\"innerHTML\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</section></div><section class=\"rounded-[var(--radius-lg)] border border-gray-800 bg-gray-900/50 p-4\" aria-labelledby=\"dashboard-tasks-heading\"><h2 id=\"dashboard-tasks-heading\" class=\"text-sm font-semibold text-gray-300 mb-3\">Common tasks</h2><div class=\"grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-sm\"><a href=\"/users\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Manage users</a> <a href=\"/invites\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Invite someone</a> <a href=\"/libraries\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Libraries</a> <a href=\"/request\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Media requests</a> <a href=\"/backups\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Backups</a> <a href=\"/queue\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Download queue</a> <a href=\"/calendar\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Release calendar</a> <a href=\"/activity\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Recent activity</a> <a href=\"/branding\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Login branding</a> <a href=\"/streams\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60\">Who is watching</a> <a href=\"/settings\" class=\"rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-gray-400 hover:border-gray-700 hover:bg-gray-900/60\">Advanced settings</a></div></section><section aria-labelledby=\"dashboard-health-heading\"><h2 id=\"dashboard-health-heading\" class=\"text-lg font-semibold mb-3\">Module Health</h2><div id=\"health-grid\" class=\"grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4\" hx-get=\"/dashboard/health\" hx-trigger=\"load, every 5s\" hx-target=\"this\" hx-swap=\"innerHTML\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -266,7 +266,7 @@ func DashboardPage(data DashboardData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</div></div><div><h2 class=\"text-lg font-semibold mb-3\">Health Monitor</h2><div id=\"monitor-summary\" hx-get=\"/dashboard/monitor\" hx-trigger=\"load, every 10s\" hx-target=\"this\" hx-swap=\"innerHTML\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</div></section><section aria-labelledby=\"dashboard-monitor-heading\"><h2 id=\"dashboard-monitor-heading\" class=\"text-lg font-semibold mb-3\">Health Monitor</h2><div id=\"monitor-summary\" hx-get=\"/dashboard/monitor\" hx-trigger=\"load, every 10s\" hx-target=\"this\" hx-swap=\"innerHTML\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -274,7 +274,7 @@ func DashboardPage(data DashboardData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</div></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</div></section></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

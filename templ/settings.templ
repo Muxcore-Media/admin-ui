@@ -72,6 +72,7 @@ templ SettingFieldForm(f SettingField, moduleID string) {
 			hx-target={ templ.SafeURL(fmt.Sprintf("#msg-%s", f.Key)) }
 			hx-swap="innerHTML"
 			class="space-y-3"
+			aria-label={ f.Label }
 		>
 			<input type="hidden" name="key" value={ f.Key }/>
 			<div class="flex items-start justify-between">
@@ -79,16 +80,17 @@ templ SettingFieldForm(f SettingField, moduleID string) {
 					<label for={ templ.SafeURL(f.Key) } class="text-sm font-medium text-gray-200">
 						{ f.Label }
 						if f.Required {
-							<span class="text-red-400 ml-0.5">*</span>
+							<span class="text-red-400 ml-0.5" aria-hidden="true">*</span>
+							<span class="sr-only"> (required)</span>
 						}
 					</label>
 					if f.Description != "" {
-						<p class="text-xs text-gray-500 mt-0.5">{ f.Description }</p>
+						<p id={ templ.SafeURL(fmt.Sprintf("desc-%s", f.Key)) } class="text-xs text-gray-500 mt-0.5">{ f.Description }</p>
 					}
 				</div>
 			</div>
 			@SettingInput(f)
-			<div id={ templ.SafeURL(fmt.Sprintf("msg-%s", f.Key)) }></div>
+			<div id={ templ.SafeURL(fmt.Sprintf("msg-%s", f.Key)) } role="status" aria-live="polite"></div>
 		</form>
 	</div>
 }
@@ -102,19 +104,24 @@ templ SettingInput(f SettingField) {
 						type="checkbox"
 						name="value"
 						class="peer sr-only"
+						aria-label={ f.Label }
 						if f.Value == "true" || f.Default == "true" {
 							checked
 						}
 						onchange="this.closest('form').requestSubmit()"
 					/>
-					<div class="h-5 w-9 rounded-full bg-gray-700 after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-indigo-600 peer-checked:after:translate-x-full"></div>
+					<div class="h-5 w-9 rounded-full bg-gray-700 after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-indigo-600 peer-checked:after:translate-x-full" aria-hidden="true"></div>
 				</label>
-				<span class="text-xs text-gray-400">{ boolLabel(f.Value == "true" || f.Default == "true") }</span>
+				<span class="text-xs text-gray-400" aria-hidden="true">{ boolLabel(f.Value == "true" || f.Default == "true") }</span>
 			</div>
 		case "select":
 			<select
+				id={ templ.SafeURL(f.Key) }
 				name="value"
 				class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+				if f.Description != "" {
+					aria-describedby={ templ.SafeURL(fmt.Sprintf("desc-%s", f.Key)) }
+				}
 			>
 				for _, opt := range f.Options {
 					<option
@@ -134,11 +141,15 @@ templ SettingInput(f SettingField) {
 					value={ f.Value }
 					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 pr-12 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
 					placeholder={ "Enter " + f.Label }
+					if f.Description != "" {
+						aria-describedby={ templ.SafeURL(fmt.Sprintf("desc-%s", f.Key)) }
+					}
 				/>
 				<button
 					type="button"
 					class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-gray-300"
-					onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password'"
+					aria-label="Show password"
+					onclick="var i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.setAttribute('aria-label', i.type==='password'?'Show password':'Hide password');this.textContent=i.type==='password'?'Show':'Hide'"
 				>
 					Show
 				</button>
@@ -151,6 +162,9 @@ templ SettingInput(f SettingField) {
 				value={ f.Value }
 				class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
 				placeholder={ f.Default }
+				if f.Description != "" {
+					aria-describedby={ templ.SafeURL(fmt.Sprintf("desc-%s", f.Key)) }
+				}
 			/>
 		default:
 			<input
@@ -160,6 +174,9 @@ templ SettingInput(f SettingField) {
 				value={ f.Value }
 				class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
 				placeholder={ f.Default }
+				if f.Description != "" {
+					aria-describedby={ templ.SafeURL(fmt.Sprintf("desc-%s", f.Key)) }
+				}
 			/>
 	}
 }
