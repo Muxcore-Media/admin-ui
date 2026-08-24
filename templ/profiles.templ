@@ -17,18 +17,20 @@ templ ProfilesListPage(profiles []*formatsv1.QualityProfile, errMsg string) {
 			<a href="/formats/profiles/new" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">New profile</a>
 		</div>
 		if errMsg != "" {
-			<div class="rounded-xl border border-amber-800 bg-amber-950/40 p-4 text-sm text-amber-200">{ errMsg }</div>
+			<div class="rounded-xl border border-amber-800 bg-amber-950/40 p-4 text-sm text-amber-200" role="alert">{ errMsg }</div>
 		}
 		if len(profiles) == 0 && errMsg == "" {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center" role="status">
 				<p class="text-gray-400">No quality profiles yet.</p>
 			</div>
 		} else if len(profiles) > 0 {
-			<ul class="space-y-2">
+			<section aria-labelledby="profiles-list-heading">
+				<h2 id="profiles-list-heading" class="sr-only">Quality profiles</h2>
+				<ul class="space-y-2" role="list">
 				for _, p := range profiles {
 					<li class="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3">
 						<div>
-							<a href={ templ.SafeURL(fmt.Sprintf("/formats/profiles/%s", p.GetId())) } class="font-medium text-indigo-400 hover:text-indigo-300">
+							<a href={ templ.SafeURL(fmt.Sprintf("/formats/profiles/%s", p.GetId())) } class="font-medium text-indigo-400 hover:text-indigo-300" aria-label={ fmt.Sprintf("Edit quality profile %s", p.GetName()) }>
 								{ p.GetName() }
 							</a>
 							<p class="text-xs text-gray-500 mt-1">
@@ -39,11 +41,12 @@ templ ProfilesListPage(profiles []*formatsv1.QualityProfile, errMsg string) {
 							</p>
 						</div>
 						<form method="post" action={ templ.SafeURL(fmt.Sprintf("/formats/profiles/%s/delete", p.GetId())) }>
-							<button type="submit" class="text-xs text-red-400 hover:text-red-300">Delete</button>
+							<button type="submit" class="text-xs text-red-400 hover:text-red-300" aria-label={ fmt.Sprintf("Delete quality profile %s", p.GetName()) }>Delete</button>
 						</form>
 					</li>
 				}
-			</ul>
+				</ul>
+			</section>
 		}
 	</div>
 }

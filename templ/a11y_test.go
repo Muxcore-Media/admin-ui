@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	authv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/auth/v1"
+	formatsv1 "github.com/Muxcore-Media/media-custom-formats/proto/formatsv1"
+	renamev1 "github.com/Muxcore-Media/media-rename/proto/renamev1"
 	rootsv1 "github.com/Muxcore-Media/media-root-folders/proto/rootsv1"
 	"github.com/a-h/templ"
 )
@@ -394,6 +396,136 @@ func TestRootsPage_HasAlertsSectionsAndActionLabels(t *testing.T) {
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("roots page HTML missing %q", want)
+		}
+	}
+}
+
+func TestNamingTemplatesPage_HasAlertsSectionsAndActionLabels(t *testing.T) {
+	html := renderComponent(t, NamingTemplatesListPage([]*renamev1.NamingTemplate{{
+		Id:        "tpl-1",
+		Name:      "Movies default",
+		MediaType: "movie",
+		Pattern:   "{Title} ({Year})",
+	}}, "Rename module unavailable"))
+
+	for _, want := range []string{
+		`<h1 class="text-2xl font-bold">Naming Templates</h1>`,
+		`role="alert"`,
+		`Rename module unavailable`,
+		`id="naming-templates-heading"`,
+		`aria-labelledby="naming-templates-heading"`,
+		`aria-label="Organize and rename files"`,
+		`aria-label="Create naming template"`,
+		`aria-label="Edit naming template Movies default"`,
+		`aria-label="Delete naming template Movies default"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("naming templates page HTML missing %q", want)
+		}
+	}
+}
+
+func TestMetadataPage_HasLabelledSectionsAndNav(t *testing.T) {
+	html := renderComponent(t, MetadataManagerPage([]MetadataLibRow{{
+		ID:   "lib-1",
+		Name: "Movies",
+		Path: "/media/movies/browse",
+	}}))
+
+	for _, want := range []string{
+		`<h1 class="text-2xl font-bold">Metadata</h1>`,
+		`id="metadata-list-heading"`,
+		`aria-labelledby="metadata-list-heading"`,
+		`aria-label="Open library Movies for metadata editing"`,
+		`role="list"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("metadata page HTML missing %q", want)
+		}
+	}
+}
+
+func TestFormatsPage_HasAlertsFormLabelsAndSections(t *testing.T) {
+	html := renderComponent(t, FormatsListPage(FormatsListPageData{
+		Error: "formats unavailable",
+		Formats: []FormatRow{{
+			ID: "cf1", Name: "Remux", Score: 100, RuleCount: 2,
+		}},
+		SyncResult: &TrashSyncResult{
+			FormatsUpserted:  3,
+			FormatsSkipped:   1,
+			ProfilesUpserted: 2,
+		},
+	}))
+
+	for _, want := range []string{
+		`<h1 class="text-2xl font-bold">Custom Formats</h1>`,
+		`role="alert"`,
+		`formats unavailable`,
+		`role="status"`,
+		`id="formats-sync-heading"`,
+		`for="formats-score-set"`,
+		`id="formats-score-set"`,
+		`id="formats-list-heading"`,
+		`aria-labelledby="formats-list-heading"`,
+		`aria-label="Edit custom format Remux"`,
+		`aria-label="Delete custom format Remux"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("formats page HTML missing %q", want)
+		}
+	}
+}
+
+func TestProfilesPage_HasAlertsSectionsAndActionLabels(t *testing.T) {
+	html := renderComponent(t, ProfilesListPage([]*formatsv1.QualityProfile{{
+		Id:          "qp-1",
+		Name:        "HD-1080p",
+		MinScore:    100,
+		CutoffScore: 200,
+	}}, "Profiles unavailable"))
+
+	for _, want := range []string{
+		`<h1 class="text-2xl font-bold">Quality Profiles</h1>`,
+		`role="alert"`,
+		`Profiles unavailable`,
+		`id="profiles-list-heading"`,
+		`aria-labelledby="profiles-list-heading"`,
+		`aria-label="Edit quality profile HD-1080p"`,
+		`aria-label="Delete quality profile HD-1080p"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("profiles page HTML missing %q", want)
+		}
+	}
+}
+
+func TestReleaseProfilesPage_HasFormLabelsAlertsAndSections(t *testing.T) {
+	html := renderComponent(t, ReleaseProfilesPage([]ReleaseProfileRow{{
+		ID:             "rp-1",
+		Name:           "Bluray preferred",
+		Preferred:      "bluray, remux",
+		MustContain:    "1080p",
+		MustNotContain: "cam",
+		PreferredScore: 10,
+		Enabled:        true,
+	}}, "Release profiles unavailable"))
+
+	for _, want := range []string{
+		`<h1 class="text-2xl font-bold">Release profiles</h1>`,
+		`role="alert"`,
+		`Release profiles unavailable`,
+		`id="release-profile-create-heading"`,
+		`for="release-profile-name"`,
+		`for="release-profile-score"`,
+		`id="release-profiles-list-heading"`,
+		`aria-labelledby="release-profiles-list-heading"`,
+		`aria-label="Edit release profile Bluray preferred"`,
+		`aria-label="Save release profile Bluray preferred"`,
+		`aria-label="Delete release profile Bluray preferred"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("release profiles page HTML missing %q", want)
 		}
 	}
 }

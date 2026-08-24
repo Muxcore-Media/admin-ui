@@ -35,23 +35,25 @@ templ NamingTemplatesListPage(items []*renamev1.NamingTemplate, errMsg string) {
 				<p class="text-gray-400 text-sm mt-1">File and folder naming patterns for new imports</p>
 			</div>
 			<div class="flex flex-wrap gap-2">
-				<a href="/rename/organize" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Organize</a>
-				<a href="/rename/templates/new" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">New template</a>
+				<a href="/rename/organize" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800" aria-label="Organize and rename files">Organize</a>
+				<a href="/rename/templates/new" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500" aria-label="Create naming template">New template</a>
 			</div>
 		</div>
 		if errMsg != "" {
-			<div class="rounded-xl border border-amber-800 bg-amber-950/40 p-4 text-sm text-amber-200">{ errMsg }</div>
+			<div class="rounded-xl border border-amber-800 bg-amber-950/40 p-4 text-sm text-amber-200" role="alert">{ errMsg }</div>
 		}
 		if len(items) == 0 && errMsg == "" {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center" role="status">
 				<p class="text-gray-400">No naming templates.</p>
 			</div>
 		} else if len(items) > 0 {
-			<ul class="space-y-2">
+			<section aria-labelledby="naming-templates-heading">
+				<h2 id="naming-templates-heading" class="sr-only">Naming templates</h2>
+				<ul class="space-y-2" role="list">
 				for _, t := range items {
 					<li class="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3">
 						<div>
-							<a href={ templ.SafeURL(fmt.Sprintf("/rename/templates/%s", t.GetId())) } class="font-medium text-indigo-400 hover:text-indigo-300">
+							<a href={ templ.SafeURL(fmt.Sprintf("/rename/templates/%s", t.GetId())) } class="font-medium text-indigo-400 hover:text-indigo-300" aria-label={ fmt.Sprintf("Edit naming template %s", t.GetName()) }>
 								{ t.GetName() }
 							</a>
 							<p class="text-xs text-gray-500 mt-1">
@@ -63,11 +65,12 @@ templ NamingTemplatesListPage(items []*renamev1.NamingTemplate, errMsg string) {
 							<p class="text-xs text-gray-500 mt-1 font-mono truncate max-w-xl">{ t.GetPattern() }</p>
 						</div>
 						<form method="post" action={ templ.SafeURL(fmt.Sprintf("/rename/templates/%s/delete", t.GetId())) }>
-							<button type="submit" class="text-xs text-red-400 hover:text-red-300">Delete</button>
+							<button type="submit" class="text-xs text-red-400 hover:text-red-300" aria-label={ fmt.Sprintf("Delete naming template %s", t.GetName()) }>Delete</button>
 						</form>
 					</li>
 				}
-			</ul>
+				</ul>
+			</section>
 		}
 	</div>
 }

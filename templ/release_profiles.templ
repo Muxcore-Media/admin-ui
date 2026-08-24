@@ -25,31 +25,31 @@ templ ReleaseProfilesPage(rows []ReleaseProfileRow, errMsg string) {
 			</div>
 		</div>
 		if errMsg != "" {
-			<div class="rounded-xl border border-amber-800 bg-amber-950/40 p-4 text-sm text-amber-200">{ errMsg }</div>
+			<div class="rounded-xl border border-amber-800 bg-amber-950/40 p-4 text-sm text-amber-200" role="alert">{ errMsg }</div>
 		}
-		<form method="POST" action="/formats/release-profiles" class="rounded-xl border border-gray-800 bg-gray-900/40 p-4 space-y-3" data-testid="release-profile-create">
-			<h2 class="text-sm font-semibold text-gray-300">New / update profile</h2>
+		<form method="POST" action="/formats/release-profiles" class="rounded-xl border border-gray-800 bg-gray-900/40 p-4 space-y-3" data-testid="release-profile-create" aria-labelledby="release-profile-create-heading">
+			<h2 id="release-profile-create-heading" class="text-sm font-semibold text-gray-300">New / update profile</h2>
 			<input type="hidden" name="id" value=""/>
 			<div class="grid gap-3 sm:grid-cols-2">
 				<div>
-					<label class="block text-xs text-gray-500 mb-1">Name</label>
-					<input name="name" required class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+					<label for="release-profile-name" class="block text-xs text-gray-500 mb-1">Name</label>
+					<input id="release-profile-name" name="name" required class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
 				</div>
 				<div>
-					<label class="block text-xs text-gray-500 mb-1">Preferred score</label>
-					<input type="number" name="preferred_score" value="10" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+					<label for="release-profile-score" class="block text-xs text-gray-500 mb-1">Preferred score</label>
+					<input id="release-profile-score" type="number" name="preferred_score" value="10" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
 				</div>
 				<div>
-					<label class="block text-xs text-gray-500 mb-1">Preferred (comma-separated)</label>
-					<input name="preferred" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm" placeholder="bluray, remux"/>
+					<label for="release-profile-preferred" class="block text-xs text-gray-500 mb-1">Preferred (comma-separated)</label>
+					<input id="release-profile-preferred" name="preferred" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm" placeholder="bluray, remux"/>
 				</div>
 				<div>
-					<label class="block text-xs text-gray-500 mb-1">Must contain</label>
-					<input name="must_contain" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+					<label for="release-profile-must-contain" class="block text-xs text-gray-500 mb-1">Must contain</label>
+					<input id="release-profile-must-contain" name="must_contain" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
 				</div>
 				<div class="sm:col-span-2">
-					<label class="block text-xs text-gray-500 mb-1">Must not contain</label>
-					<input name="must_not_contain" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm" placeholder="cam, telesync"/>
+					<label for="release-profile-must-not-contain" class="block text-xs text-gray-500 mb-1">Must not contain</label>
+					<input id="release-profile-must-not-contain" name="must_not_contain" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm" placeholder="cam, telesync"/>
 				</div>
 			</div>
 			<label class="flex items-center gap-2 text-sm text-gray-300">
@@ -58,14 +58,16 @@ templ ReleaseProfilesPage(rows []ReleaseProfileRow, errMsg string) {
 			<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm text-white hover:bg-indigo-500">Save</button>
 		</form>
 		if len(rows) == 0 {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">No release profiles.</div>
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500" role="status">No release profiles.</div>
 		} else {
-			<div class="space-y-3">
+			<section aria-labelledby="release-profiles-list-heading" class="space-y-3">
+				<h2 id="release-profiles-list-heading" class="sr-only">Existing release profiles</h2>
 				for _, r := range rows {
-					<form method="POST" action="/formats/release-profiles" class="rounded-xl border border-gray-800 bg-gray-900/40 p-4 space-y-2">
+					<form method="POST" action="/formats/release-profiles" class="rounded-xl border border-gray-800 bg-gray-900/40 p-4 space-y-2" aria-label={ fmt.Sprintf("Edit release profile %s", r.Name) }>
 						<input type="hidden" name="id" value={ r.ID }/>
 						<div class="flex flex-wrap items-center justify-between gap-2">
-							<input name="name" value={ r.Name } class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm font-medium"/>
+							<label class="sr-only" for={ "release-profile-name-" + r.ID }>Name</label>
+							<input id={ "release-profile-name-" + r.ID } name="name" value={ r.Name } class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm font-medium"/>
 							<label class="flex items-center gap-2 text-xs text-gray-400">
 								if r.Enabled {
 									<input type="checkbox" name="enabled" value="1" checked/>
@@ -76,20 +78,24 @@ templ ReleaseProfilesPage(rows []ReleaseProfileRow, errMsg string) {
 							</label>
 						</div>
 						<div class="grid gap-2 sm:grid-cols-3 text-sm">
-							<input name="preferred" value={ r.Preferred } placeholder="preferred" class="rounded border border-gray-700 bg-gray-800 px-2 py-1.5"/>
-							<input name="must_contain" value={ r.MustContain } placeholder="must contain" class="rounded border border-gray-700 bg-gray-800 px-2 py-1.5"/>
-							<input name="must_not_contain" value={ r.MustNotContain } placeholder="must not contain" class="rounded border border-gray-700 bg-gray-800 px-2 py-1.5"/>
+							<label class="sr-only" for={ "release-profile-preferred-" + r.ID }>Preferred terms</label>
+							<input id={ "release-profile-preferred-" + r.ID } name="preferred" value={ r.Preferred } placeholder="preferred" class="rounded border border-gray-700 bg-gray-800 px-2 py-1.5"/>
+							<label class="sr-only" for={ "release-profile-must-contain-" + r.ID }>Must contain</label>
+							<input id={ "release-profile-must-contain-" + r.ID } name="must_contain" value={ r.MustContain } placeholder="must contain" class="rounded border border-gray-700 bg-gray-800 px-2 py-1.5"/>
+							<label class="sr-only" for={ "release-profile-must-not-contain-" + r.ID }>Must not contain</label>
+							<input id={ "release-profile-must-not-contain-" + r.ID } name="must_not_contain" value={ r.MustNotContain } placeholder="must not contain" class="rounded border border-gray-700 bg-gray-800 px-2 py-1.5"/>
 						</div>
 						<div class="flex flex-wrap gap-2 items-center">
-							<input type="number" name="preferred_score" value={ fmt.Sprintf("%d", r.PreferredScore) } class="w-24 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm"/>
-							<button type="submit" class="rounded bg-indigo-600 px-3 py-1 text-xs text-white">Save</button>
+							<label class="sr-only" for={ "release-profile-score-" + r.ID }>Preferred score</label>
+							<input id={ "release-profile-score-" + r.ID } type="number" name="preferred_score" value={ fmt.Sprintf("%d", r.PreferredScore) } class="w-24 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm"/>
+							<button type="submit" class="rounded bg-indigo-600 px-3 py-1 text-xs text-white" aria-label={ fmt.Sprintf("Save release profile %s", r.Name) }>Save</button>
 						</div>
 					</form>
 					<form method="POST" action={ templ.SafeURL("/formats/release-profiles/" + r.ID + "/delete") }>
-						<button type="submit" class="text-xs text-red-400 hover:text-red-300 mb-4">Delete { r.Name }</button>
+						<button type="submit" class="text-xs text-red-400 hover:text-red-300 mb-4" aria-label={ fmt.Sprintf("Delete release profile %s", r.Name) }>Delete { r.Name }</button>
 					</form>
 				}
-			</div>
+			</section>
 		}
 	</div>
 }
