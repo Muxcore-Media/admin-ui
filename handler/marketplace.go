@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	spoolv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/spool/v1"
 	"google.golang.org/grpc"
@@ -17,6 +18,16 @@ import (
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
+
+const (
+	marketplaceDialTimeout = 3 * time.Second
+	marketplaceReadTimeout = 8 * time.Second
+	marketplacePageTimeout = marketplaceDialTimeout + 3*marketplaceReadTimeout + time.Second
+)
+
+func marketplaceHTTPDo(_ context.Context, req *http.Request) (*http.Response, error) {
+	return (&http.Client{Timeout: marketplaceReadTimeout}).Do(req)
+}
 
 // SpoolAPI is the marketplace DeployTag surface (gRPC or HTTP stub).
 type SpoolAPI interface {
@@ -95,7 +106,7 @@ func (h *httpSpoolAPI) DeployTag(ctx context.Context, spoolURL, tagName string) 
 	if err != nil {
 		return nil, err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := marketplaceHTTPDo(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +127,7 @@ func (h *httpSpoolAPI) get(ctx context.Context, path string, dest any) error {
 	if err != nil {
 		return err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := marketplaceHTTPDo(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -148,6 +159,9 @@ func (h *Handler) initSpoolAPI() {
 
 func (h *Handler) MarketplacePage(w http.ResponseWriter, r *http.Request) {
 	h.initSpoolAPI()
+	pageCtx, cancel := context.WithTimeout(r.Context(), marketplacePageTimeout)
+	defer cancel()
+
 	data := templates.MarketplacePageData{APIRestHint: h.APIRestURL != "" || h.Spool == nil}
 	if msg := r.URL.Query().Get("deployed"); msg != "" {
 		data.DeployResult = msg
@@ -159,13 +173,13 @@ func (h *Handler) MarketplacePage(w http.ResponseWriter, r *http.Request) {
 		data.Error = "SpoolService unavailable — connect admin-ui to core (gRPC) or set ADMIN_UI_API_REST_URL (api-rest HTTP spool routes). DeployTag is not available without one of these."
 		data.SpoolHint = "api-rest exposes GET/POST /api/v1/spools/{url}/tags/{name}[/deploy]; without ADMIN_UI_API_REST_URL the UI uses core gRPC only."
 	} else {
-		spools, err := h.Spool.ListSpools(r.Context())
+		spools, err := h.Spool.ListSpools(pageCtx)
 		if err != nil {
 			data.Error = err.Error()
 		} else {
 			for _, sp := range spools {
 				entry := templates.MarketplaceSpool{URL: sp.GetUrl(), Active: sp.GetActive()}
-				tags, terr := h.Spool.ListTags(r.Context(), sp.GetUrl())
+				tags, terr := h.Spool.ListTags(pageCtx, sp.GetUrl())
 				if terr != nil {
 					slog.Warn("marketplace: ListTags", "spool", sp.GetUrl(), "error", terr)
 				} else {
@@ -176,7 +190,7 @@ func (h *Handler) MarketplacePage(w http.ResponseWriter, r *http.Request) {
 							Version:     tag.GetVersion(),
 							ModuleCount: int(tag.GetModuleCount()),
 						}
-						if detail, ferr := h.Spool.FetchTag(r.Context(), sp.GetUrl(), tag.GetName()); ferr != nil {
+						if detail, ferr := h.Spool.FetchTag(pageCtx, sp.GetUrl(), tag.GetName()); ferr != nil {
 							slog.Warn("marketplace: FetchTag", "spool", sp.GetUrl(), "tag", tag.GetName(), "error", ferr)
 						} else {
 							for _, mod := range detail.GetModules() {
@@ -206,6 +220,8 @@ func (h *Handler) MarketplacePage(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) MarketplaceDeploy(w http.ResponseWriter, r *http.Request) {
 	h.initSpoolAPI()
+	ctx, cancel := context.WithTimeout(r.Context(), marketplaceDialTimeout+marketplaceReadTimeout)
+	defer cancel()
 	if err := r.ParseForm(); err != nil {
 		http.Redirect(w, r, "/marketplace?error="+url.QueryEscape("invalid form"), http.StatusSeeOther)
 		return
@@ -220,7 +236,7 @@ func (h *Handler) MarketplaceDeploy(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/marketplace?error="+url.QueryEscape("SpoolService unavailable — use core gRPC or ADMIN_UI_API_REST_URL"), http.StatusSeeOther)
 		return
 	}
-	resp, err := h.Spool.DeployTag(r.Context(), spoolURL, tagName)
+	resp, err := h.Spool.DeployTag(ctx, spoolURL, tagName)
 	if err != nil {
 		http.Redirect(w, r, "/marketplace?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return

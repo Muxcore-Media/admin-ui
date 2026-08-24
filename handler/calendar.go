@@ -10,14 +10,18 @@ import (
 
 	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
 	discoveryv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/discovery/v1"
-	automationv1 "github.com/Muxcore-Media/media-automation/proto/automationv1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
+const (
+	calendarDialTimeout = 3 * time.Second
+	calendarReadTimeout = 5 * time.Second
+)
+
 // UnifiedCalendarPage aggregates GetCalendar across media.library modules (movies+TV).
 func (h *Handler) UnifiedCalendarPage(w http.ResponseWriter, r *http.Request) {
-	pageCtx, cancel := context.WithTimeout(r.Context(), automationDialTimeout+2*automationReadTimeout+time.Second)
+	pageCtx, cancel := context.WithTimeout(r.Context(), calendarDialTimeout+2*(calendarDialTimeout+calendarReadTimeout)+time.Second)
 	defer cancel()
 
 	now := time.Now().UTC()
@@ -47,7 +51,9 @@ func (h *Handler) UnifiedCalendarPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) fetchUnifiedCalendar(ctx context.Context, start, end string, includeUnmon bool) ([]templates.UnifiedCalendarItem, []string) {
-	mods := h.mediaLibraryModules(ctx)
+	dialCtx, dialCancel := context.WithTimeout(ctx, calendarDialTimeout)
+	mods := h.mediaLibraryModules(dialCtx)
+	dialCancel()
 	if len(mods) == 0 {
 		return nil, []string{"no media.library modules registered"}
 	}
@@ -66,11 +72,11 @@ func (h *Handler) fetchUnifiedCalendar(ctx context.Context, start, end string, i
 			continue
 		}
 		kind := automationItemType(moduleID, mod.GetName())
-		cCtx, cCancel := context.WithTimeout(ctx, automationReadTimeout)
-		resp, err := client.GetCalendar(cCtx, &mediaadminv1.GetCalendarRequest{
+		readCtx, readCancel := context.WithTimeout(ctx, calendarReadTimeout)
+		resp, err := client.GetCalendar(readCtx, &mediaadminv1.GetCalendarRequest{
 			StartDate: start, EndDate: end, IncludeUnmonitored: includeUnmon,
 		})
-		cCancel()
+		readCancel()
 		_ = conn.Close()
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "unimplemented") ||
@@ -123,21 +129,6 @@ func (h *Handler) upcomingCalendarPreview(ctx context.Context, limit int) []temp
 		items = items[:limit]
 	}
 	return items
-}
-
-func (h *Handler) wantedQueueTotal(ctx context.Context) int {
-	client, closer, err := h.withAutomationClient(ctx)
-	if err != nil {
-		return 0
-	}
-	defer closer()
-	qCtx, cancel := context.WithTimeout(ctx, automationReadTimeout)
-	defer cancel()
-	q, err := client.GetQueue(qCtx, &automationv1.GetQueueRequest{Page: 1, PageSize: 1})
-	if err != nil {
-		return 0
-	}
-	return int(q.GetTotal())
 }
 
 func (h *Handler) mediaLibraryModules(ctx context.Context) []*discoveryv1.ModuleInfoProto {

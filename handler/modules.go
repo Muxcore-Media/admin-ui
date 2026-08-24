@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"sort"
@@ -12,7 +13,7 @@ import (
 )
 
 func (h *Handler) ModuleList(w http.ResponseWriter, r *http.Request) {
-	modules := h.loadModuleList(r)
+	modules := h.loadModuleList(r.Context())
 
 	// HTMX fragment refresh (table only). Boosted full-page navigations
 	// (hx-boost on <body>) must still get the layout + sidebar.
@@ -28,15 +29,17 @@ func (h *Handler) ModuleList(w http.ResponseWriter, r *http.Request) {
 	h.render(w, r, component)
 }
 
-func (h *Handler) loadModuleList(r *http.Request) []templates.ModuleListItem {
+func (h *Handler) loadModuleList(ctx context.Context) []templates.ModuleListItem {
 	if h.Core == nil {
 		return nil
 	}
 
-	resp, err := h.Core.Discovery.Raw().ListAll(r.Context(), &discoveryv1.ListAllRequest{})
+	readCtx, readCancel := context.WithTimeout(ctx, moduleListReadTimeout)
+	resp, err := h.Core.Discovery.Raw().ListAll(readCtx, &discoveryv1.ListAllRequest{})
+	readCancel()
 	if err != nil {
 		slog.Warn("modules: ListAll failed, falling back to Members", "error", err)
-		return h.loadModuleListFromMembers(r)
+		return h.loadModuleListFromMembers(ctx)
 	}
 
 	var modules []templates.ModuleListItem
@@ -65,8 +68,10 @@ func (h *Handler) loadModuleList(r *http.Request) []templates.ModuleListItem {
 	return modules
 }
 
-func (h *Handler) loadModuleListFromMembers(r *http.Request) []templates.ModuleListItem {
-	members, _, err := h.Core.Discovery.Members(r.Context())
+func (h *Handler) loadModuleListFromMembers(ctx context.Context) []templates.ModuleListItem {
+	readCtx, readCancel := context.WithTimeout(ctx, moduleListReadTimeout)
+	members, _, err := h.Core.Discovery.Members(readCtx)
+	readCancel()
 	if err != nil {
 		slog.Warn("modules: Members call failed", "error", err)
 		return nil
@@ -82,7 +87,9 @@ func (h *Handler) loadModuleListFromMembers(r *http.Request) []templates.ModuleL
 			}
 			seen[modID] = true
 
-			info, err := h.Core.Discovery.Resolve(r.Context(), modID)
+			resolveCtx, resolveCancel := context.WithTimeout(ctx, moduleListReadTimeout)
+			info, err := h.Core.Discovery.Resolve(resolveCtx, modID)
+			resolveCancel()
 			if err != nil {
 				slog.Warn("modules: Resolve failed", "module", modID, "error", err)
 				modules = append(modules, templates.ModuleListItem{

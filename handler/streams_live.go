@@ -8,6 +8,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"time"
 
 	monitorv1 "github.com/Muxcore-Media/playback-monitor/proto/monitorv1"
 )
@@ -56,15 +57,21 @@ func (h *Handler) StreamsLiveEvents(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) StreamsActiveJSON(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	client, closer, err := h.withPlaybackMonitorClient(ctx)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), playbackMonitorDialTimeout+playbackMonitorReadTimeout+time.Second)
+	defer pageCancel()
+
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, playbackMonitorDialTimeout)
+	client, closer, err := h.withPlaybackMonitorClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 	defer closer()
 
-	resp, err := client.ListActiveSessions(ctx, &monitorv1.ListActiveSessionsRequest{Limit: 100})
+	readCtx, readCancel := context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	resp, err := client.ListActiveSessions(readCtx, &monitorv1.ListActiveSessionsRequest{Limit: 100})
+	readCancel()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return

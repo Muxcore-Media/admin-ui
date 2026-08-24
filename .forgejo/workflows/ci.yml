@@ -44,6 +44,7 @@ jobs:
       - name: Fetch MuxCore modules from Forgejo origin
         run: |
           git config --global url."https://git.zem.systems/muxcore/".insteadOf "https://github.com/Muxcore-Media/"
+      - run: make css
       - run: |
           if [ -d cmd/module ]; then go build -o /dev/null ./cmd/module
           elif [ -d cmd ]; then go build -o /dev/null ./cmd/...

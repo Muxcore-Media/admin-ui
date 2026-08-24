@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	discoveryv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/discovery/v1"
 
@@ -15,10 +16,15 @@ import (
 )
 
 const (
-	capAuth    = "auth"
-	methodAuth = "Authenticate"
-	methodCan  = "Can"
+	capAuth             = "auth"
+	methodAuth          = "Authenticate"
+	methodCan           = "Can"
+	authExchangeTimeout = 5 * time.Second
 )
+
+func authHTTPDo(_ context.Context, req *http.Request) (*http.Response, error) {
+	return (&http.Client{Timeout: authExchangeTimeout}).Do(req)
+}
 
 var staticNavLinks = []templates.NavLink{
 	// Overview
@@ -127,10 +133,23 @@ func (h *Handler) AuthCallback(w http.ResponseWriter, r *http.Request) {
 	// host often cannot resolve/trust https://auth.*.
 	body, _ := json.Marshal(map[string]string{"code": code})
 	exchangeURL := h.authExchangeBase() + "/login/exchange"
-	resp, err := http.Post(exchangeURL, "application/json", strings.NewReader(string(body)))
+	exCtx, exCancel := context.WithTimeout(r.Context(), authExchangeTimeout)
+	defer exCancel()
+	req, err := http.NewRequestWithContext(exCtx, http.MethodPost, exchangeURL, strings.NewReader(string(body)))
+	if err != nil {
+		slog.Warn("auth: callback - build exchange request failed", "error", err, "url", exchangeURL)
+		http.Error(w, "auth unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := authHTTPDo(exCtx, req)
 	if err != nil {
 		slog.Warn("auth: callback - exchange request failed", "error", err, "url", exchangeURL)
-		http.Error(w, "auth unavailable", http.StatusServiceUnavailable)
+		msg := "auth unavailable"
+		if exCtx.Err() == context.DeadlineExceeded {
+			msg = fmt.Sprintf("auth exchange timed out after %s", authExchangeTimeout)
+		}
+		http.Error(w, msg, http.StatusServiceUnavailable)
 		return
 	}
 	defer resp.Body.Close()
@@ -171,6 +190,7 @@ func (h *Handler) AuthCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	h.Sessions.BindAuthLocalToken(sessionToken, result.Token)
 
 	if h.loginMetrics != nil {
 		h.loginMetrics.IncSuccess()

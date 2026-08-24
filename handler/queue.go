@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	automationv1 "github.com/Muxcore-Media/media-automation/proto/automationv1"
+	automationv1 "github.com/Muxcore-Media/contracts-automation/muxcore/automation/v1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
@@ -36,7 +36,7 @@ func (h *Handler) UnifiedQueuePage(w http.ResponseWriter, r *http.Request) {
 	dialCancel()
 	if err != nil {
 		slog.Warn("queue: resolve/dial failed", "error", err)
-		data.Error = err.Error()
+		data.Error = automationResolveErr(err)
 		h.renderUnifiedQueue(w, r, data)
 		return
 	}
@@ -87,12 +87,16 @@ func (h *Handler) UnifiedQueuePage(w http.ResponseWriter, r *http.Request) {
 			}
 			row := templates.UnifiedQueueHistory{
 				ID: rec.GetId(), WantedItemID: rec.GetWantedItemId(), GUID: rec.GetGuid(),
-				Status: st, Title: rec.GetTitle(), Source: src, At: rec.GetCreatedAt(),
+				Status: st, StatusLabel: rec.GetStatusLabel(), StatusDetail: rec.GetStatusDetail(),
+				Title: rec.GetTitle(), Source: src, At: rec.GetCreatedAt(),
 				DownloadID: rec.GetDownloadId(), Warning: warn, Stuck: st == "import_failed" || st == "stalled",
 			}
 			data.History = append(data.History, row)
 			if warn {
 				data.Failures = append(data.Failures, row)
+				if row.Stuck {
+					data.StuckCount++
+				}
 			}
 		}
 		data.FailureCount = len(data.Failures)

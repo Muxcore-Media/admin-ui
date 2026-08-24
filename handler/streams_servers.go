@@ -1,18 +1,28 @@
 package handler
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	monitorv1 "github.com/Muxcore-Media/playback-monitor/proto/monitorv1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
+const (
+	streamsServersPageTimeout = playbackMonitorDialTimeout + playbackMonitorReadTimeout + time.Second
+)
+
 func (h *Handler) StreamsServersPage(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), streamsServersPageTimeout)
+	defer pageCancel()
+
 	data := templates.StreamsServersPageData{}
 
-	client, closer, err := h.withPlaybackMonitorClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, playbackMonitorDialTimeout)
+	client, closer, err := h.withPlaybackMonitorClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		data.SoftNote = true
 		if h.Core != nil {
@@ -23,7 +33,9 @@ func (h *Handler) StreamsServersPage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer closer()
 
-	resp, err := client.ListServers(ctx, &monitorv1.ListServersRequest{})
+	readCtx, readCancel := context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	resp, err := client.ListServers(readCtx, &monitorv1.ListServersRequest{})
+	readCancel()
 	if err != nil {
 		data.Error = err.Error()
 		h.renderStreamsServers(w, r, data)

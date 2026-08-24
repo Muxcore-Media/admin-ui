@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -15,7 +16,15 @@ import (
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
-const capMediaRoots = "media.roots"
+const (
+	capMediaRoots         = "media.roots"
+	rootsDialTimeout      = 3 * time.Second
+	rootsReadTimeout      = 5 * time.Second
+	rootsListPageTimeout  = rootsDialTimeout + rootsReadTimeout + time.Second
+	rootsEditPageTimeout  = rootsDialTimeout + 2*rootsReadTimeout + time.Second
+	rootsActionTimeout    = rootsDialTimeout + rootsReadTimeout + time.Second
+	rootsBrowseTimeout    = rootsDialTimeout + rootsReadTimeout + time.Second
+)
 
 func (h *Handler) rootsModuleAddr(ctx context.Context) (string, error) {
 	if h.Core == nil {
@@ -82,14 +91,21 @@ func mediaKindFromModule(moduleID, displayName string) string {
 }
 
 func (h *Handler) RootsList(w http.ResponseWriter, r *http.Request) {
-	client, closer, err := h.withRootsClient(r.Context())
+	pageCtx, cancel := context.WithTimeout(r.Context(), rootsListPageTimeout)
+	defer cancel()
+
 	var roots []*rootsv1.RootFolder
 	errMsg := ""
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, rootsDialTimeout)
+	client, closer, err := h.withRootsClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		errMsg = "Roots module unavailable: " + err.Error()
 	} else {
 		defer closer()
-		resp, listErr := client.ListRoots(r.Context(), &rootsv1.ListRootsRequest{})
+		readCtx, readCancel := context.WithTimeout(pageCtx, rootsReadTimeout)
+		resp, listErr := client.ListRoots(readCtx, &rootsv1.ListRootsRequest{})
+		readCancel()
 		if listErr != nil {
 			errMsg = listErr.Error()
 		} else {
@@ -101,7 +117,9 @@ func (h *Handler) RootsList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) RootNew(w http.ResponseWriter, r *http.Request) {
-	browse := h.browsePathOrEmpty(r.Context(), "/")
+	pageCtx, cancel := context.WithTimeout(r.Context(), rootsEditPageTimeout)
+	defer cancel()
+	browse := h.browsePathOrEmpty(pageCtx, "/")
 	content := templates.RootEditPage(&rootsv1.RootFolder{MediaKind: "any"}, true, h.listNamingTemplateOptions(r.Context(), ""), browse, "")
 	h.render(w, r, templates.Layout("Add Root", h.nav(r.URL.Path), content))
 }
@@ -111,22 +129,28 @@ func (h *Handler) RootCreate(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/roots/new", http.StatusSeeOther)
 		return
 	}
-	client, closer, err := h.withRootsClient(r.Context())
+	pageCtx, cancel := context.WithTimeout(r.Context(), rootsActionTimeout)
+	defer cancel()
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, rootsDialTimeout)
+	client, closer, err := h.withRootsClient(dialCtx)
+	dialCancel()
 	if err != nil {
-		browse := h.browsePathOrEmpty(r.Context(), "/")
+		browse := h.browsePathOrEmpty(pageCtx, "/")
 		content := templates.RootEditPage(rootFromForm(r), true, h.listNamingTemplateOptions(r.Context(), ""), browse, err.Error())
 		h.render(w, r, templates.Layout("Add Root", h.nav(r.URL.Path), content))
 		return
 	}
 	defer closer()
-	resp, err := client.CreateRoot(r.Context(), &rootsv1.CreateRootRequest{
+	readCtx, readCancel := context.WithTimeout(pageCtx, rootsReadTimeout)
+	resp, err := client.CreateRoot(readCtx, &rootsv1.CreateRootRequest{
 		Path:             r.FormValue("path"),
 		Name:             r.FormValue("name"),
 		MediaKind:        r.FormValue("media_kind"),
 		NamingTemplateId: r.FormValue("naming_template_id"),
 	})
+	readCancel()
 	if err != nil {
-		browse := h.browsePathOrEmpty(r.Context(), r.FormValue("path"))
+		browse := h.browsePathOrEmpty(pageCtx, r.FormValue("path"))
 		content := templates.RootEditPage(rootFromForm(r), true, h.listNamingTemplateOptions(r.Context(), ""), browse, err.Error())
 		h.render(w, r, templates.Layout("Add Root", h.nav(r.URL.Path), content))
 		return
@@ -142,14 +166,20 @@ func (h *Handler) RootCreate(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) RootEdit(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	client, closer, err := h.withRootsClient(r.Context())
+	pageCtx, cancel := context.WithTimeout(r.Context(), rootsEditPageTimeout)
+	defer cancel()
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, rootsDialTimeout)
+	client, closer, err := h.withRootsClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		content := templates.RootEditPage(&rootsv1.RootFolder{Id: id}, false, nil, nil, err.Error())
 		h.render(w, r, templates.Layout("Edit Root", h.nav(r.URL.Path), content))
 		return
 	}
 	defer closer()
-	resp, err := client.ListRoots(r.Context(), &rootsv1.ListRootsRequest{})
+	readCtx, readCancel := context.WithTimeout(pageCtx, rootsReadTimeout)
+	resp, err := client.ListRoots(readCtx, &rootsv1.ListRootsRequest{})
+	readCancel()
 	if err != nil {
 		content := templates.RootEditPage(&rootsv1.RootFolder{Id: id}, false, nil, nil, err.Error())
 		h.render(w, r, templates.Layout("Edit Root", h.nav(r.URL.Path), content))
@@ -166,7 +196,7 @@ func (h *Handler) RootEdit(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/roots", http.StatusSeeOther)
 		return
 	}
-	browse := h.browsePathOrEmpty(r.Context(), root.GetPath())
+	browse := h.browsePathOrEmpty(pageCtx, root.GetPath())
 	content := templates.RootEditPage(root, false, h.listNamingTemplateOptions(r.Context(), ""), browse, "")
 	h.render(w, r, templates.Layout("Edit Root", h.nav(r.URL.Path), content))
 }
@@ -177,7 +207,11 @@ func (h *Handler) RootUpdate(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/roots/"+id, http.StatusSeeOther)
 		return
 	}
-	client, closer, err := h.withRootsClient(r.Context())
+	pageCtx, cancel := context.WithTimeout(r.Context(), rootsActionTimeout)
+	defer cancel()
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, rootsDialTimeout)
+	client, closer, err := h.withRootsClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		rf := rootFromForm(r)
 		rf.Id = id
@@ -186,13 +220,15 @@ func (h *Handler) RootUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer closer()
-	_, err = client.UpdateRoot(r.Context(), &rootsv1.UpdateRootRequest{
+	readCtx, readCancel := context.WithTimeout(pageCtx, rootsReadTimeout)
+	_, err = client.UpdateRoot(readCtx, &rootsv1.UpdateRootRequest{
 		Id:               id,
 		Path:             r.FormValue("path"),
 		Name:             r.FormValue("name"),
 		MediaKind:        r.FormValue("media_kind"),
 		NamingTemplateId: r.FormValue("naming_template_id"),
 	})
+	readCancel()
 	if err != nil {
 		rf := rootFromForm(r)
 		rf.Id = id
@@ -211,13 +247,20 @@ func (h *Handler) RootUpdate(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) RootDelete(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	client, closer, err := h.withRootsClient(r.Context())
+	pageCtx, cancel := context.WithTimeout(r.Context(), rootsActionTimeout)
+	defer cancel()
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, rootsDialTimeout)
+	client, closer, err := h.withRootsClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/roots", http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	if _, err := client.DeleteRoot(r.Context(), &rootsv1.DeleteRootRequest{Id: id}); err != nil {
+	readCtx, readCancel := context.WithTimeout(pageCtx, rootsReadTimeout)
+	_, err = client.DeleteRoot(readCtx, &rootsv1.DeleteRootRequest{Id: id})
+	readCancel()
+	if err != nil {
 		slog.Warn("roots: DeleteRoot failed", "id", id, "error", err)
 		http.Redirect(w, r, "/roots", http.StatusSeeOther)
 		return
@@ -230,14 +273,20 @@ func (h *Handler) RootDelete(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) RootsBrowse(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Query().Get("path")
-	client, closer, err := h.withRootsClient(r.Context())
+	pageCtx, cancel := context.WithTimeout(r.Context(), rootsBrowseTimeout)
+	defer cancel()
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, rootsDialTimeout)
+	client, closer, err := h.withRootsClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		content := templates.RootsBrowsePartial(nil, err.Error())
 		h.render(w, r, content)
 		return
 	}
 	defer closer()
-	resp, err := client.BrowsePath(r.Context(), &rootsv1.BrowsePathRequest{Path: path})
+	readCtx, readCancel := context.WithTimeout(pageCtx, rootsReadTimeout)
+	resp, err := client.BrowsePath(readCtx, &rootsv1.BrowsePathRequest{Path: path})
+	readCancel()
 	if err != nil {
 		content := templates.RootsBrowsePartial(&rootsv1.BrowsePathResponse{Path: path}, err.Error())
 		h.render(w, r, content)

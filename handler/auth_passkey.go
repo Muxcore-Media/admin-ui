@@ -9,13 +9,23 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 
 	authv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/auth/v1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
+func authContextWithToken(ctx context.Context) context.Context {
+	sess := SessionFromContext(ctx)
+	if sess == nil || sess.AuthLocalToken == "" {
+		return ctx
+	}
+	return metadata.AppendToOutgoingContext(ctx, "x-auth-token", sess.AuthLocalToken)
+}
+
 func (h *Handler) authClient(ctx context.Context) (authv1.AuthServiceClient, *grpc.ClientConn, error) {
+	ctx = authContextWithToken(ctx)
 	mod, err := h.findFirstModule(ctx, "auth")
 	if err != nil {
 		return nil, nil, fmt.Errorf("auth module unavailable: %w", err)

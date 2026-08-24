@@ -19,9 +19,17 @@ import (
 )
 
 const (
-	capMediaSubtitles   = "media.subtitles"
-	subtitlesDialTimeout = 3 * time.Second
-	subtitlesReadTimeout = 5 * time.Second
+	capMediaSubtitles            = "media.subtitles"
+	subtitlesDialTimeout         = 3 * time.Second
+	subtitlesReadTimeout         = 5 * time.Second
+	subtitlesPageTimeout         = subtitlesDialTimeout + 7*subtitlesReadTimeout + time.Second
+	subtitlesDetailPageTimeout   = subtitlesDialTimeout + 4*subtitlesReadTimeout + subtitlesSearchTimeout + time.Second
+	subtitlesSeriesPageTimeout   = subtitlesDialTimeout + subtitlesReadTimeout + time.Second
+	subtitlesSearchTimeout       = 20 * time.Second
+	subtitlesActionTimeout       = subtitlesDialTimeout + subtitlesReadTimeout + time.Second
+	subtitlesSyncTimeout         = 30 * time.Second
+	subtitlesBatchTimeout        = 60 * time.Second
+	subtitlesTestTimeout         = 15 * time.Second
 )
 
 func (h *Handler) withSubtitlesClient(ctx context.Context) (subtv1.SubtitleServiceClient, func(), error) {
@@ -48,7 +56,7 @@ func (h *Handler) withSubtitlesClient(ctx context.Context) (subtv1.SubtitleServi
 }
 
 func (h *Handler) SubtitlesPage(w http.ResponseWriter, r *http.Request) {
-	pageCtx, cancel := context.WithTimeout(r.Context(), subtitlesDialTimeout+2*subtitlesReadTimeout)
+	pageCtx, cancel := context.WithTimeout(r.Context(), subtitlesPageTimeout)
 	defer cancel()
 
 	data := templates.SubtitlesPageData{
@@ -66,10 +74,10 @@ func (h *Handler) SubtitlesPage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer closer()
 
-	rCtx, rCancel := context.WithTimeout(pageCtx, subtitlesReadTimeout)
-	defer rCancel()
-
-	if wanted, err := client.ListWanted(rCtx, &subtv1.ListWantedRequest{Page: 1, PageSize: 50}); err != nil {
+	readCtx, readCancel := context.WithTimeout(pageCtx, subtitlesReadTimeout)
+	wanted, err := client.ListWanted(readCtx, &subtv1.ListWantedRequest{Page: 1, PageSize: 50})
+	readCancel()
+	if err != nil {
 		slog.Warn("subtitles ListWanted", "error", err)
 		if data.Error == "" {
 			data.Error = err.Error()
@@ -84,7 +92,10 @@ func (h *Handler) SubtitlesPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if hist, err := client.ListHistory(rCtx, &subtv1.ListHistoryRequest{Page: 1, PageSize: 40}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, subtitlesReadTimeout)
+	hist, err := client.ListHistory(readCtx, &subtv1.ListHistoryRequest{Page: 1, PageSize: 40})
+	readCancel()
+	if err == nil {
 		data.HistoryTot = int(hist.GetTotal())
 		for _, e := range hist.GetEntries() {
 			data.History = append(data.History, templates.SubtitlesHistoryItem{
@@ -94,7 +105,10 @@ func (h *Handler) SubtitlesPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if bl, err := client.ListBlacklist(rCtx, &subtv1.ListBlacklistRequest{Page: 1, PageSize: 40}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, subtitlesReadTimeout)
+	bl, err := client.ListBlacklist(readCtx, &subtv1.ListBlacklistRequest{Page: 1, PageSize: 40})
+	readCancel()
+	if err == nil {
 		for _, e := range bl.GetEntries() {
 			data.Blacklist = append(data.Blacklist, templates.SubtitlesBlacklistItem{
 				ID: e.GetId(), Provider: e.GetProvider(), Title: e.GetTitle(),
@@ -103,7 +117,10 @@ func (h *Handler) SubtitlesPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if prov, err := client.ListProviders(rCtx, &subtv1.ListProvidersRequest{}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, subtitlesReadTimeout)
+	prov, err := client.ListProviders(readCtx, &subtv1.ListProvidersRequest{})
+	readCancel()
+	if err == nil {
 		for _, p := range prov.GetProviders() {
 			data.Providers = append(data.Providers, templates.SubtitlesProviderItem{
 				ID: p.GetId(), Name: p.GetName(), Enabled: p.GetEnabled(), Implemented: p.GetImplemented(),
@@ -111,7 +128,10 @@ func (h *Handler) SubtitlesPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if media, err := client.ListMedia(rCtx, &subtv1.ListMediaRequest{Page: 1, PageSize: 80}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, subtitlesReadTimeout)
+	media, err := client.ListMedia(readCtx, &subtv1.ListMediaRequest{Page: 1, PageSize: 80})
+	readCancel()
+	if err == nil {
 		data.MediaTot = int(media.GetTotal())
 		for _, it := range media.GetItems() {
 			data.Media = append(data.Media, templates.SubtitlesMediaItem{
@@ -122,7 +142,10 @@ func (h *Handler) SubtitlesPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if profs, err := client.ListLanguageProfiles(rCtx, &subtv1.ListLanguageProfilesRequest{}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, subtitlesReadTimeout)
+	profs, err := client.ListLanguageProfiles(readCtx, &subtv1.ListLanguageProfilesRequest{})
+	readCancel()
+	if err == nil {
 		for _, p := range profs.GetProfiles() {
 			langs := make([]string, 0, len(p.GetLanguages()))
 			for _, lr := range p.GetLanguages() {
@@ -141,7 +164,10 @@ func (h *Handler) SubtitlesPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if langs, err := client.ListLanguages(rCtx, &subtv1.ListLanguagesRequest{}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, subtitlesReadTimeout)
+	langs, err := client.ListLanguages(readCtx, &subtv1.ListLanguagesRequest{})
+	readCancel()
+	if err == nil {
 		data.LangTot = len(langs.GetLanguages())
 	}
 
@@ -151,7 +177,7 @@ func (h *Handler) SubtitlesPage(w http.ResponseWriter, r *http.Request) {
 	if q != "" || imdb != "" {
 		season, _ := strconv.Atoi(r.URL.Query().Get("season"))
 		episode, _ := strconv.Atoi(r.URL.Query().Get("episode"))
-		sCtx, sCancel := context.WithTimeout(pageCtx, 20*time.Second)
+		sCtx, sCancel := context.WithTimeout(pageCtx, subtitlesSearchTimeout)
 		search, err := client.Search(sCtx, &subtv1.SearchRequest{
 			Query: q, ImdbId: imdb, Language: lang, Season: int32(season), Episode: int32(episode),
 		})
@@ -181,15 +207,17 @@ func (h *Handler) renderSubtitles(w http.ResponseWriter, r *http.Request, data t
 }
 
 func (h *Handler) SubtitlesSync(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	pageCtx, cancel := context.WithTimeout(r.Context(), subtitlesSyncTimeout)
 	defer cancel()
-	client, closer, err := h.withSubtitlesClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, subtitlesDialTimeout)
+	client, closer, err := h.withSubtitlesClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	resp, err := client.SyncLibrary(ctx, &subtv1.SyncLibraryRequest{})
+	resp, err := client.SyncLibrary(pageCtx, &subtv1.SyncLibraryRequest{})
 	if err != nil {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
@@ -199,15 +227,17 @@ func (h *Handler) SubtitlesSync(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) SubtitlesSearchWanted(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	pageCtx, cancel := context.WithTimeout(r.Context(), subtitlesBatchTimeout)
 	defer cancel()
-	client, closer, err := h.withSubtitlesClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, subtitlesDialTimeout)
+	client, closer, err := h.withSubtitlesClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	resp, err := client.SearchWanted(ctx, &subtv1.SearchWantedRequest{Limit: 25})
+	resp, err := client.SearchWanted(pageCtx, &subtv1.SearchWantedRequest{Limit: 25})
 	if err != nil {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
@@ -217,15 +247,17 @@ func (h *Handler) SubtitlesSearchWanted(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) SubtitlesUpgrade(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	pageCtx, cancel := context.WithTimeout(r.Context(), subtitlesBatchTimeout)
 	defer cancel()
-	client, closer, err := h.withSubtitlesClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, subtitlesDialTimeout)
+	client, closer, err := h.withSubtitlesClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	resp, err := client.UpgradeSubtitles(ctx, &subtv1.UpgradeSubtitlesRequest{})
+	resp, err := client.UpgradeSubtitles(pageCtx, &subtv1.UpgradeSubtitlesRequest{})
 	if err != nil {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
@@ -237,15 +269,20 @@ func (h *Handler) SubtitlesUpgrade(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) SubtitlesProviderToggle(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	enabled := r.FormValue("enabled") == "true"
-	ctx, cancel := context.WithTimeout(r.Context(), subtitlesReadTimeout)
+	pageCtx, cancel := context.WithTimeout(r.Context(), subtitlesActionTimeout)
 	defer cancel()
-	client, closer, err := h.withSubtitlesClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, subtitlesDialTimeout)
+	client, closer, err := h.withSubtitlesClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	if _, err := client.SetProviderEnabled(ctx, &subtv1.SetProviderEnabledRequest{Id: id, Enabled: enabled}); err != nil {
+	readCtx, readCancel := context.WithTimeout(pageCtx, subtitlesReadTimeout)
+	_, err = client.SetProviderEnabled(readCtx, &subtv1.SetProviderEnabledRequest{Id: id, Enabled: enabled})
+	readCancel()
+	if err != nil {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
@@ -254,15 +291,20 @@ func (h *Handler) SubtitlesProviderToggle(w http.ResponseWriter, r *http.Request
 
 func (h *Handler) SubtitlesBlacklistRemove(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	ctx, cancel := context.WithTimeout(r.Context(), subtitlesReadTimeout)
+	pageCtx, cancel := context.WithTimeout(r.Context(), subtitlesActionTimeout)
 	defer cancel()
-	client, closer, err := h.withSubtitlesClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, subtitlesDialTimeout)
+	client, closer, err := h.withSubtitlesClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	if _, err := client.RemoveBlacklist(ctx, &subtv1.RemoveBlacklistRequest{Id: id}); err != nil {
+	readCtx, readCancel := context.WithTimeout(pageCtx, subtitlesReadTimeout)
+	_, err = client.RemoveBlacklist(readCtx, &subtv1.RemoveBlacklistRequest{Id: id})
+	readCancel()
+	if err != nil {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
@@ -280,9 +322,11 @@ func (h *Handler) SubtitlesMassEdit(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape("select at least one media item"), http.StatusSeeOther)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), subtitlesBatchTimeout)
 	defer cancel()
-	client, closer, err := h.withSubtitlesClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(ctx, subtitlesDialTimeout)
+	client, closer, err := h.withSubtitlesClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
@@ -323,15 +367,20 @@ func (h *Handler) SubtitlesMassEdit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) SubtitlesClearHistory(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), subtitlesReadTimeout)
+	pageCtx, cancel := context.WithTimeout(r.Context(), subtitlesActionTimeout)
 	defer cancel()
-	client, closer, err := h.withSubtitlesClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, subtitlesDialTimeout)
+	client, closer, err := h.withSubtitlesClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	if _, err := client.ClearHistory(ctx, &subtv1.ClearHistoryRequest{}); err != nil {
+	readCtx, readCancel := context.WithTimeout(pageCtx, subtitlesReadTimeout)
+	_, err = client.ClearHistory(readCtx, &subtv1.ClearHistoryRequest{})
+	readCancel()
+	if err != nil {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
@@ -344,15 +393,17 @@ func (h *Handler) SubtitlesDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	score, _ := strconv.Atoi(r.FormValue("score"))
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	pageCtx, cancel := context.WithTimeout(r.Context(), subtitlesBatchTimeout)
 	defer cancel()
-	client, closer, err := h.withSubtitlesClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, subtitlesDialTimeout)
+	client, closer, err := h.withSubtitlesClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	resp, err := client.DownloadSubtitle(ctx, &subtv1.DownloadSubtitleRequest{
+	resp, err := client.DownloadSubtitle(pageCtx, &subtv1.DownloadSubtitleRequest{
 		Provider: r.FormValue("provider"), FileId: r.FormValue("file_id"),
 		Language: r.FormValue("language"), ReleaseName: r.FormValue("release"),
 		Score: int32(score), MediaFileId: r.FormValue("media_file_id"),
@@ -406,19 +457,23 @@ func (h *Handler) SubtitlesUpsertProfile(w http.ResponseWriter, r *http.Request)
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape("no valid languages"), http.StatusSeeOther)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), subtitlesReadTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), subtitlesActionTimeout)
 	defer cancel()
-	client, closer, err := h.withSubtitlesClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(ctx, subtitlesDialTimeout)
+	client, closer, err := h.withSubtitlesClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	resp, err := client.UpsertLanguageProfile(ctx, &subtv1.UpsertLanguageProfileRequest{
+	readCtx, readCancel := context.WithTimeout(ctx, subtitlesReadTimeout)
+	resp, err := client.UpsertLanguageProfile(readCtx, &subtv1.UpsertLanguageProfileRequest{
 		Profile: &subtv1.LanguageProfile{
 			Name: name, Languages: reqs, IsDefault: r.FormValue("is_default") == "true",
 		},
 	})
+	readCancel()
 	if err != nil {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
@@ -432,13 +487,15 @@ func (h *Handler) SubtitlesUpsertProfile(w http.ResponseWriter, r *http.Request)
 
 func (h *Handler) SubtitlesMediaDetail(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	pageCtx, cancel := context.WithTimeout(r.Context(), subtitlesDialTimeout+25*time.Second)
+	pageCtx, cancel := context.WithTimeout(r.Context(), subtitlesDetailPageTimeout)
 	defer cancel()
 	data := templates.SubtitlesMediaDetailData{
 		Flash: r.URL.Query().Get("status"),
 		Error: r.URL.Query().Get("error"),
 	}
-	client, closer, err := h.withSubtitlesClient(pageCtx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, subtitlesDialTimeout)
+	client, closer, err := h.withSubtitlesClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		data.Error = err.Error()
 		templates.Layout("Subtitles", h.nav("/subtitles"), templates.SubtitlesMediaDetailPage(data)).Render(r.Context(), w)
@@ -446,7 +503,9 @@ func (h *Handler) SubtitlesMediaDetail(w http.ResponseWriter, r *http.Request) {
 	}
 	defer closer()
 
-	media, err := client.GetMedia(pageCtx, &subtv1.GetMediaRequest{Id: id})
+	readCtx, readCancel := context.WithTimeout(pageCtx, subtitlesReadTimeout)
+	media, err := client.GetMedia(readCtx, &subtv1.GetMediaRequest{Id: id})
+	readCancel()
 	if err != nil {
 		data.Error = err.Error()
 		templates.Layout("Subtitles", h.nav("/subtitles"), templates.SubtitlesMediaDetailPage(data)).Render(r.Context(), w)
@@ -463,7 +522,10 @@ func (h *Handler) SubtitlesMediaDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if it.GetMediaFileId() != "" {
-		if subs, err := client.ListSubtitles(pageCtx, &subtv1.ListSubtitlesRequest{MediaFileId: it.GetMediaFileId(), Page: 1, PageSize: 100}); err == nil {
+		readCtx, readCancel := context.WithTimeout(pageCtx, subtitlesReadTimeout)
+		subs, err := client.ListSubtitles(readCtx, &subtv1.ListSubtitlesRequest{MediaFileId: it.GetMediaFileId(), Page: 1, PageSize: 100})
+		readCancel()
+		if err == nil {
 			for _, s := range subs.GetSubtitles() {
 				data.Subtitles = append(data.Subtitles, templates.SubtitlesFileItem{
 					ID: s.GetId(), Language: s.GetLanguage(), Provider: firstNonEmpty(s.GetProvider(), s.GetSource()),
@@ -474,7 +536,10 @@ func (h *Handler) SubtitlesMediaDetail(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if wanted, err := client.ListWanted(pageCtx, &subtv1.ListWantedRequest{Page: 1, PageSize: 100}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, subtitlesReadTimeout)
+	wanted, err := client.ListWanted(readCtx, &subtv1.ListWantedRequest{Page: 1, PageSize: 100})
+	readCancel()
+	if err == nil {
 		for _, w := range wanted.GetItems() {
 			if w.GetId() == id || w.GetMediaId() == id {
 				data.Wanted = append(data.Wanted, templates.SubtitlesWantedItem{
@@ -485,7 +550,10 @@ func (h *Handler) SubtitlesMediaDetail(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if profs, err := client.ListLanguageProfiles(pageCtx, &subtv1.ListLanguageProfilesRequest{}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, subtitlesReadTimeout)
+	profs, err := client.ListLanguageProfiles(readCtx, &subtv1.ListLanguageProfilesRequest{})
+	readCancel()
+	if err == nil {
 		for _, p := range profs.GetProfiles() {
 			data.Profiles = append(data.Profiles, templates.SubtitlesProfileItem{ID: p.GetId(), Name: p.GetName(), IsDefault: p.GetIsDefault()})
 		}
@@ -501,7 +569,7 @@ func (h *Handler) SubtitlesMediaDetail(w http.ResponseWriter, r *http.Request) {
 		if it.GetSeriesName() != "" {
 			query = it.GetSeriesName()
 		}
-		sCtx, sCancel := context.WithTimeout(pageCtx, 20*time.Second)
+		sCtx, sCancel := context.WithTimeout(pageCtx, subtitlesSearchTimeout)
 		search, err := client.Search(sCtx, &subtv1.SearchRequest{
 			Query: query, ImdbId: it.GetImdbId(), Season: it.GetSeason(), Episode: it.GetEpisode(),
 		})
@@ -528,14 +596,16 @@ func (h *Handler) SubtitlesMediaDetail(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) SubtitlesSeriesDetail(w http.ResponseWriter, r *http.Request) {
 	seriesID := r.PathValue("id")
-	pageCtx, cancel := context.WithTimeout(r.Context(), subtitlesDialTimeout+10*time.Second)
+	pageCtx, cancel := context.WithTimeout(r.Context(), subtitlesSeriesPageTimeout)
 	defer cancel()
 	data := templates.SubtitlesMediaDetailData{
 		Flash: r.URL.Query().Get("status"),
 		Error: r.URL.Query().Get("error"),
 		Item:  templates.SubtitlesMediaDetailItem{ID: seriesID, Title: seriesID, Type: "series", SeriesID: seriesID},
 	}
-	client, closer, err := h.withSubtitlesClient(pageCtx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, subtitlesDialTimeout)
+	client, closer, err := h.withSubtitlesClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		data.Error = err.Error()
 		templates.Layout("Series", h.nav("/subtitles"), templates.SubtitlesMediaDetailPage(data)).Render(r.Context(), w)
@@ -543,7 +613,9 @@ func (h *Handler) SubtitlesSeriesDetail(w http.ResponseWriter, r *http.Request) 
 	}
 	defer closer()
 
-	eps, err := client.ListMedia(pageCtx, &subtv1.ListMediaRequest{SeriesId: seriesID, Page: 1, PageSize: 500})
+	readCtx, readCancel := context.WithTimeout(pageCtx, subtitlesReadTimeout)
+	eps, err := client.ListMedia(readCtx, &subtv1.ListMediaRequest{SeriesId: seriesID, Page: 1, PageSize: 500})
+	readCancel()
 	if err != nil {
 		data.Error = err.Error()
 	} else {
@@ -564,15 +636,17 @@ func (h *Handler) SubtitlesSeriesDetail(w http.ResponseWriter, r *http.Request) 
 
 func (h *Handler) SubtitlesMediaSearchWanted(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	pageCtx, cancel := context.WithTimeout(r.Context(), subtitlesBatchTimeout)
 	defer cancel()
-	client, closer, err := h.withSubtitlesClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, subtitlesDialTimeout)
+	client, closer, err := h.withSubtitlesClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/subtitles/media/"+url.PathEscape(id)+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	resp, err := client.SearchWanted(ctx, &subtv1.SearchWantedRequest{MediaIds: []string{id}, Limit: 8})
+	resp, err := client.SearchWanted(pageCtx, &subtv1.SearchWantedRequest{MediaIds: []string{id}, Limit: 8})
 	if err != nil {
 		http.Redirect(w, r, "/subtitles/media/"+url.PathEscape(id)+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
@@ -587,17 +661,22 @@ func (h *Handler) SubtitlesMediaSetProfile(w http.ResponseWriter, r *http.Reques
 		http.Redirect(w, r, "/subtitles/media/"+url.PathEscape(id)+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), subtitlesReadTimeout)
+	pageCtx, cancel := context.WithTimeout(r.Context(), subtitlesActionTimeout)
 	defer cancel()
-	client, closer, err := h.withSubtitlesClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, subtitlesDialTimeout)
+	client, closer, err := h.withSubtitlesClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/subtitles/media/"+url.PathEscape(id)+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	if _, err := client.SetMediaLanguageProfile(ctx, &subtv1.SetMediaLanguageProfileRequest{
+	readCtx, readCancel := context.WithTimeout(pageCtx, subtitlesReadTimeout)
+	_, err = client.SetMediaLanguageProfile(readCtx, &subtv1.SetMediaLanguageProfileRequest{
 		MediaId: id, LanguageProfileId: r.FormValue("profile_id"),
-	}); err != nil {
+	})
+	readCancel()
+	if err != nil {
 		http.Redirect(w, r, "/subtitles/media/"+url.PathEscape(id)+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
@@ -607,15 +686,20 @@ func (h *Handler) SubtitlesMediaSetProfile(w http.ResponseWriter, r *http.Reques
 func (h *Handler) SubtitlesFileDelete(w http.ResponseWriter, r *http.Request) {
 	fileID := r.PathValue("id")
 	mediaID := r.FormValue("media_id")
-	ctx, cancel := context.WithTimeout(r.Context(), subtitlesReadTimeout)
+	pageCtx, cancel := context.WithTimeout(r.Context(), subtitlesActionTimeout)
 	defer cancel()
-	client, closer, err := h.withSubtitlesClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, subtitlesDialTimeout)
+	client, closer, err := h.withSubtitlesClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	if _, err := client.Delete(ctx, &subtv1.DeleteRequest{Id: fileID}); err != nil {
+	readCtx, readCancel := context.WithTimeout(pageCtx, subtitlesReadTimeout)
+	_, err = client.Delete(readCtx, &subtv1.DeleteRequest{Id: fileID})
+	readCancel()
+	if err != nil {
 		ret := "/subtitles"
 		if mediaID != "" {
 			ret = "/subtitles/media/" + url.PathEscape(mediaID)
@@ -636,15 +720,19 @@ func (h *Handler) SubtitlesTestArr(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	target := r.FormValue("target")
-	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	pageCtx, cancel := context.WithTimeout(r.Context(), subtitlesTestTimeout)
 	defer cancel()
-	client, closer, err := h.withSubtitlesClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, subtitlesDialTimeout)
+	client, closer, err := h.withSubtitlesClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	resp, err := client.TestArrConnection(ctx, &subtv1.TestArrConnectionRequest{Target: target})
+	readCtx, readCancel := context.WithTimeout(pageCtx, subtitlesReadTimeout)
+	resp, err := client.TestArrConnection(readCtx, &subtv1.TestArrConnectionRequest{Target: target})
+	readCancel()
 	if err != nil {
 		http.Redirect(w, r, "/subtitles?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return

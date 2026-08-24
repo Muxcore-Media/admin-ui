@@ -17,7 +17,12 @@ import (
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
-const capPlaybackMonitor = "playback.monitor"
+const (
+	capPlaybackMonitor = "playback.monitor"
+
+	playbackMonitorDialTimeout = 3 * time.Second
+	playbackMonitorReadTimeout = 5 * time.Second
+)
 
 func (h *Handler) playbackMonitorAddr(ctx context.Context) (string, error) {
 	if h.Core == nil {
@@ -50,10 +55,14 @@ func (h *Handler) withPlaybackMonitorClient(ctx context.Context) (monitorv1.Play
 }
 
 func (h *Handler) StreamsPage(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	pageCtx, cancel := context.WithTimeout(r.Context(), playbackMonitorDialTimeout+3*playbackMonitorReadTimeout+time.Second)
+	defer cancel()
+
 	data := templates.StreamsPageData{}
 
-	client, closer, err := h.withPlaybackMonitorClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, playbackMonitorDialTimeout)
+	client, closer, err := h.withPlaybackMonitorClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		data.SoftNote = true
 		if h.Core != nil {
@@ -64,7 +73,10 @@ func (h *Handler) StreamsPage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer closer()
 
-	if stats, err := client.GetHomeStats(ctx, &monitorv1.GetHomeStatsRequest{Days: 30}); err == nil {
+	readCtx, readCancel := context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	stats, statsErr := client.GetHomeStats(readCtx, &monitorv1.GetHomeStatsRequest{Days: 30})
+	readCancel()
+	if statsErr == nil {
 		for _, s := range stats.GetStats() {
 			data.Stats = append(data.Stats, templates.StreamStat{
 				Key:   s.GetKey(),
@@ -74,13 +86,19 @@ func (h *Handler) StreamsPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if active, err := client.ListActiveSessions(ctx, &monitorv1.ListActiveSessionsRequest{Limit: 50}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	active, activeErr := client.ListActiveSessions(readCtx, &monitorv1.ListActiveSessionsRequest{Limit: 50})
+	readCancel()
+	if activeErr == nil {
 		for _, s := range active.GetSessions() {
 			data.Active = append(data.Active, sessionRowFromProto(s))
 		}
 	}
 
-	if hist, err := client.ListHistory(ctx, &monitorv1.ListHistoryRequest{Limit: 15}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	hist, histErr := client.ListHistory(readCtx, &monitorv1.ListHistoryRequest{Limit: 15})
+	readCancel()
+	if histErr == nil {
 		data.HistoryTotal = int(hist.GetTotal())
 		for _, s := range hist.GetSessions() {
 			data.History = append(data.History, sessionRowFromProto(s))
@@ -91,12 +109,16 @@ func (h *Handler) StreamsPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) StreamsHistoryPage(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	pageCtx, cancel := context.WithTimeout(r.Context(), playbackMonitorDialTimeout+playbackMonitorReadTimeout)
+	defer cancel()
+
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	limit := 100
 	data := templates.StreamsHistoryPageData{Query: q}
 
-	client, closer, err := h.withPlaybackMonitorClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, playbackMonitorDialTimeout)
+	client, closer, err := h.withPlaybackMonitorClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		data.SoftNote = true
 		if h.Core != nil {
@@ -107,11 +129,13 @@ func (h *Handler) StreamsHistoryPage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer closer()
 
-	resp, err := client.ListHistory(ctx, &monitorv1.ListHistoryRequest{
+	readCtx, readCancel := context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	resp, err := client.ListHistory(readCtx, &monitorv1.ListHistoryRequest{
 		Query:  q,
 		Limit:  int32(limit),
 		Offset: 0,
 	})
+	readCancel()
 	if err != nil {
 		data.Error = err.Error()
 		h.renderStreamsHistory(w, r, data)
@@ -125,10 +149,15 @@ func (h *Handler) StreamsHistoryPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) StreamsStatsPage(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	const statsReads = 10
+	pageCtx, cancel := context.WithTimeout(r.Context(), playbackMonitorDialTimeout+statsReads*playbackMonitorReadTimeout+time.Second)
+	defer cancel()
+
 	data := templates.StreamsStatsPageData{}
 
-	client, closer, err := h.withPlaybackMonitorClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, playbackMonitorDialTimeout)
+	client, closer, err := h.withPlaybackMonitorClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		data.SoftNote = true
 		if h.Core != nil {
@@ -139,7 +168,9 @@ func (h *Handler) StreamsStatsPage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer closer()
 
-	resp, err := client.GetStreamAnalytics(ctx, &monitorv1.GetStreamAnalyticsRequest{Days: 30})
+	readCtx, readCancel := context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	resp, err := client.GetStreamAnalytics(readCtx, &monitorv1.GetStreamAnalyticsRequest{Days: 30})
+	readCancel()
 	if err != nil {
 		data.Error = err.Error()
 		h.renderStreamsStats(w, r, data)
@@ -157,7 +188,10 @@ func (h *Handler) StreamsStatsPage(w http.ResponseWriter, r *http.Request) {
 			Count: int(row.GetCount()),
 		})
 	}
-	if plays, err := client.GetPlaysByDate(ctx, &monitorv1.GetPlaysByDateRequest{Days: 30}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	plays, playsErr := client.GetPlaysByDate(readCtx, &monitorv1.GetPlaysByDateRequest{Days: 30})
+	readCancel()
+	if playsErr == nil {
 		for _, row := range plays.GetRows() {
 			data.PlaysByDate = append(data.PlaysByDate, templates.StreamBreakdownRow{
 				Label: row.GetDate(),
@@ -165,7 +199,10 @@ func (h *Handler) StreamsStatsPage(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
-	if hours, err := client.GetPlaysByHour(ctx, &monitorv1.GetPlaysByHourRequest{Days: 30}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	hours, hoursErr := client.GetPlaysByHour(readCtx, &monitorv1.GetPlaysByHourRequest{Days: 30})
+	readCancel()
+	if hoursErr == nil {
 		for _, row := range hours.GetRows() {
 			data.PlaysByHour = append(data.PlaysByHour, templates.StreamBreakdownRow{
 				Label: row.GetLabel(),
@@ -173,7 +210,10 @@ func (h *Handler) StreamsStatsPage(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
-	if dow, err := client.GetPlaysByDayOfWeek(ctx, &monitorv1.GetPlaysByDayOfWeekRequest{Days: 30}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	dow, dowErr := client.GetPlaysByDayOfWeek(readCtx, &monitorv1.GetPlaysByDayOfWeekRequest{Days: 30})
+	readCancel()
+	if dowErr == nil {
 		for _, row := range dow.GetRows() {
 			data.PlaysByDayWeek = append(data.PlaysByDayWeek, templates.StreamBreakdownRow{
 				Label: row.GetLabel(),
@@ -181,7 +221,10 @@ func (h *Handler) StreamsStatsPage(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
-	if months, err := client.GetPlaysByMonth(ctx, &monitorv1.GetPlaysByMonthRequest{Days: 365}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	months, monthsErr := client.GetPlaysByMonth(readCtx, &monitorv1.GetPlaysByMonthRequest{Days: 365})
+	readCancel()
+	if monthsErr == nil {
 		for _, row := range months.GetRows() {
 			data.PlaysByMonth = append(data.PlaysByMonth, templates.StreamBreakdownRow{
 				Label: row.GetLabel(),
@@ -189,7 +232,10 @@ func (h *Handler) StreamsStatsPage(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
-	if topUsers, err := client.GetPlaysByTopUsers(ctx, &monitorv1.GetPlaysByTopUsersRequest{Days: 30, Limit: 10}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	topUsers, topUsersErr := client.GetPlaysByTopUsers(readCtx, &monitorv1.GetPlaysByTopUsersRequest{Days: 30, Limit: 10})
+	readCancel()
+	if topUsersErr == nil {
 		for _, row := range topUsers.GetRows() {
 			data.TopUsers = append(data.TopUsers, templates.StreamBreakdownRow{
 				Label: row.GetLabel(),
@@ -197,7 +243,10 @@ func (h *Handler) StreamsStatsPage(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
-	if concurrent, err := client.GetConcurrentStreams(ctx, &monitorv1.GetConcurrentStreamsRequest{Days: 30}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	concurrent, concurrentErr := client.GetConcurrentStreams(readCtx, &monitorv1.GetConcurrentStreamsRequest{Days: 30})
+	readCancel()
+	if concurrentErr == nil {
 		for _, row := range concurrent.GetRows() {
 			data.Concurrent = append(data.Concurrent, templates.StreamConcurrentRow{
 				Date:      row.GetDate(),
@@ -207,7 +256,10 @@ func (h *Handler) StreamsStatsPage(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
-	if resolution, err := client.GetPlaysByStreamResolution(ctx, &monitorv1.GetPlaysByStreamResolutionRequest{Days: 30, Limit: 10}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	resolution, resolutionErr := client.GetPlaysByStreamResolution(readCtx, &monitorv1.GetPlaysByStreamResolutionRequest{Days: 30, Limit: 10})
+	readCancel()
+	if resolutionErr == nil {
 		for _, row := range resolution.GetRows() {
 			data.PlaysByResolution = append(data.PlaysByResolution, templates.StreamBreakdownRow{
 				Label: row.GetLabel(),
@@ -215,7 +267,10 @@ func (h *Handler) StreamsStatsPage(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
-	if source, err := client.GetPlaysBySourceResolution(ctx, &monitorv1.GetPlaysBySourceResolutionRequest{Days: 30, Limit: 10}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	source, sourceErr := client.GetPlaysBySourceResolution(readCtx, &monitorv1.GetPlaysBySourceResolutionRequest{Days: 30, Limit: 10})
+	readCancel()
+	if sourceErr == nil {
 		for _, row := range source.GetRows() {
 			data.PlaysBySourceResolution = append(data.PlaysBySourceResolution, templates.StreamBreakdownRow{
 				Label: row.GetLabel(),
@@ -223,7 +278,10 @@ func (h *Handler) StreamsStatsPage(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
-	if combo, err := client.GetPlaysByPlatformResolution(ctx, &monitorv1.GetPlaysByPlatformResolutionRequest{Days: 30, Limit: 15}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	combo, comboErr := client.GetPlaysByPlatformResolution(readCtx, &monitorv1.GetPlaysByPlatformResolutionRequest{Days: 30, Limit: 15})
+	readCancel()
+	if comboErr == nil {
 		for _, row := range combo.GetRows() {
 			data.PlaysByPlatformResolution = append(data.PlaysByPlatformResolution, templates.StreamBreakdownRow{
 				Label: row.GetLabel(),
@@ -235,10 +293,14 @@ func (h *Handler) StreamsStatsPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) StreamsUsersPage(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	pageCtx, cancel := context.WithTimeout(r.Context(), playbackMonitorDialTimeout+playbackMonitorReadTimeout)
+	defer cancel()
+
 	data := templates.StreamsUsersPageData{}
 
-	client, closer, err := h.withPlaybackMonitorClient(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, playbackMonitorDialTimeout)
+	client, closer, err := h.withPlaybackMonitorClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		data.SoftNote = true
 		if h.Core != nil {
@@ -249,7 +311,9 @@ func (h *Handler) StreamsUsersPage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer closer()
 
-	resp, err := client.ListUserWatchStats(ctx, &monitorv1.ListUserWatchStatsRequest{Days: 30, Limit: 100})
+	readCtx, readCancel := context.WithTimeout(pageCtx, playbackMonitorReadTimeout)
+	resp, err := client.ListUserWatchStats(readCtx, &monitorv1.ListUserWatchStatsRequest{Days: 30, Limit: 100})
+	readCancel()
 	if err != nil {
 		data.Error = err.Error()
 		h.renderStreamsUsers(w, r, data)

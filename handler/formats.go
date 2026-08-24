@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -16,7 +17,12 @@ import (
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
-const capMediaFormats = "media.formats"
+const (
+	capMediaFormats     = "media.formats"
+	formatsDialTimeout  = 3 * time.Second
+	formatsReadTimeout  = 5 * time.Second
+	formatsPageTimeout  = formatsDialTimeout + formatsReadTimeout + time.Second
+)
 
 func (h *Handler) formatsModuleAddr(ctx context.Context) (string, error) {
 	if h.Core == nil {
@@ -99,14 +105,21 @@ func parseFormatScores(raw string) map[string]int32 {
 }
 
 func (h *Handler) ProfilesList(w http.ResponseWriter, r *http.Request) {
-	client, closer, err := h.withFormatsClient(r.Context())
+	pageCtx, cancel := context.WithTimeout(r.Context(), formatsPageTimeout)
+	defer cancel()
+
 	var profiles []*formatsv1.QualityProfile
 	errMsg := ""
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, formatsDialTimeout)
+	client, closer, err := h.withFormatsClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		errMsg = "Formats module unavailable: " + err.Error()
 	} else {
 		defer closer()
-		resp, listErr := client.ListProfiles(r.Context(), &formatsv1.ListProfilesRequest{})
+		readCtx, readCancel := context.WithTimeout(pageCtx, formatsReadTimeout)
+		resp, listErr := client.ListProfiles(readCtx, &formatsv1.ListProfilesRequest{})
+		readCancel()
 		if listErr != nil {
 			errMsg = listErr.Error()
 		} else {
@@ -260,17 +273,24 @@ func profileFromForm(r *http.Request) *formatsv1.QualityProfile {
 }
 
 func (h *Handler) FormatsList(w http.ResponseWriter, r *http.Request) {
+	pageCtx, cancel := context.WithTimeout(r.Context(), formatsPageTimeout)
+	defer cancel()
+
 	data := templates.FormatsListPageData{
 		ScoreSet:       "default",
 		Services:       []string{"radarr", "sonarr"},
 		ImportProfiles: false,
 	}
-	client, closer, err := h.withFormatsClient(r.Context())
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, formatsDialTimeout)
+	client, closer, err := h.withFormatsClient(dialCtx)
+	dialCancel()
 	if err != nil {
 		data.Error = "Formats module unavailable: " + err.Error()
 	} else {
 		defer closer()
-		resp, listErr := client.ListFormats(r.Context(), &formatsv1.ListFormatsRequest{})
+		readCtx, readCancel := context.WithTimeout(pageCtx, formatsReadTimeout)
+		resp, listErr := client.ListFormats(readCtx, &formatsv1.ListFormatsRequest{})
+		readCancel()
 		if listErr != nil {
 			data.Error = listErr.Error()
 		} else {

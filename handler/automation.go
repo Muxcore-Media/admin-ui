@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,9 +12,11 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 
-	automationv1 "github.com/Muxcore-Media/media-automation/proto/automationv1"
+	automationv1 "github.com/Muxcore-Media/contracts-automation/muxcore/automation/v1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
@@ -27,6 +30,27 @@ const (
 	automationDispatchTO  = 25 * time.Second
 	automationPeerTimeout = 1500 * time.Millisecond
 )
+
+func automationResolveErr(err error) string {
+	if err == nil {
+		return ""
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return fmt.Sprintf("media automation module discovery timed out after %s", automationDialTimeout)
+	}
+	if errors.Is(err, context.Canceled) {
+		return "media automation module discovery canceled"
+	}
+	if st, ok := status.FromError(err); ok {
+		switch st.Code() {
+		case codes.DeadlineExceeded:
+			return fmt.Sprintf("media automation module discovery timed out after %s", automationDialTimeout)
+		case codes.Canceled:
+			return "media automation module discovery canceled"
+		}
+	}
+	return err.Error()
+}
 
 func (h *Handler) automationModuleAddr(ctx context.Context) (string, string, error) {
 	if h.Core == nil {
@@ -83,7 +107,7 @@ func (h *Handler) AutomationQueuePage(w http.ResponseWriter, r *http.Request) {
 	dialCancel()
 	if err != nil {
 		slog.Warn("automation: resolve/dial failed", "error", err)
-		data.Error = err.Error()
+		data.Error = automationResolveErr(err)
 		peerCtx, peerCancel := context.WithTimeout(pageCtx, automationPeerTimeout)
 		data.Indexers, data.Downloaders = h.acquisitionPeers(peerCtx)
 		peerCancel()

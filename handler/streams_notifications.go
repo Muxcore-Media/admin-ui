@@ -9,12 +9,15 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
 func (h *Handler) StreamsNotificationsPage(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	pageCtx, cancel := context.WithTimeout(r.Context(), playbackMonitorDialTimeout+2*playbackMonitorReadTimeout+time.Second)
+	defer cancel()
+
 	data := templates.StreamsNotificationsPageData{}
 	if msg := strings.TrimSpace(r.URL.Query().Get("success")); msg != "" {
 		data.Success = msg
@@ -23,7 +26,7 @@ func (h *Handler) StreamsNotificationsPage(w http.ResponseWriter, r *http.Reques
 		data.Error = msg
 	}
 
-	rules, err := h.fetchNotificationRules(ctx, "")
+	rules, err := h.fetchNotificationRules(pageCtx, "")
 	if err != nil {
 		data.SoftNote = true
 		if h.Core != nil {
@@ -32,7 +35,7 @@ func (h *Handler) StreamsNotificationsPage(w http.ResponseWriter, r *http.Reques
 		h.renderStreamsNotifications(w, r, data)
 		return
 	}
-	dests, _ := h.fetchNotificationDestinations(ctx)
+	dests, _ := h.fetchNotificationDestinations(pageCtx)
 	for _, dest := range dests {
 		data.Destinations = append(data.Destinations, templates.NotificationDestinationRow{
 			ID:           dest.ID,
@@ -60,6 +63,9 @@ func (h *Handler) StreamsNotificationsPage(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *Handler) StreamsNotificationsCreate(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), playbackMonitorDialTimeout+playbackMonitorReadTimeout)
+	defer cancel()
+
 	if err := r.ParseForm(); err != nil {
 		http.Redirect(w, r, "/streams/notifications?error=invalid+form", http.StatusSeeOther)
 		return
@@ -77,7 +83,7 @@ func (h *Handler) StreamsNotificationsCreate(w http.ResponseWriter, r *http.Requ
 			"transcode_only": r.FormValue("transcode_only") == "1",
 		},
 	})
-	if _, code, err := h.monitorHTTPRequest(r.Context(), http.MethodPost, "/notification/rules", body); err != nil || code >= 300 {
+	if _, code, err := h.monitorHTTPRequest(ctx, http.MethodPost, "/notification/rules", body); err != nil || code >= 300 {
 		msg := "create+failed"
 		if err != nil {
 			msg = err.Error()
@@ -89,6 +95,9 @@ func (h *Handler) StreamsNotificationsCreate(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *Handler) StreamsNotificationsDelete(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), playbackMonitorDialTimeout+playbackMonitorReadTimeout)
+	defer cancel()
+
 	if err := r.ParseForm(); err != nil {
 		http.Redirect(w, r, "/streams/notifications?error=invalid+form", http.StatusSeeOther)
 		return
@@ -98,7 +107,7 @@ func (h *Handler) StreamsNotificationsDelete(w http.ResponseWriter, r *http.Requ
 		http.Redirect(w, r, "/streams/notifications?error=missing+rule+id", http.StatusSeeOther)
 		return
 	}
-	if _, code, err := h.monitorHTTPRequest(r.Context(), http.MethodDelete, "/notification/rules/"+id, nil); err != nil || code >= 300 {
+	if _, code, err := h.monitorHTTPRequest(ctx, http.MethodDelete, "/notification/rules/"+id, nil); err != nil || code >= 300 {
 		msg := "delete+failed"
 		if err != nil {
 			msg = err.Error()
@@ -110,6 +119,9 @@ func (h *Handler) StreamsNotificationsDelete(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *Handler) StreamsNotificationsDestinationCreate(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), playbackMonitorDialTimeout+playbackMonitorReadTimeout)
+	defer cancel()
+
 	if err := r.ParseForm(); err != nil {
 		http.Redirect(w, r, "/streams/notifications?error=invalid+form", http.StatusSeeOther)
 		return
@@ -130,7 +142,7 @@ func (h *Handler) StreamsNotificationsDestinationCreate(w http.ResponseWriter, r
 		"config":  config,
 		"events":  r.Form["events"],
 	})
-	if _, code, err := h.monitorHTTPRequest(r.Context(), http.MethodPost, "/notification/destinations", body); err != nil || code >= 300 {
+	if _, code, err := h.monitorHTTPRequest(ctx, http.MethodPost, "/notification/destinations", body); err != nil || code >= 300 {
 		msg := "destination+create+failed"
 		if err != nil {
 			msg = err.Error()
@@ -142,6 +154,9 @@ func (h *Handler) StreamsNotificationsDestinationCreate(w http.ResponseWriter, r
 }
 
 func (h *Handler) StreamsNotificationsDestinationDelete(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), playbackMonitorDialTimeout+playbackMonitorReadTimeout)
+	defer cancel()
+
 	if err := r.ParseForm(); err != nil {
 		http.Redirect(w, r, "/streams/notifications?error=invalid+form", http.StatusSeeOther)
 		return
@@ -151,7 +166,7 @@ func (h *Handler) StreamsNotificationsDestinationDelete(w http.ResponseWriter, r
 		http.Redirect(w, r, "/streams/notifications?error=missing+destination+id", http.StatusSeeOther)
 		return
 	}
-	if _, code, err := h.monitorHTTPRequest(r.Context(), http.MethodDelete, "/notification/destinations/"+id, nil); err != nil || code >= 300 {
+	if _, code, err := h.monitorHTTPRequest(ctx, http.MethodDelete, "/notification/destinations/"+id, nil); err != nil || code >= 300 {
 		msg := "destination+delete+failed"
 		if err != nil {
 			msg = err.Error()
@@ -163,6 +178,9 @@ func (h *Handler) StreamsNotificationsDestinationDelete(w http.ResponseWriter, r
 }
 
 func (h *Handler) StreamsNotificationsDestinationTest(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), playbackMonitorDialTimeout+playbackMonitorReadTimeout)
+	defer cancel()
+
 	if err := r.ParseForm(); err != nil {
 		http.Redirect(w, r, "/streams/notifications?error=invalid+form", http.StatusSeeOther)
 		return
@@ -172,7 +190,7 @@ func (h *Handler) StreamsNotificationsDestinationTest(w http.ResponseWriter, r *
 		http.Redirect(w, r, "/streams/notifications?error=missing+destination+id", http.StatusSeeOther)
 		return
 	}
-	if _, code, err := h.monitorHTTPRequest(r.Context(), http.MethodPost, "/notification/destinations/"+id+"/test", nil); err != nil || code >= 300 {
+	if _, code, err := h.monitorHTTPRequest(ctx, http.MethodPost, "/notification/destinations/"+id+"/test", nil); err != nil || code >= 300 {
 		msg := "destination+test+failed"
 		if err != nil {
 			msg = err.Error()
@@ -243,7 +261,9 @@ func (h *Handler) fetchNotificationRules(ctx context.Context, eventType string) 
 }
 
 func (h *Handler) monitorHTTPRequest(ctx context.Context, method, path string, body []byte) ([]byte, int, error) {
-	base, err := h.playbackMonitorHTTPBase(ctx)
+	dialCtx, dialCancel := context.WithTimeout(ctx, playbackMonitorDialTimeout)
+	base, err := h.playbackMonitorHTTPBase(dialCtx)
+	dialCancel()
 	if err != nil {
 		return nil, 0, err
 	}
@@ -258,7 +278,8 @@ func (h *Handler) monitorHTTPRequest(ctx context.Context, method, path string, b
 	if len(body) > 0 {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	resp, err := http.DefaultClient.Do(req)
+	client := &http.Client{Timeout: playbackMonitorReadTimeout}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, 0, err
 	}

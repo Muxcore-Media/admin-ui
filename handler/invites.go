@@ -15,7 +15,15 @@ import (
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
-const invitesTimeout = 8 * time.Second
+const (
+	invitesDialTimeout = 3 * time.Second
+	invitesReadTimeout = 5 * time.Second
+	invitesPageTimeout = invitesDialTimeout + invitesReadTimeout + time.Second
+)
+
+func invitesHTTPDo(_ context.Context, req *http.Request) (*http.Response, error) {
+	return (&http.Client{Timeout: invitesReadTimeout}).Do(req)
+}
 
 func (h *Handler) authHTTPBase() string {
 	if h.AuthInternalAddr != "" {
@@ -25,7 +33,7 @@ func (h *Handler) authHTTPBase() string {
 }
 
 func (h *Handler) InvitesPage(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), invitesTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), invitesPageTimeout)
 	defer cancel()
 
 	data := templates.InvitesPageData{
@@ -47,7 +55,7 @@ func (h *Handler) InvitesPage(w http.ResponseWriter, r *http.Request) {
 		h.renderInvites(w, r, data)
 		return
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := invitesHTTPDo(ctx, req)
 	if err != nil {
 		data.SoftEmpty = true
 		data.Error = "auth-local unreachable: " + err.Error()
@@ -90,7 +98,7 @@ func (h *Handler) InvitesPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) InvitesCreate(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), invitesTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), invitesPageTimeout)
 	defer cancel()
 	if err := r.ParseForm(); err != nil {
 		http.Redirect(w, r, "/invites", http.StatusSeeOther)
@@ -131,7 +139,7 @@ func (h *Handler) InvitesCreate(w http.ResponseWriter, r *http.Request) {
 		req.Header.Set("X-Tenant-ID", tenantID)
 		req.Header.Set("X-Auth-Claims-Tenant", tenantID)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := invitesHTTPDo(ctx, req)
 	if err != nil {
 		http.Redirect(w, r, "/invites?msg="+url.QueryEscape("create failed"), http.StatusSeeOther)
 		return
@@ -151,7 +159,7 @@ func (h *Handler) InvitesCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) InvitesRevoke(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), invitesTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), invitesPageTimeout)
 	defer cancel()
 	id := r.PathValue("id")
 	base := h.authHTTPBase()
@@ -164,7 +172,7 @@ func (h *Handler) InvitesRevoke(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/invites", http.StatusSeeOther)
 		return
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := invitesHTTPDo(ctx, req)
 	if err != nil {
 		http.Redirect(w, r, "/invites", http.StatusSeeOther)
 		return

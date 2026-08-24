@@ -27,8 +27,14 @@ const (
 	taggingMeshListRules = "ListRules"
 	taggingMeshUpsert    = "UpsertRule"
 	taggingMeshDelete    = "DeleteRule"
-	taggingPageTimeout   = 8 * time.Second
+	taggingDialTimeout   = 3 * time.Second
+	taggingReadTimeout   = 5 * time.Second
+	taggingPageTimeout   = taggingDialTimeout + 2*taggingReadTimeout + time.Second
 )
+
+func taggingHTTPDo(_ context.Context, req *http.Request) (*http.Response, error) {
+	return (&http.Client{Timeout: taggingReadTimeout}).Do(req)
+}
 
 type taggingTagJSON struct {
 	ID       string `json:"id"`
@@ -120,7 +126,7 @@ func (h *Handler) taggingFetchTags(ctx context.Context, moduleID, grpcAddr strin
 	if reqErr != nil {
 		return nil, err
 	}
-	resp, httpErr := http.DefaultClient.Do(req)
+	resp, httpErr := taggingHTTPDo(ctx, req)
 	if httpErr != nil {
 		return nil, fmt.Errorf("mesh: %v; http: %w", err, httpErr)
 	}
@@ -145,7 +151,7 @@ func (h *Handler) taggingFetchRules(ctx context.Context, moduleID, grpcAddr stri
 	if reqErr != nil {
 		return nil, err
 	}
-	resp, httpErr := http.DefaultClient.Do(req)
+	resp, httpErr := taggingHTTPDo(ctx, req)
 	if httpErr != nil {
 		return nil, fmt.Errorf("mesh: %v; http: %w", err, httpErr)
 	}
@@ -187,11 +193,13 @@ func decodeTaggingRules(raw []byte) ([]templates.TaggingRuleRow, error) {
 }
 
 func (h *Handler) TaggingPage(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), taggingPageTimeout)
+	pageCtx, cancel := context.WithTimeout(r.Context(), taggingPageTimeout)
 	defer cancel()
 
 	data := templates.TaggingPageData{Flash: r.URL.Query().Get("ok")}
-	moduleID, addr, name, err := h.taggingModule(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, taggingDialTimeout)
+	moduleID, addr, name, err := h.taggingModule(dialCtx)
+	dialCancel()
 	if err != nil {
 		slog.Warn("tagging: resolve failed", "error", err)
 		data.Error = err.Error()
@@ -202,7 +210,7 @@ func (h *Handler) TaggingPage(w http.ResponseWriter, r *http.Request) {
 	data.ModuleID = moduleID
 	data.ModuleName = name
 
-	tags, err := h.taggingFetchTags(ctx, moduleID, addr)
+	tags, err := h.taggingFetchTags(pageCtx, moduleID, addr)
 	if err != nil {
 		slog.Warn("tagging: list tags failed", "module", moduleID, "error", err)
 		data.Error = err.Error()
@@ -210,7 +218,7 @@ func (h *Handler) TaggingPage(w http.ResponseWriter, r *http.Request) {
 		h.renderTagging(w, r, data)
 		return
 	}
-	rules, err := h.taggingFetchRules(ctx, moduleID, addr)
+	rules, err := h.taggingFetchRules(pageCtx, moduleID, addr)
 	if err != nil {
 		slog.Warn("tagging: list rules failed", "module", moduleID, "error", err)
 		data.Error = err.Error()
@@ -257,7 +265,7 @@ func (h *Handler) TaggingCreateTag(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		req.Header.Set("Content-Type", "application/json")
-		resp, httpErr := http.DefaultClient.Do(req)
+		resp, httpErr := taggingHTTPDo(ctx, req)
 		if httpErr != nil || resp.StatusCode != http.StatusOK {
 			if resp != nil {
 				resp.Body.Close()
@@ -302,7 +310,7 @@ func (h *Handler) TaggingCreateRule(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		req.Header.Set("Content-Type", "application/json")
-		resp, httpErr := http.DefaultClient.Do(req)
+		resp, httpErr := taggingHTTPDo(ctx, req)
 		if httpErr != nil || resp.StatusCode != http.StatusOK {
 			if resp != nil {
 				resp.Body.Close()
@@ -340,7 +348,7 @@ func (h *Handler) TaggingDeleteRule(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		resp, httpErr := http.DefaultClient.Do(req)
+		resp, httpErr := taggingHTTPDo(ctx, req)
 		if httpErr != nil || (resp != nil && resp.StatusCode != http.StatusOK) {
 			if resp != nil {
 				resp.Body.Close()

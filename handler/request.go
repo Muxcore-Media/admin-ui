@@ -20,11 +20,17 @@ import (
 
 const (
 	capMediaRequest     = "media.request"
-	requestPageTimeout  = 8 * time.Second
+	requestDialTimeout  = 3 * time.Second
+	requestReadTimeout  = 5 * time.Second
+	requestPageTimeout  = requestDialTimeout + 2*requestReadTimeout + time.Second
 	requestHTTPListPath = "/api/requests"
 	requestHTTPSearch   = "/api/search"
 	requestHTTPCreate   = "/api/request"
 )
+
+func requestHTTPDo(_ context.Context, req *http.Request) (*http.Response, error) {
+	return (&http.Client{Timeout: requestReadTimeout}).Do(req)
+}
 
 type requestMediaJSON struct {
 	ID          string `json:"id"`
@@ -78,7 +84,7 @@ func (h *Handler) requestGET(ctx context.Context, base, path string) ([]byte, in
 		return nil, 0, err
 	}
 	h.applyTenantHeaders(req, SessionFromContext(ctx))
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := requestHTTPDo(ctx, req)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -107,7 +113,7 @@ func (h *Handler) applyTenantHeaders(req *http.Request, sess *session.Session) {
 }
 
 func (h *Handler) RequestPage(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), requestPageTimeout)
+	pageCtx, cancel := context.WithTimeout(r.Context(), requestPageTimeout)
 	defer cancel()
 
 	data := templates.RequestPageData{
@@ -118,7 +124,9 @@ func (h *Handler) RequestPage(w http.ResponseWriter, r *http.Request) {
 		data.MediaType = "movie"
 	}
 
-	moduleID, base, name, err := h.requestMediaBase(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, requestDialTimeout)
+	moduleID, base, name, err := h.requestMediaBase(dialCtx)
+	dialCancel()
 	if err != nil {
 		data.SoftEmpty = true
 		data.Error = err.Error()
@@ -129,7 +137,7 @@ func (h *Handler) RequestPage(w http.ResponseWriter, r *http.Request) {
 	data.ModuleName = name
 	data.BaseURL = base
 
-	if listBody, code, listErr := h.requestGET(ctx, base, requestHTTPListPath); listErr != nil {
+	if listBody, code, listErr := h.requestGET(pageCtx, base, requestHTTPListPath); listErr != nil {
 		data.Error = "request-media unreachable: " + listErr.Error()
 	} else if code >= 300 {
 		data.Error = fmt.Sprintf("request-media list HTTP %d", code)
@@ -154,7 +162,7 @@ func (h *Handler) RequestPage(w http.ResponseWriter, r *http.Request) {
 
 	if data.Query != "" {
 		path := requestHTTPSearch + "?q=" + url.QueryEscape(data.Query) + "&type=" + url.QueryEscape(data.MediaType)
-		body, code, searchErr := h.requestGET(ctx, base, path)
+		body, code, searchErr := h.requestGET(pageCtx, base, path)
 		if searchErr != nil {
 			data.Error = "search failed: " + searchErr.Error()
 		} else if code >= 300 {
@@ -245,7 +253,7 @@ func (h *Handler) RequestCreate(w http.ResponseWriter, r *http.Request) {
 	if isAdmin {
 		req.Header.Set("X-MuxCore-Roles", "admin")
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := requestHTTPDo(ctx, req)
 	if err != nil {
 		slog.Warn("request-media create failed", "error", err)
 		http.Redirect(w, r, "/request", http.StatusSeeOther)
@@ -309,7 +317,7 @@ func (h *Handler) requestDecide(w http.ResponseWriter, r *http.Request, action s
 		req.Header.Set("X-MuxCore-Roles", roles)
 		req.Header.Set("X-MuxCore-User", by)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := requestHTTPDo(ctx, req)
 	if err != nil {
 		slog.Warn("request-media "+action+" failed", "error", err)
 		http.Redirect(w, r, "/request", http.StatusSeeOther)

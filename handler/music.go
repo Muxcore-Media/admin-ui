@@ -24,9 +24,15 @@ const (
 	capMediaMusic     = "media.music"
 	musicMeshList     = "ListArtists"
 	musicMeshGet      = "GetArtist"
-	musicPageTimeout  = 8 * time.Second
+	musicDialTimeout  = 3 * time.Second
+	musicReadTimeout  = 5 * time.Second
+	musicPageTimeout  = musicDialTimeout + 2*musicReadTimeout + time.Second
 	musicHTTPPathList = "/api/artists"
 )
+
+func musicHTTPDo(_ context.Context, req *http.Request) (*http.Response, error) {
+	return (&http.Client{Timeout: musicReadTimeout}).Do(req)
+}
 
 type musicArtistJSON struct {
 	ID            string `json:"id"`
@@ -138,7 +144,7 @@ func (h *Handler) musicFetchArtists(ctx context.Context, moduleID, grpcAddr, que
 	if reqErr != nil {
 		return nil, err
 	}
-	resp, httpErr := http.DefaultClient.Do(req)
+	resp, httpErr := musicHTTPDo(ctx, req)
 	if httpErr != nil {
 		return nil, fmt.Errorf("mesh: %v; http: %w", err, httpErr)
 	}
@@ -166,7 +172,7 @@ func (h *Handler) musicFetchArtist(ctx context.Context, moduleID, grpcAddr, id s
 	if reqErr != nil {
 		return templates.MusicArtistRow{}, nil, err
 	}
-	resp, httpErr := http.DefaultClient.Do(req)
+	resp, httpErr := musicHTTPDo(ctx, req)
 	if httpErr != nil {
 		return templates.MusicArtistRow{}, nil, fmt.Errorf("mesh: %v; http: %w", err, httpErr)
 	}
@@ -213,13 +219,15 @@ func decodeArtistDetail(raw []byte) (templates.MusicArtistRow, []templates.Music
 }
 
 func (h *Handler) MusicListPage(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), musicPageTimeout)
+	pageCtx, cancel := context.WithTimeout(r.Context(), musicPageTimeout)
 	defer cancel()
 
 	query := r.URL.Query().Get("q")
 	data := templates.MusicPageData{Query: query}
 
-	moduleID, addr, name, err := h.musicModule(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, musicDialTimeout)
+	moduleID, addr, name, err := h.musicModule(dialCtx)
+	dialCancel()
 	if err != nil {
 		slog.Warn("music: resolve failed", "error", err)
 		data.Error = err.Error()
@@ -230,7 +238,7 @@ func (h *Handler) MusicListPage(w http.ResponseWriter, r *http.Request) {
 	data.ModuleID = moduleID
 	data.ModuleName = name
 
-	artists, err := h.musicFetchArtists(ctx, moduleID, addr, query)
+	artists, err := h.musicFetchArtists(pageCtx, moduleID, addr, query)
 	if err != nil {
 		slog.Warn("music: list failed", "module", moduleID, "error", err)
 		data.Error = err.Error()
@@ -243,13 +251,15 @@ func (h *Handler) MusicListPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) MusicDetailPage(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), musicPageTimeout)
+	pageCtx, cancel := context.WithTimeout(r.Context(), musicPageTimeout)
 	defer cancel()
 
 	id := r.PathValue("id")
 	data := templates.MusicDetailData{}
 
-	moduleID, addr, name, err := h.musicModule(ctx)
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, musicDialTimeout)
+	moduleID, addr, name, err := h.musicModule(dialCtx)
+	dialCancel()
 	if err != nil {
 		slog.Warn("music: resolve failed", "error", err)
 		data.Error = err.Error()
@@ -260,7 +270,7 @@ func (h *Handler) MusicDetailPage(w http.ResponseWriter, r *http.Request) {
 	data.ModuleID = moduleID
 	data.ModuleName = name
 
-	artist, albums, err := h.musicFetchArtist(ctx, moduleID, addr, id)
+	artist, albums, err := h.musicFetchArtist(pageCtx, moduleID, addr, id)
 	if err != nil {
 		slog.Warn("music: detail failed", "module", moduleID, "id", id, "error", err)
 		data.Error = err.Error()

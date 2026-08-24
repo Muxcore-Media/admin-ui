@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"sort"
@@ -19,7 +20,9 @@ type activityRow struct {
 }
 
 func (h *Handler) ActivityPage(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), mediaPageTimeout)
+	defer pageCancel()
+
 	page := 1
 	if p := r.URL.Query().Get("page"); p != "" {
 		if v, err := strconv.Atoi(p); err == nil && v > 0 {
@@ -34,7 +37,7 @@ func (h *Handler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 	h.mediaMu.RUnlock()
 
 	if len(mods) == 0 {
-		h.refreshMediaNavLinks(ctx)
+		h.refreshMediaNavLinks(pageCtx)
 		h.mediaMu.RLock()
 		mods = copyMediaModules(h.mediaModules)
 		h.mediaMu.RUnlock()
@@ -51,11 +54,13 @@ func (h *Handler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 			slog.Warn("activity: dial failed", "module", mod.ID, "error", err)
 			continue
 		}
-		resp, err := client.ListHistory(ctx, &mediaadminv1.ListHistoryRequest{
+		readCtx, readCancel := context.WithTimeout(pageCtx, mediaReadTimeout)
+		resp, err := client.ListHistory(readCtx, &mediaadminv1.ListHistoryRequest{
 			Page:      1,
 			PageSize:  200,
 			EventType: eventType,
 		})
+		readCancel()
 		conn.Close()
 		if err != nil {
 			slog.Warn("activity: ListHistory failed", "module", mod.ID, "error", err)

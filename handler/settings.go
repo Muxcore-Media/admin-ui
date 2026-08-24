@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sort"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -21,6 +22,11 @@ const (
 	capSettings  = "settings"
 	methodGet    = "Settings"
 	methodUpdate = "UpdateSetting"
+
+	settingsDialTimeout  = 3 * time.Second
+	settingsReadTimeout  = 5 * time.Second
+	settingsPageTimeout  = settingsDialTimeout + 3*settingsReadTimeout + time.Second
+	settingsActionTimeout = settingsDialTimeout + settingsReadTimeout + time.Second
 )
 
 type settingDefJSON struct {
@@ -91,7 +97,12 @@ func (h *Handler) settingsCandidates(ctx context.Context) []*discoveryv1.ModuleI
 }
 
 func (h *Handler) SettingsPage(w http.ResponseWriter, r *http.Request) {
-	modules := h.settingsCandidates(r.Context())
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), settingsPageTimeout)
+	defer pageCancel()
+
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, settingsDialTimeout)
+	modules := h.settingsCandidates(dialCtx)
+	dialCancel()
 
 	var groups []templates.SettingsModuleGroup
 	for _, mod := range modules {
@@ -101,7 +112,9 @@ func (h *Handler) SettingsPage(w http.ResponseWriter, r *http.Request) {
 			Groups:     make(map[string][]templates.SettingField),
 		}
 
-		raw, err := h.settingsMeshCall(r.Context(), mod.GetId(), normalizeDialAddr(mod.GetId(), mod.GetHttpAddr()), methodGet, nil)
+		readCtx, readCancel := context.WithTimeout(pageCtx, settingsReadTimeout)
+		raw, err := h.settingsMeshCall(readCtx, mod.GetId(), normalizeDialAddr(mod.GetId(), mod.GetHttpAddr()), methodGet, nil)
+		readCancel()
 		if err != nil {
 			slog.Warn("settings: mesh call failed", "module", mod.GetId(), "error", err)
 			continue
@@ -176,12 +189,19 @@ func (h *Handler) SettingsUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), settingsActionTimeout)
+	defer pageCancel()
+
 	httpAddr := ""
-	if info, err := h.Core.Discovery.Resolve(r.Context(), moduleID); err == nil && info != nil {
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, settingsDialTimeout)
+	if info, err := h.Core.Discovery.Resolve(dialCtx, moduleID); err == nil && info != nil {
 		httpAddr = normalizeDialAddr(info.GetId(), info.GetHttpAddr())
 	}
+	dialCancel()
 
-	_, err = h.settingsMeshCall(r.Context(), moduleID, httpAddr, methodUpdate, payload)
+	readCtx, readCancel := context.WithTimeout(pageCtx, settingsReadTimeout)
+	_, err = h.settingsMeshCall(readCtx, moduleID, httpAddr, methodUpdate, payload)
+	readCancel()
 	if err != nil {
 		slog.Warn("settings: update failed", "module", moduleID, "key", key, "error", err)
 		w.Write([]byte(`<div class="text-xs text-red-400">update failed</div>`))
@@ -189,7 +209,7 @@ func (h *Handler) SettingsUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if sess := SessionFromContext(r.Context()); sess != nil {
-		h.auditLog(r.Context(), sess.UserID, "admin.settings.update", "settings", moduleID+"/"+key, map[string]string{
+		h.auditLog(pageCtx, sess.UserID, "admin.settings.update", "settings", moduleID+"/"+key, map[string]string{
 			"module": moduleID,
 			"key":    key,
 		})

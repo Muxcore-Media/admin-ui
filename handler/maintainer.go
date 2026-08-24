@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -17,7 +18,14 @@ import (
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
-const capMediaLibraryMaintainer = "media.library.maintainer"
+const (
+	capMediaLibraryMaintainer = "media.library.maintainer"
+
+	maintainerDialTimeout   = 3 * time.Second
+	maintainerReadTimeout   = 5 * time.Second
+	maintainerPageTimeout   = maintainerDialTimeout + 6*maintainerReadTimeout + time.Second
+	maintainerActionTimeout = maintainerDialTimeout + maintainerReadTimeout + time.Second
+)
 
 func (h *Handler) maintainerModuleAddr(ctx context.Context) (string, error) {
 	if h.Core == nil {
@@ -37,8 +45,10 @@ func (h *Handler) maintainerModuleAddr(ctx context.Context) (string, error) {
 	return addr, nil
 }
 
-func (h *Handler) withMaintainerClient(ctx context.Context) (maintainv1.MaintainerServiceClient, func(), error) {
-	addr, err := h.maintainerModuleAddr(ctx)
+func (h *Handler) withMaintainerClient(pageCtx context.Context) (maintainv1.MaintainerServiceClient, func(), error) {
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, maintainerDialTimeout)
+	addr, err := h.maintainerModuleAddr(dialCtx)
+	dialCancel()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -50,13 +60,15 @@ func (h *Handler) withMaintainerClient(ctx context.Context) (maintainv1.Maintain
 }
 
 func (h *Handler) MaintainerPage(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), maintainerPageTimeout)
+	defer pageCancel()
+
 	data := templates.MaintainerPageData{
 		Flash: r.URL.Query().Get("ok"),
 		Error: r.URL.Query().Get("error"),
 	}
 
-	client, closer, err := h.withMaintainerClient(ctx)
+	client, closer, err := h.withMaintainerClient(pageCtx)
 	if err != nil {
 		data.Error = err.Error()
 		h.renderMaintainer(w, r, data)
@@ -64,7 +76,10 @@ func (h *Handler) MaintainerPage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer closer()
 
-	if rules, err := client.ListRules(ctx, &maintainv1.ListRulesRequest{}); err == nil {
+	readCtx, readCancel := context.WithTimeout(pageCtx, maintainerReadTimeout)
+	rules, err := client.ListRules(readCtx, &maintainv1.ListRulesRequest{})
+	readCancel()
+	if err == nil {
 		for _, rule := range rules.GetRules() {
 			data.Rules = append(data.Rules, templates.MaintainerRuleRow{
 				ID:      rule.GetId(),
@@ -78,7 +93,10 @@ func (h *Handler) MaintainerPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if cands, err := client.ListCandidates(ctx, &maintainv1.ListCandidatesRequest{Page: 1, PageSize: 50}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, maintainerReadTimeout)
+	cands, err := client.ListCandidates(readCtx, &maintainv1.ListCandidatesRequest{Page: 1, PageSize: 50})
+	readCancel()
+	if err == nil {
 		for _, c := range cands.GetCandidates() {
 			data.Candidates = append(data.Candidates, templates.MaintainerCandidateRow{
 				ID:       c.GetId(),
@@ -91,7 +109,10 @@ func (h *Handler) MaintainerPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if runs, err := client.ListRuns(ctx, &maintainv1.ListRunsRequest{Page: 1, PageSize: 20}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, maintainerReadTimeout)
+	runs, err := client.ListRuns(readCtx, &maintainv1.ListRunsRequest{Page: 1, PageSize: 20})
+	readCancel()
+	if err == nil {
 		for _, run := range runs.GetRuns() {
 			data.Runs = append(data.Runs, templates.MaintainerRunRow{
 				ID:          run.GetId(),
@@ -108,7 +129,10 @@ func (h *Handler) MaintainerPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if lists, err := client.ListExclusionLists(ctx, &maintainv1.ListExclusionListsRequest{}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, maintainerReadTimeout)
+	lists, err := client.ListExclusionLists(readCtx, &maintainv1.ListExclusionListsRequest{})
+	readCancel()
+	if err == nil {
 		for _, list := range lists.GetLists() {
 			data.Exclusions = append(data.Exclusions, templates.MaintainerExclusionRow{
 				ID:         list.GetId(),
@@ -121,7 +145,10 @@ func (h *Handler) MaintainerPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if metrics, err := client.GetStorageMetrics(ctx, &maintainv1.GetStorageMetricsRequest{}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, maintainerReadTimeout)
+	metrics, err := client.GetStorageMetrics(readCtx, &maintainv1.GetStorageMetricsRequest{})
+	readCancel()
+	if err == nil {
 		for _, p := range metrics.GetPaths() {
 			data.Storage = append(data.Storage, templates.MaintainerStorageRow{
 				Path:         p.GetPath(),
@@ -134,7 +161,10 @@ func (h *Handler) MaintainerPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if users, err := client.ListPlaybackUsers(ctx, &maintainv1.ListPlaybackUsersRequest{Limit: 100}); err == nil {
+	readCtx, readCancel = context.WithTimeout(pageCtx, maintainerReadTimeout)
+	users, err := client.ListPlaybackUsers(readCtx, &maintainv1.ListPlaybackUsersRequest{Limit: 100})
+	readCancel()
+	if err == nil {
 		for _, u := range users.GetUsers() {
 			if name := strings.TrimSpace(u.GetUsername()); name != "" {
 				data.PlaybackUsers = append(data.PlaybackUsers, name)
@@ -171,15 +201,18 @@ func (h *Handler) MaintainerScan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	dryRun := r.FormValue("dry_run") == "true"
-	ctx := r.Context()
-	client, closer, err := h.withMaintainerClient(ctx)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), maintainerActionTimeout)
+	defer pageCancel()
+	client, closer, err := h.withMaintainerClient(pageCtx)
 	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
 
-	resp, err := client.ScanNow(ctx, &maintainv1.ScanNowRequest{DryRun: dryRun})
+	readCtx, readCancel := context.WithTimeout(pageCtx, maintainerReadTimeout)
+	resp, err := client.ScanNow(readCtx, &maintainv1.ScanNowRequest{DryRun: dryRun})
+	readCancel()
 	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
@@ -208,18 +241,21 @@ func (h *Handler) MaintainerFreeUp(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) maintainerActWithOptions(w http.ResponseWriter, r *http.Request, freeUp bool, targetFreePercent float64) {
-	ctx := r.Context()
-	client, closer, err := h.withMaintainerClient(ctx)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), maintainerActionTimeout)
+	defer pageCancel()
+	client, closer, err := h.withMaintainerClient(pageCtx)
 	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
 
-	resp, err := client.ActNow(ctx, &maintainv1.ActNowRequest{
+	readCtx, readCancel := context.WithTimeout(pageCtx, maintainerReadTimeout)
+	resp, err := client.ActNow(readCtx, &maintainv1.ActNowRequest{
 		FreeUp:            freeUp,
 		TargetFreePercent: targetFreePercent,
 	})
+	readCancel()
 	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
@@ -241,15 +277,17 @@ func (h *Handler) MaintainerAddRule(w http.ResponseWriter, r *http.Request) {
 	outcome := maintainv1.RuleOutcome(maintainv1.RuleOutcome_value[strings.TrimSpace(r.FormValue("outcome"))])
 	action := maintainv1.ArrAction(maintainv1.ArrAction_value[strings.TrimSpace(r.FormValue("arr_action"))])
 
-	ctx := r.Context()
-	client, closer, err := h.withMaintainerClient(ctx)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), maintainerActionTimeout)
+	defer pageCancel()
+	client, closer, err := h.withMaintainerClient(pageCtx)
 	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
 
-	_, err = client.UpsertRule(ctx, &maintainv1.UpsertRuleRequest{Rule: &maintainv1.RuleGroup{
+	readCtx, readCancel := context.WithTimeout(pageCtx, maintainerReadTimeout)
+	_, err = client.UpsertRule(readCtx, &maintainv1.UpsertRuleRequest{Rule: &maintainv1.RuleGroup{
 		Name:              strings.TrimSpace(r.FormValue("name")),
 		Enabled:           true,
 		Scope:             scope,
@@ -261,6 +299,7 @@ func (h *Handler) MaintainerAddRule(w http.ResponseWriter, r *http.Request) {
 		MaxActionsPerRun:  50,
 		QualityProfileId:  strings.TrimSpace(r.FormValue("quality_profile_id")),
 	}})
+	readCancel()
 	if err != nil {
 		slog.Warn("maintainer: UpsertRule failed", "error", err)
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
@@ -270,14 +309,17 @@ func (h *Handler) MaintainerAddRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) MaintainerExportRules(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	client, closer, err := h.withMaintainerClient(ctx)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), maintainerActionTimeout)
+	defer pageCancel()
+	client, closer, err := h.withMaintainerClient(pageCtx)
 	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	resp, err := client.ExportRules(ctx, &maintainv1.ExportRulesRequest{})
+	readCtx, readCancel := context.WithTimeout(pageCtx, maintainerReadTimeout)
+	resp, err := client.ExportRules(readCtx, &maintainv1.ExportRulesRequest{})
+	readCancel()
 	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
@@ -296,17 +338,20 @@ func (h *Handler) MaintainerImportRules(w http.ResponseWriter, r *http.Request) 
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape("invalid form"), http.StatusSeeOther)
 		return
 	}
-	ctx := r.Context()
-	client, closer, err := h.withMaintainerClient(ctx)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), maintainerActionTimeout)
+	defer pageCancel()
+	client, closer, err := h.withMaintainerClient(pageCtx)
 	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	resp, err := client.ImportRules(ctx, &maintainv1.ImportRulesRequest{
+	readCtx, readCancel := context.WithTimeout(pageCtx, maintainerReadTimeout)
+	resp, err := client.ImportRules(readCtx, &maintainv1.ImportRulesRequest{
 		RulesYaml: strings.TrimSpace(r.FormValue("rules_yaml")),
 		Replace:   r.FormValue("replace") == "1",
 	})
+	readCancel()
 	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
@@ -317,14 +362,18 @@ func (h *Handler) MaintainerImportRules(w http.ResponseWriter, r *http.Request) 
 
 func (h *Handler) MaintainerDeleteRule(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	ctx := r.Context()
-	client, closer, err := h.withMaintainerClient(ctx)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), maintainerActionTimeout)
+	defer pageCancel()
+	client, closer, err := h.withMaintainerClient(pageCtx)
 	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	if _, err := client.DeleteRule(ctx, &maintainv1.DeleteRuleRequest{Id: id}); err != nil {
+	readCtx, readCancel := context.WithTimeout(pageCtx, maintainerReadTimeout)
+	_, err = client.DeleteRule(readCtx, &maintainv1.DeleteRuleRequest{Id: id})
+	readCancel()
+	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
@@ -333,14 +382,18 @@ func (h *Handler) MaintainerDeleteRule(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) MaintainerApproveCandidate(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	ctx := r.Context()
-	client, closer, err := h.withMaintainerClient(ctx)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), maintainerActionTimeout)
+	defer pageCancel()
+	client, closer, err := h.withMaintainerClient(pageCtx)
 	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	if _, err := client.ApproveCandidate(ctx, &maintainv1.ApproveCandidateRequest{Id: id}); err != nil {
+	readCtx, readCancel := context.WithTimeout(pageCtx, maintainerReadTimeout)
+	_, err = client.ApproveCandidate(readCtx, &maintainv1.ApproveCandidateRequest{Id: id})
+	readCancel()
+	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
@@ -349,14 +402,18 @@ func (h *Handler) MaintainerApproveCandidate(w http.ResponseWriter, r *http.Requ
 
 func (h *Handler) MaintainerCancelCandidate(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	ctx := r.Context()
-	client, closer, err := h.withMaintainerClient(ctx)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), maintainerActionTimeout)
+	defer pageCancel()
+	client, closer, err := h.withMaintainerClient(pageCtx)
 	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	if _, err := client.CancelCandidate(ctx, &maintainv1.CancelCandidateRequest{Id: id}); err != nil {
+	readCtx, readCancel := context.WithTimeout(pageCtx, maintainerReadTimeout)
+	_, err = client.CancelCandidate(readCtx, &maintainv1.CancelCandidateRequest{Id: id})
+	readCancel()
+	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
@@ -368,19 +425,22 @@ func (h *Handler) MaintainerAddExclusion(w http.ResponseWriter, r *http.Request)
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape("invalid form"), http.StatusSeeOther)
 		return
 	}
-	ctx := r.Context()
-	client, closer, err := h.withMaintainerClient(ctx)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), maintainerActionTimeout)
+	defer pageCancel()
+	client, closer, err := h.withMaintainerClient(pageCtx)
 	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	_, err = client.UpsertExclusionList(ctx, &maintainv1.UpsertExclusionListRequest{List: &maintainv1.ExclusionList{
+	readCtx, readCancel := context.WithTimeout(pageCtx, maintainerReadTimeout)
+	_, err = client.UpsertExclusionList(readCtx, &maintainv1.UpsertExclusionListRequest{List: &maintainv1.ExclusionList{
 		Name:    strings.TrimSpace(r.FormValue("name")),
 		Type:    strings.TrimSpace(r.FormValue("type")),
 		ListUrl: strings.TrimSpace(r.FormValue("list_url")),
 		ApiKey:  strings.TrimSpace(r.FormValue("api_key")),
 	}})
+	readCancel()
 	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
@@ -390,14 +450,18 @@ func (h *Handler) MaintainerAddExclusion(w http.ResponseWriter, r *http.Request)
 
 func (h *Handler) MaintainerDeleteExclusion(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	ctx := r.Context()
-	client, closer, err := h.withMaintainerClient(ctx)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), maintainerActionTimeout)
+	defer pageCancel()
+	client, closer, err := h.withMaintainerClient(pageCtx)
 	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	if _, err := client.DeleteExclusionList(ctx, &maintainv1.DeleteExclusionListRequest{Id: id}); err != nil {
+	readCtx, readCancel := context.WithTimeout(pageCtx, maintainerReadTimeout)
+	_, err = client.DeleteExclusionList(readCtx, &maintainv1.DeleteExclusionListRequest{Id: id})
+	readCancel()
+	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
@@ -405,14 +469,17 @@ func (h *Handler) MaintainerDeleteExclusion(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *Handler) MaintainerSyncExclusions(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	client, closer, err := h.withMaintainerClient(ctx)
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), maintainerActionTimeout)
+	defer pageCancel()
+	client, closer, err := h.withMaintainerClient(pageCtx)
 	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	defer closer()
-	resp, err := client.SyncExclusionLists(ctx, &maintainv1.SyncExclusionListsRequest{})
+	readCtx, readCancel := context.WithTimeout(pageCtx, maintainerReadTimeout)
+	resp, err := client.SyncExclusionLists(readCtx, &maintainv1.SyncExclusionListsRequest{})
+	readCancel()
 	if err != nil {
 		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return

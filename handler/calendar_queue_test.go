@@ -14,7 +14,7 @@ import (
 	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
 	discoveryv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/discovery/v1"
 	"github.com/Muxcore-Media/core/sdk/go/client"
-	automationv1 "github.com/Muxcore-Media/media-automation/proto/automationv1"
+	automationv1 "github.com/Muxcore-Media/contracts-automation/muxcore/automation/v1"
 )
 
 type fixtureCalendarAdmin struct {
@@ -135,8 +135,11 @@ func (f fixtureAutomationQueue) GetHistory(context.Context, *automationv1.GetHis
 		Records: []*automationv1.DownloadRecord{{
 			Id: "h1", WantedItemId: "w1", Guid: "guid-1", Title: "Fight Club.Fixture",
 			Status: "import_failed", Indexer: "fixture", CreatedAt: "2026-08-20T00:00:00Z",
+		}, {
+			Id: "h2", Title: "Bad Release", Status: "failed", Indexer: "fixture",
+			CreatedAt: "2026-08-19T00:00:00Z",
 		}},
-		Total: 1, Page: 1, PageSize: 50,
+		Total: 2, Page: 1, PageSize: 50,
 	}, nil
 }
 
@@ -233,6 +236,88 @@ func TestUnifiedQueuePageFixture(t *testing.T) {
 	}
 	if !strings.Contains(body, `data-testid="retry-import"`) || !strings.Contains(body, `data-testid="blocklist-release"`) {
 		t.Fatalf("expected stuck actions, got: %s", truncate(body, 800))
+	}
+	if !strings.Contains(body, `data-testid="automation-details-link"`) {
+		t.Fatalf("expected failed download fallback action, got: %s", truncate(body, 800))
+	}
+}
+
+type fixtureAutomationQueueHealthy struct {
+	automationv1.UnimplementedAutomationServiceServer
+}
+
+func (f fixtureAutomationQueueHealthy) GetQueue(context.Context, *automationv1.GetQueueRequest) (*automationv1.GetQueueResponse, error) {
+	return &automationv1.GetQueueResponse{Total: 0, Page: 1, PageSize: 50}, nil
+}
+
+func (f fixtureAutomationQueueHealthy) GetHistory(context.Context, *automationv1.GetHistoryRequest) (*automationv1.GetHistoryResponse, error) {
+	return &automationv1.GetHistoryResponse{
+		Records: []*automationv1.DownloadRecord{{
+			Id: "h-ok", Title: "Completed Movie", Status: "completed", CreatedAt: "2026-08-20T00:00:00Z",
+		}},
+		Total: 1, Page: 1, PageSize: 50,
+	}, nil
+}
+
+func startAutomationHealthyFixture(t *testing.T) (core *client.Client, cleanup func()) {
+	t.Helper()
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := grpc.NewServer()
+	automationv1.RegisterAutomationServiceServer(srv, fixtureAutomationQueueHealthy{})
+	go srv.Serve(lis)
+
+	discLis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		srv.Stop()
+		_ = lis.Close()
+		t.Fatal(err)
+	}
+	discSrv := grpc.NewServer()
+	discoveryv1.RegisterDiscoveryServiceServer(discSrv, autoCapDiscovery{addr: lis.Addr().String()})
+	go discSrv.Serve(discLis)
+
+	core, err = client.Dial(discLis.Addr().String(), client.WithInsecure())
+	if err != nil {
+		discSrv.Stop()
+		srv.Stop()
+		t.Fatal(err)
+	}
+	cleanup = func() {
+		_ = core.Close()
+		discSrv.Stop()
+		srv.Stop()
+		_ = discLis.Close()
+		_ = lis.Close()
+	}
+	return core, cleanup
+}
+
+func TestUnifiedQueuePageHealthyEmpty(t *testing.T) {
+	core, cleanup := startAutomationHealthyFixture(t)
+	defer cleanup()
+
+	ss := session.NewStore(0)
+	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
+	h.Core = core
+
+	r := mustRequest("GET", "/queue")
+	w := httptest.NewRecorder()
+	h.UnifiedQueuePage(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, `data-testid="queue-healthy"`) {
+		t.Fatalf("expected healthy triage banner, got: %s", truncate(body, 800))
+	}
+	if !strings.Contains(body, `data-testid="queue-wanted-empty"`) || !strings.Contains(body, "Queue healthy") {
+		t.Fatalf("expected healthy wanted empty state, got: %s", truncate(body, 800))
+	}
+	if strings.Contains(body, `data-testid="queue-failures-section"`) {
+		t.Fatalf("did not expect failures section on healthy queue, got: %s", truncate(body, 800))
 	}
 }
 

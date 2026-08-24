@@ -19,27 +19,41 @@ import (
 	musicv1 "github.com/Muxcore-Media/media-music/proto/gen/muxcore/music/v1"
 )
 
+const (
+	capMediaLibraryMovies = "media.library.movies"
+	capMediaLibraryTV     = "media.library.tv"
+	capMediaLibraryMusic  = "media.library.music"
+	migrateDialTimeout    = 3 * time.Second
+	migrateReadTimeout    = 5 * time.Second
+	migrateResolveTimeout = 3*migrateDialTimeout + time.Second
+	migratePostTimeout    = 2 * time.Minute
+)
+
 type movieImporterAdapter struct {
 	client mgmntv1.MovieManagementServiceClient
 }
 
 func (a movieImporterAdapter) ImportMovie(ctx context.Context, title string, year, tmdbID int, qualityProfileID, rootFolder string, monitored bool) (string, error) {
-	resp, err := a.client.AddMovie(ctx, &mgmntv1.AddMovieRequest{
+	readCtx, cancel := context.WithTimeout(ctx, migrateReadTimeout)
+	resp, err := a.client.AddMovie(readCtx, &mgmntv1.AddMovieRequest{
 		TmdbId:           int32(tmdbID),
 		Title:            title,
 		Year:             int32(year),
 		QualityProfileId: qualityProfileID,
 		RootFolderPath:   rootFolder,
 	})
+	cancel()
 	if err != nil {
 		return "", err
 	}
 	id := resp.GetMovieId()
 	if id != "" {
-		_, _ = a.client.UpdateMovie(ctx, &mgmntv1.UpdateMovieRequest{
-			MovieId:  id,
+		updCtx, updCancel := context.WithTimeout(ctx, migrateReadTimeout)
+		_, _ = a.client.UpdateMovie(updCtx, &mgmntv1.UpdateMovieRequest{
+			MovieId:   id,
 			Monitored: proto.Bool(monitored),
 		})
+		updCancel()
 	}
 	return id, nil
 }
@@ -49,22 +63,26 @@ type tvImporterAdapter struct {
 }
 
 func (a tvImporterAdapter) ImportSeries(ctx context.Context, title string, year, tmdbID int, qualityProfileID, rootFolder string, monitored bool) (string, error) {
-	resp, err := a.client.AddTVShow(ctx, &tvmgmtv1.AddTVShowRequest{
+	readCtx, cancel := context.WithTimeout(ctx, migrateReadTimeout)
+	resp, err := a.client.AddTVShow(readCtx, &tvmgmtv1.AddTVShowRequest{
 		TmdbId:           int32(tmdbID),
 		Name:             title,
 		Year:             int32(year),
 		QualityProfileId: qualityProfileID,
 		RootFolderPath:   rootFolder,
 	})
+	cancel()
 	if err != nil {
 		return "", err
 	}
 	id := resp.GetSeriesId()
 	if id != "" {
-		_, _ = a.client.UpdateTVShow(ctx, &tvmgmtv1.UpdateTVShowRequest{
+		updCtx, updCancel := context.WithTimeout(ctx, migrateReadTimeout)
+		_, _ = a.client.UpdateTVShow(updCtx, &tvmgmtv1.UpdateTVShowRequest{
 			SeriesId:  id,
 			Monitored: proto.Bool(monitored),
 		})
+		updCancel()
 	}
 	return id, nil
 }
@@ -74,13 +92,15 @@ type musicImporterAdapter struct {
 }
 
 func (a musicImporterAdapter) ImportArtist(ctx context.Context, name, musicbrainzID, qualityProfileID, rootFolder string, monitored bool) (string, error) {
-	resp, err := a.client.AddArtist(ctx, &musicv1.AddArtistRequest{
+	readCtx, cancel := context.WithTimeout(ctx, migrateReadTimeout)
+	resp, err := a.client.AddArtist(readCtx, &musicv1.AddArtistRequest{
 		Name:             name,
 		MusicbrainzId:    musicbrainzID,
 		Monitored:        monitored,
 		QualityProfileId: qualityProfileID,
 		RootFolderPath:   rootFolder,
 	})
+	cancel()
 	if err != nil {
 		return "", err
 	}
@@ -99,21 +119,30 @@ func (h *Handler) resolveMigrateImporters(ctx context.Context) (arrmigrate.Movie
 	var music arrmigrate.MusicImporter
 	var closers []func()
 
-	if addr, err := h.findCapabilityDialAddr(ctx, "media.library.movies"); err == nil {
+	dialCtx, dialCancel := context.WithTimeout(ctx, migrateDialTimeout)
+	addr, err := h.findCapabilityDialAddr(dialCtx, capMediaLibraryMovies)
+	dialCancel()
+	if err == nil {
 		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err == nil {
 			closers = append(closers, func() { _ = conn.Close() })
 			movies = movieImporterAdapter{client: mgmntv1.NewMovieManagementServiceClient(conn)}
 		}
 	}
-	if addr, err := h.findCapabilityDialAddr(ctx, "media.library.tv"); err == nil {
+	dialCtx, dialCancel = context.WithTimeout(ctx, migrateDialTimeout)
+	addr, err = h.findCapabilityDialAddr(dialCtx, capMediaLibraryTV)
+	dialCancel()
+	if err == nil {
 		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err == nil {
 			closers = append(closers, func() { _ = conn.Close() })
 			tv = tvImporterAdapter{client: tvmgmtv1.NewTvManagementServiceClient(conn)}
 		}
 	}
-	if addr, err := h.findCapabilityDialAddr(ctx, "media.library.music"); err == nil {
+	dialCtx, dialCancel = context.WithTimeout(ctx, migrateDialTimeout)
+	addr, err = h.findCapabilityDialAddr(dialCtx, capMediaLibraryMusic)
+	dialCancel()
+	if err == nil {
 		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err == nil {
 			closers = append(closers, func() { _ = conn.Close() })
@@ -174,7 +203,7 @@ func (h *Handler) MigratePage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) MigratePost(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+	pageCtx, cancel := context.WithTimeout(r.Context(), migratePostTimeout)
 	defer cancel()
 	if err := r.ParseForm(); err != nil {
 		http.Redirect(w, r, "/migrate", http.StatusSeeOther)
@@ -195,11 +224,11 @@ func (h *Handler) MigratePost(w http.ResponseWriter, r *http.Request) {
 	var err error
 	switch data.Service {
 	case "radarr":
-		items, err = cli.FetchRadarr(ctx, data.BaseURL, data.APIKey)
+		items, err = cli.FetchRadarr(pageCtx, data.BaseURL, data.APIKey)
 	case "sonarr":
-		items, err = cli.FetchSonarr(ctx, data.BaseURL, data.APIKey)
+		items, err = cli.FetchSonarr(pageCtx, data.BaseURL, data.APIKey)
 	case "lidarr":
-		items, err = cli.FetchLidarr(ctx, data.BaseURL, data.APIKey)
+		items, err = cli.FetchLidarr(pageCtx, data.BaseURL, data.APIKey)
 	default:
 		err = fmt.Errorf("service must be radarr, sonarr, or lidarr")
 	}
@@ -209,7 +238,9 @@ func (h *Handler) MigratePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	movies, tv, music, closer, resolveErr := h.resolveMigrateImporters(ctx)
+	resolveCtx, resolveCancel := context.WithTimeout(pageCtx, migrateResolveTimeout)
+	movies, tv, music, closer, resolveErr := h.resolveMigrateImporters(resolveCtx)
+	resolveCancel()
 	if !data.DryRun {
 		if resolveErr != nil {
 			data.Error = resolveErr.Error()
@@ -221,7 +252,7 @@ func (h *Handler) MigratePost(w http.ResponseWriter, r *http.Request) {
 		closer()
 	}
 
-	res := arrmigrate.Run(ctx, items, data.DryRun, movies, tv, music, h.resolveProfileByName)
+	res := arrmigrate.Run(pageCtx, items, data.DryRun, movies, tv, music, h.resolveProfileByName)
 	data.Result = migrateResultToView(res)
 	if sess := SessionFromContext(r.Context()); sess != nil && !data.DryRun {
 		h.auditLog(r.Context(), sess.UserID, "admin.migrate.arr", "migrate", data.Service, map[string]string{

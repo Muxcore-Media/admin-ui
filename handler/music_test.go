@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -151,5 +152,36 @@ func TestMusicPageListsViaMesh(t *testing.T) {
 func TestMusicHTTPBaseFromGRPC(t *testing.T) {
 	if got := musicHTTPBaseFromGRPC("127.0.0.1:9640"); got != "http://127.0.0.1:9641" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func TestMusicFetchArtistsHTTPFallback(t *testing.T) {
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != musicHTTPPathList {
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewEncoder(w).Encode([]musicArtistJSON{{ID: "http_a", Name: "HTTP Artist", Monitored: true}})
+	}))
+	defer httpSrv.Close()
+
+	host, portStr, err := net.SplitHostPort(httpSrv.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	grpcAddr := net.JoinHostPort(host, strconv.Itoa(port-1))
+
+	ss := session.NewStore(0)
+	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
+	rows, err := h.musicFetchArtists(context.Background(), "media-music", grpcAddr, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0].Name != "HTTP Artist" {
+		t.Fatalf("rows=%v", rows)
 	}
 }
