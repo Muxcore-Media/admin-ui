@@ -81,23 +81,24 @@ templ BackupsLivePage(rows []BackupRow, errMsg, flash string) {
 				<p class="text-gray-400 text-sm mt-1">Create, restore, and delete server backups.</p>
 			</div>
 			<form method="POST" action="/backups/create">
-				<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+				<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500" aria-label="Create backup">
 					Create backup
 				</button>
 			</form>
 		</div>
 		if flash != "" {
-			<div class="rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300">{ flash }</div>
+			<div class="rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300" role="status">{ flash }</div>
 		}
 		if errMsg != "" {
-			<div class="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-2 text-sm text-amber-200">{ errMsg }</div>
+			<div class="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-2 text-sm text-amber-200" role="alert">{ errMsg }</div>
 		}
 		if len(rows) == 0 {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500" role="status">
 				No backups yet, or backup-local is not registered.
 			</div>
 		} else {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800">
+			<section class="rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800" aria-labelledby="backups-list-heading">
+				<h2 id="backups-list-heading" class="sr-only">Available backups</h2>
 				for _, b := range rows {
 					<div class="px-4 py-3 space-y-2">
 						<div class="flex flex-wrap items-center justify-between gap-2">
@@ -110,20 +111,20 @@ templ BackupsLivePage(rows []BackupRow, errMsg, flash string) {
 							</div>
 							<div class="flex gap-2">
 								<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/backups/%s/delete", b.ID)) }>
-									<button type="submit" class="rounded-lg border border-red-800/60 px-3 py-1.5 text-xs text-red-300">Delete</button>
+									<button type="submit" class="rounded-lg border border-red-800/60 px-3 py-1.5 text-xs text-red-300" aria-label={ fmt.Sprintf("Delete backup %s", b.ID) }>Delete</button>
 								</form>
 							</div>
 						</div>
-						<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/backups/%s/restore", b.ID)) } class="flex flex-wrap gap-2 items-end">
-							<label class="flex-1 min-w-[12rem] space-y-1 text-xs text-gray-400">
+						<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/backups/%s/restore", b.ID)) } class="flex flex-wrap gap-2 items-end" aria-label={ fmt.Sprintf("Restore backup %s", b.ID) }>
+							<label for={ "backup-restore-path-" + b.ID } class="flex-1 min-w-[12rem] space-y-1 text-xs text-gray-400">
 								<span>Restore target path</span>
-								<input name="target_path" required placeholder="/tmp/muxcore-restore" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-1.5 text-sm text-white"/>
+								<input id={ "backup-restore-path-" + b.ID } name="target_path" required placeholder="/tmp/muxcore-restore" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-1.5 text-sm text-white"/>
 							</label>
-							<button type="submit" class="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-800">Restore</button>
+							<button type="submit" class="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-800" aria-label={ fmt.Sprintf("Restore backup %s", b.ID) }>Restore</button>
 						</form>
 					</div>
 				}
-			</div>
+			</section>
 		}
 	</div>
 }

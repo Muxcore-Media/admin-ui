@@ -30,40 +30,45 @@ templ UnifiedCalendarPage(data UnifiedCalendarData) {
 			<p class="text-gray-400 text-sm mt-1">Upcoming movies and TV airings across media libraries</p>
 		</div>
 		if data.Error != "" {
-			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" data-testid="calendar-error">{ data.Error }</div>
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" role="alert" data-testid="calendar-error">{ data.Error }</div>
 		}
 		if data.Warning != "" {
-			<div class="rounded-xl border border-gray-700 bg-gray-900/40 p-3 text-xs text-gray-400" data-testid="calendar-warning">{ data.Warning }</div>
+			<div class="rounded-xl border border-gray-700 bg-gray-900/40 p-3 text-xs text-gray-400" role="status" data-testid="calendar-warning">{ data.Warning }</div>
 		}
-		<form method="get" action="/calendar" class="flex flex-wrap gap-2 items-end">
-			<div>
-				<label class="block text-xs text-gray-500 mb-1">Start</label>
-				<input type="date" name="start" value={ data.Start } class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
-			</div>
-			<div>
-				<label class="block text-xs text-gray-500 mb-1">End</label>
-				<input type="date" name="end" value={ data.End } class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
-			</div>
-			<label class="flex items-center gap-2 text-sm text-gray-400 pb-2">
-				<input type="checkbox" name="unmonitored" value="1"/>
-				Include unmonitored
-			</label>
-			<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Apply</button>
-		</form>
+		<section class="space-y-3" aria-labelledby="calendar-filter-heading">
+			<h2 id="calendar-filter-heading" class="sr-only">Date range filter</h2>
+			<form method="get" action="/calendar" class="flex flex-wrap gap-2 items-end">
+				<div>
+					<label for="calendar-start" class="block text-xs text-gray-500 mb-1">Start</label>
+					<input id="calendar-start" type="date" name="start" value={ data.Start } class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<div>
+					<label for="calendar-end" class="block text-xs text-gray-500 mb-1">End</label>
+					<input id="calendar-end" type="date" name="end" value={ data.End } class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<label for="calendar-unmonitored" class="flex items-center gap-2 text-sm text-gray-400 pb-2">
+					<input id="calendar-unmonitored" type="checkbox" name="unmonitored" value="1"/>
+					Include unmonitored
+				</label>
+				<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Apply</button>
+			</form>
+		</section>
 		if len(data.Items) == 0 {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center" data-testid="calendar-empty">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center" role="status" data-testid="calendar-empty">
 				<p class="text-gray-400">No upcoming items in this range.</p>
 			</div>
 		} else {
-			<div class="rounded-xl border border-gray-800 overflow-hidden" data-testid="calendar-table">
+			<section class="rounded-xl border border-gray-800 overflow-hidden" data-testid="calendar-table" aria-labelledby="calendar-items-heading">
+				<h2 id="calendar-items-heading" class="sr-only">Upcoming calendar items</h2>
 				<table class="w-full text-sm">
+					<caption class="sr-only">Upcoming calendar items</caption>
 					<thead class="bg-gray-900/80 text-gray-400 text-left">
 						<tr>
-							<th class="px-4 py-2 font-medium">Date</th>
-							<th class="px-4 py-2 font-medium">Library</th>
-							<th class="px-4 py-2 font-medium">Title</th>
-							<th class="px-4 py-2 font-medium">Episode</th>
-							<th class="px-4 py-2 font-medium">Status</th>
+							<th scope="col" class="px-4 py-2 font-medium">Date</th>
+							<th scope="col" class="px-4 py-2 font-medium">Library</th>
+							<th scope="col" class="px-4 py-2 font-medium">Title</th>
+							<th scope="col" class="px-4 py-2 font-medium">Episode</th>
+							<th scope="col" class="px-4 py-2 font-medium">Status</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -73,7 +78,7 @@ templ UnifiedCalendarPage(data UnifiedCalendarData) {
 								<td class="px-4 py-2 text-gray-500 text-xs">{ it.ModuleName }</td>
 								<td class="px-4 py-2">
 									if it.ParentID != "" {
-										<a href={ templ.SafeURL("/media/" + it.ModuleID + "/item/" + it.ParentID) } class="text-indigo-400 hover:text-indigo-300">{ it.Title }</a>
+										<a href={ templ.SafeURL("/media/" + it.ModuleID + "/item/" + it.ParentID) } class="text-indigo-400 hover:text-indigo-300" aria-label={ "Open " + it.Title }>{ it.Title }</a>
 									} else {
 										<span class="text-gray-200">{ it.Title }</span>
 									}
@@ -97,7 +102,7 @@ templ UnifiedCalendarPage(data UnifiedCalendarData) {
 						}
 					</tbody>
 				</table>
-			</div>
+			</section>
 		}
 	</div>
 }

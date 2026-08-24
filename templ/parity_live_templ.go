@@ -519,20 +519,20 @@ func BrandingEditPage(data BrandingData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.Saved {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<div class=\"rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300\">Saved.</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<div class=\"rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300\" role=\"status\">Saved.</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if data.Error != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<div class=\"rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-2 text-sm text-red-300\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<div class=\"rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-2 text-sm text-red-300\" role=\"alert\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var24 string
 			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(data.Error)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_live.templ`, Line: 184, Col: 109}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_live.templ`, Line: 184, Col: 122}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 			if templ_7745c5c3_Err != nil {
@@ -543,53 +543,53 @@ func BrandingEditPage(data BrandingData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<form method=\"POST\" action=\"/branding\" class=\"space-y-4 rounded-xl border border-gray-800 bg-gray-900/50 p-4\"><label class=\"block space-y-1 text-sm\"><span class=\"text-gray-400\">Server name</span> <input name=\"server_name\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<form method=\"POST\" action=\"/branding\" class=\"space-y-4 rounded-xl border border-gray-800 bg-gray-900/50 p-4\" aria-label=\"Branding settings\"><label for=\"branding-server-name\" class=\"block space-y-1 text-sm\"><span class=\"text-gray-400\">Server name</span> <input id=\"branding-server-name\" name=\"server_name\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.ServerName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_live.templ`, Line: 189, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_live.templ`, Line: 189, Col: 79}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "\" class=\"w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm\"></label> <label class=\"block space-y-1 text-sm\"><span class=\"text-gray-400\">Login banner / disclaimer</span> <textarea name=\"login_banner\" rows=\"3\" class=\"w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "\" class=\"w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm\"></label> <label for=\"branding-login-banner\" class=\"block space-y-1 text-sm\"><span class=\"text-gray-400\">Login banner / disclaimer</span> <textarea id=\"branding-login-banner\" name=\"login_banner\" rows=\"3\" class=\"w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(data.LoginBanner)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_live.templ`, Line: 193, Col: 140}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_live.templ`, Line: 193, Col: 167}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "</textarea></label> <label class=\"block space-y-1 text-sm\"><span class=\"text-gray-400\">Splash image URL</span> <input name=\"splash_url\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "</textarea></label> <label for=\"branding-splash-url\" class=\"block space-y-1 text-sm\"><span class=\"text-gray-400\">Splash image URL</span> <input id=\"branding-splash-url\" name=\"splash_url\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var27 string
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.SplashURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_live.templ`, Line: 197, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_live.templ`, Line: 197, Col: 76}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "\" class=\"w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm\"></label> <label class=\"block space-y-1 text-sm\"><span class=\"text-gray-400\">Custom CSS</span> <textarea name=\"custom_css\" rows=\"10\" class=\"w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-xs\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "\" class=\"w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm\"></label> <label for=\"branding-custom-css\" class=\"block space-y-1 text-sm\"><span class=\"text-gray-400\">Custom CSS</span> <textarea id=\"branding-custom-css\" name=\"custom_css\" rows=\"10\" class=\"w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-xs\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(data.CustomCSS)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_live.templ`, Line: 201, Col: 147}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_live.templ`, Line: 201, Col: 172}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 		if templ_7745c5c3_Err != nil {
