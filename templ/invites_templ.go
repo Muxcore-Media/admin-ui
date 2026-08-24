@@ -58,14 +58,14 @@ func InvitesPage(data InvitesPageData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.Error != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300\" data-testid=\"invites-error\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300\" role=\"alert\" data-testid=\"invites-error\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(data.Error)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/invites.templ`, Line: 36, Col: 140}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/invites.templ`, Line: 36, Col: 153}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -77,13 +77,13 @@ func InvitesPage(data InvitesPageData) templ.Component {
 			}
 		}
 		if data.SoftEmpty {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400\" data-testid=\"invites-soft-empty\">auth-local HTTP unavailable — set ADMIN_UI_AUTH_INTERNAL_URL / AuthAddr.</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400\" role=\"status\" data-testid=\"invites-soft-empty\">auth-local HTTP unavailable — set ADMIN_UI_AUTH_INTERNAL_URL / AuthAddr.</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if data.CreatedLink != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"rounded-xl border border-emerald-900/40 bg-emerald-950/20 p-4 text-sm space-y-2\" data-testid=\"invites-created\"><div class=\"text-emerald-200\">Invite created — copy now (token shown once):</div><code class=\"block break-all text-xs text-emerald-100 bg-black/30 p-2 rounded\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"rounded-xl border border-emerald-900/40 bg-emerald-950/20 p-4 text-sm space-y-2\" role=\"status\" data-testid=\"invites-created\"><div class=\"text-emerald-200\">Invite created — copy now (token shown once):</div><code class=\"block break-all text-xs text-emerald-100 bg-black/30 p-2 rounded\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -102,14 +102,14 @@ func InvitesPage(data InvitesPageData) templ.Component {
 			}
 		}
 		if data.Message != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"rounded-xl border border-indigo-900/40 bg-indigo-950/20 p-4 text-sm text-indigo-200\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"rounded-xl border border-indigo-900/40 bg-indigo-950/20 p-4 text-sm text-indigo-200\" role=\"status\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.Message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/invites.templ`, Line: 50, Col: 114}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/invites.templ`, Line: 50, Col: 128}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -121,7 +121,7 @@ func InvitesPage(data InvitesPageData) templ.Component {
 			}
 		}
 		if !data.SoftEmpty {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<form method=\"post\" action=\"/invites\" class=\"flex flex-wrap gap-3 items-end rounded-xl border border-gray-800 bg-gray-900/40 p-4\" data-testid=\"invites-create-form\"><div><label class=\"block text-xs font-medium text-gray-500 mb-1\">Role</label> <select name=\"role\" class=\"rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white\"><option value=\"user\">user</option> <option value=\"viewer\">viewer</option> <option value=\"manager\">manager</option></select></div><div><label class=\"block text-xs font-medium text-gray-500 mb-1\">Max uses (0=unlimited)</label> <input type=\"number\" name=\"max_uses\" value=\"1\" min=\"0\" class=\"w-28 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white\"></div><div><label class=\"block text-xs font-medium text-gray-500 mb-1\">TTL hours</label> <input type=\"number\" name=\"ttl_hours\" value=\"168\" min=\"1\" class=\"w-28 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white\"></div><button type=\"submit\" class=\"rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500\">Create invite</button></form><section class=\"space-y-3\" data-testid=\"invites-list\"><h2 class=\"text-lg font-semibold\">Existing invites</h2>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<form method=\"post\" action=\"/invites\" class=\"flex flex-wrap gap-3 items-end rounded-xl border border-gray-800 bg-gray-900/40 p-4\" data-testid=\"invites-create-form\" aria-label=\"Create invite link\"><div><label for=\"invite-role\" class=\"block text-xs font-medium text-gray-500 mb-1\">Role</label> <select id=\"invite-role\" name=\"role\" class=\"rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white\"><option value=\"user\">user</option> <option value=\"viewer\">viewer</option> <option value=\"manager\">manager</option></select></div><div><label for=\"invite-max-uses\" class=\"block text-xs font-medium text-gray-500 mb-1\">Max uses (0=unlimited)</label> <input id=\"invite-max-uses\" type=\"number\" name=\"max_uses\" value=\"1\" min=\"0\" class=\"w-28 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white\"></div><div><label for=\"invite-ttl-hours\" class=\"block text-xs font-medium text-gray-500 mb-1\">TTL hours</label> <input id=\"invite-ttl-hours\" type=\"number\" name=\"ttl_hours\" value=\"168\" min=\"1\" class=\"w-28 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white\"></div><button type=\"submit\" class=\"rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500\">Create invite</button></form><section class=\"space-y-3\" data-testid=\"invites-list\" aria-labelledby=\"invites-list-heading\"><h2 id=\"invites-list-heading\" class=\"text-lg font-semibold\">Existing invites</h2>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -229,27 +229,40 @@ func InvitesPage(data InvitesPageData) templ.Component {
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\"><button type=\"submit\" class=\"rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs hover:border-red-500\">Revoke</button></form>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\"><button type=\"submit\" class=\"rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs hover:border-red-500\" aria-label=\"")
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+						var templ_7745c5c3_Var11 string
+						templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("Revoke invite %s", inv.Prefix))
+						if templ_7745c5c3_Err != nil {
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/invites.templ`, Line: 92, Col: 183}
+						}
+						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\">Revoke</button></form>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</li>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</li>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</ul>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</ul>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</section>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

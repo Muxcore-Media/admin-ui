@@ -1026,24 +1026,24 @@ func LibrariesLivePage(rows []LibraryModRow) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if len(rows) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500\">No media.library modules registered yet.</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500\" role=\"status\">No media.library modules registered yet.</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "<section aria-labelledby=\"libraries-list-heading\"><h2 id=\"libraries-list-heading\" class=\"sr-only\">Registered libraries</h2><ul class=\"rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800\" role=\"list\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, r := range rows {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "<div class=\"flex items-center justify-between px-4 py-3\"><div><div class=\"text-sm font-medium text-gray-200\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "<li class=\"flex items-center justify-between px-4 py-3\"><div><div class=\"text-sm font-medium text-gray-200\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var50 string
 				templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(r.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 389, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 391, Col: 63}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 				if templ_7745c5c3_Err != nil {
@@ -1056,7 +1056,7 @@ func LibrariesLivePage(rows []LibraryModRow) templ.Component {
 				var templ_7745c5c3_Var51 string
 				templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(r.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 390, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 392, Col: 59}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 				if templ_7745c5c3_Err != nil {
@@ -1069,23 +1069,36 @@ func LibrariesLivePage(rows []LibraryModRow) templ.Component {
 				var templ_7745c5c3_Var52 templ.SafeURL
 				templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(r.Path))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 392, Col: 37}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 394, Col: 38}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "\" class=\"text-sm text-indigo-400 hover:text-indigo-300\">Open →</a></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "\" class=\"text-sm text-indigo-400 hover:text-indigo-300\" aria-label=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var53 string
+				templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("Open library %s", r.Name))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 394, Col: 146}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var53)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "\">Open →</a></li>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "</ul></section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "<div class=\"flex flex-wrap gap-3 text-sm\"><a href=\"/roots\" class=\"text-indigo-400\">Root Folders</a> <a href=\"/rename/templates\" class=\"text-indigo-400\">Naming</a> <a href=\"/formats\" class=\"text-indigo-400\">Formats</a> <a href=\"/jellyfin\" class=\"text-indigo-400\">Jellyfin bridge</a></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "<nav class=\"flex flex-wrap gap-3 text-sm\" aria-label=\"Library configuration\"><a href=\"/roots\" class=\"text-indigo-400\">Root Folders</a> <a href=\"/rename/templates\" class=\"text-indigo-400\">Naming</a> <a href=\"/formats\" class=\"text-indigo-400\">Formats</a> <a href=\"/jellyfin\" class=\"text-indigo-400\">Jellyfin bridge</a></nav></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1124,170 +1137,170 @@ func PlaybackAdminEditPage(data PlaybackAdminData) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var53 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var53 == nil {
-			templ_7745c5c3_Var53 = templ.NopComponent
+		templ_7745c5c3_Var54 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var54 == nil {
+			templ_7745c5c3_Var54 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "<div class=\"space-y-6 max-w-3xl\" data-testid=\"playback-admin-page\"><div><h1 class=\"text-2xl font-bold\">Playback</h1><p class=\"text-gray-400 text-sm mt-1\">Server playback policy: resume, streaming, transcoding, and trickplay previews.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "<div class=\"space-y-6 max-w-3xl\" data-testid=\"playback-admin-page\"><div><h1 class=\"text-2xl font-bold\">Playback</h1><p class=\"text-gray-400 text-sm mt-1\">Server playback policy: resume, streaming, transcoding, and trickplay previews.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if data.Saved {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "<div class=\"rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300\">Saved.</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "<div class=\"rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300\">Saved.</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if data.Error != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "<div class=\"rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-2 text-sm text-red-300\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var54 string
-			templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(data.Error)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 433, Col: 109}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "</div>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		if data.Notice != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "<div class=\"rounded-lg border border-indigo-800/40 bg-indigo-950/20 px-4 py-2 text-sm text-indigo-200\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "<div class=\"rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-2 text-sm text-red-300\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var55 string
-			templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(data.Notice)
+			templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(data.Error)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 436, Col: 119}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 436, Col: 109}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		if data.SoftEmpty {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400\" data-testid=\"playback-transcoder-soft-empty\">media-transcoder not registered — local policy is saved to disk; transcoder SettingsProvider knobs appear when the module is online.</div>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		} else if data.TranscoderPresent {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-3 text-xs text-gray-400\" data-testid=\"playback-transcoder-present\">Transcoder module <span class=\"font-mono text-gray-300\">")
+		if data.Notice != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "<div class=\"rounded-lg border border-indigo-800/40 bg-indigo-950/20 px-4 py-2 text-sm text-indigo-200\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var56 string
-			templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(data.TranscoderID)
+			templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(data.Notice)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 444, Col: 79}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 439, Col: 119}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "</span> settings linked.</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "<form method=\"POST\" action=\"/playback\" class=\"space-y-3 rounded-xl border border-gray-800 bg-gray-900/50 p-4\"><label class=\"flex items-center gap-2 text-sm text-gray-300\">")
+		if data.SoftEmpty {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400\" data-testid=\"playback-transcoder-soft-empty\">media-transcoder not registered — local policy is saved to disk; transcoder SettingsProvider knobs appear when the module is online.</div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else if data.TranscoderPresent {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-3 text-xs text-gray-400\" data-testid=\"playback-transcoder-present\">Transcoder module <span class=\"font-mono text-gray-300\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var57 string
+			templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(data.TranscoderID)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 447, Col: 79}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "</span> settings linked.</div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "<form method=\"POST\" action=\"/playback\" class=\"space-y-3 rounded-xl border border-gray-800 bg-gray-900/50 p-4\"><label class=\"flex items-center gap-2 text-sm text-gray-300\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if data.EnableResume {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "<input type=\"checkbox\" name=\"enable_resume\" value=\"1\" checked class=\"rounded border-gray-600\"> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "<input type=\"checkbox\" name=\"enable_resume\" value=\"1\" checked class=\"rounded border-gray-600\"> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "<input type=\"checkbox\" name=\"enable_resume\" value=\"1\" class=\"rounded border-gray-600\"> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "<input type=\"checkbox\" name=\"enable_resume\" value=\"1\" class=\"rounded border-gray-600\"> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "<span>Enable resume / remember position</span></label> <label class=\"flex items-center gap-2 text-sm text-gray-300\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 108, "<span>Enable resume / remember position</span></label> <label class=\"flex items-center gap-2 text-sm text-gray-300\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if data.PreferDirectPlay {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 108, "<input type=\"checkbox\" name=\"prefer_direct\" value=\"1\" checked class=\"rounded border-gray-600\"> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, "<input type=\"checkbox\" name=\"prefer_direct\" value=\"1\" checked class=\"rounded border-gray-600\"> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, "<input type=\"checkbox\" name=\"prefer_direct\" value=\"1\" class=\"rounded border-gray-600\"> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 110, "<input type=\"checkbox\" name=\"prefer_direct\" value=\"1\" class=\"rounded border-gray-600\"> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 110, "<span>Prefer direct play / stream</span></label> <label class=\"flex items-center gap-2 text-sm text-gray-300\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "<span>Prefer direct play / stream</span></label> <label class=\"flex items-center gap-2 text-sm text-gray-300\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if data.EnableTranscode {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "<input type=\"checkbox\" name=\"enable_transcode\" value=\"1\" checked class=\"rounded border-gray-600\"> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "<input type=\"checkbox\" name=\"enable_transcode\" value=\"1\" checked class=\"rounded border-gray-600\"> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "<input type=\"checkbox\" name=\"enable_transcode\" value=\"1\" class=\"rounded border-gray-600\"> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "<input type=\"checkbox\" name=\"enable_transcode\" value=\"1\" class=\"rounded border-gray-600\"> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "<span>Allow server-side transcoding</span></label> <label class=\"flex items-center gap-2 text-sm text-gray-300\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 114, "<span>Allow server-side transcoding</span></label> <label class=\"flex items-center gap-2 text-sm text-gray-300\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if data.TrickplayEnabled {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 114, "<input type=\"checkbox\" name=\"trickplay\" value=\"1\" checked class=\"rounded border-gray-600\"> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 115, "<input type=\"checkbox\" name=\"trickplay\" value=\"1\" checked class=\"rounded border-gray-600\"> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 115, "<input type=\"checkbox\" name=\"trickplay\" value=\"1\" class=\"rounded border-gray-600\"> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 116, "<input type=\"checkbox\" name=\"trickplay\" value=\"1\" class=\"rounded border-gray-600\"> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 116, "<span>Generate trickplay / chapter previews</span></label> <label class=\"block space-y-1 text-sm\"><span class=\"text-gray-400\">Max streaming bitrate (Mbps)</span> <input name=\"max_bitrate\" value=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var57 string
-		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.MaxBitrateMbps)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 482, Col: 57}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var57)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 117, "\" class=\"w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm\"></label> <label class=\"block space-y-1 text-sm\"><span class=\"text-gray-400\">FFmpeg binary (media-transcoder)</span> <input name=\"ffmpeg_bin\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 117, "<span>Generate trickplay / chapter previews</span></label> <label class=\"block space-y-1 text-sm\"><span class=\"text-gray-400\">Max streaming bitrate (Mbps)</span> <input name=\"max_bitrate\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var58 string
-		templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.FFmpegBin)
+		templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.MaxBitrateMbps)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 486, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 485, Col: 57}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var58)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 118, "\" placeholder=\"ffmpeg\" class=\"w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm font-mono\"></label> <button type=\"submit\" class=\"rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500\">Save playback policy</button></form><p class=\"text-xs text-gray-500\">Local JSON stores resume / bitrate policy. When media-transcoder is registered, ffmpeg_bin is pushed via SettingsProvider UpdateSetting.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 118, "\" class=\"w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm\"></label> <label class=\"block space-y-1 text-sm\"><span class=\"text-gray-400\">FFmpeg binary (media-transcoder)</span> <input name=\"ffmpeg_bin\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var59 string
+		templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.FFmpegBin)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 489, Col: 51}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var59)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 119, "\" placeholder=\"ffmpeg\" class=\"w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm font-mono\"></label> <button type=\"submit\" class=\"rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500\">Save playback policy</button></form><p class=\"text-xs text-gray-500\">Local JSON stores resume / bitrate policy. When media-transcoder is registered, ffmpeg_bin is pushed via SettingsProvider UpdateSetting.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1311,12 +1324,12 @@ func PluginsCatalogPage(modules []ModuleListItem) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var59 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var59 == nil {
-			templ_7745c5c3_Var59 = templ.NopComponent
+		templ_7745c5c3_Var60 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var60 == nil {
+			templ_7745c5c3_Var60 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 119, "<div class=\"space-y-6\" data-testid=\"plugins-page\"><div class=\"flex flex-wrap items-end justify-between gap-3\"><div><h1 class=\"text-2xl font-bold\">Plugins</h1><p class=\"text-gray-400 text-sm mt-1\">Installed modules that extend MuxCore. Install more from the Marketplace.</p></div><a href=\"/marketplace\" class=\"text-sm text-indigo-400 hover:text-indigo-300\">Marketplace / install →</a> <a href=\"/modules\" class=\"text-sm text-indigo-400 hover:text-indigo-300\">Full modules list →</a></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 120, "<div class=\"space-y-6\" data-testid=\"plugins-page\"><div class=\"flex flex-wrap items-end justify-between gap-3\"><div><h1 class=\"text-2xl font-bold\">Plugins</h1><p class=\"text-gray-400 text-sm mt-1\">Installed modules that extend MuxCore. Install more from the Marketplace.</p></div><a href=\"/marketplace\" class=\"text-sm text-indigo-400 hover:text-indigo-300\">Marketplace / install →</a> <a href=\"/modules\" class=\"text-sm text-indigo-400 hover:text-indigo-300\">Full modules list →</a></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1324,7 +1337,7 @@ func PluginsCatalogPage(modules []ModuleListItem) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 120, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 121, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1354,63 +1367,63 @@ func MetadataManagerPage(rows []MetadataLibRow) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var60 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var60 == nil {
-			templ_7745c5c3_Var60 = templ.NopComponent
+		templ_7745c5c3_Var61 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var61 == nil {
+			templ_7745c5c3_Var61 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 121, "<div class=\"space-y-6 max-w-4xl\" data-testid=\"metadata-page\"><div><h1 class=\"text-2xl font-bold\">Metadata</h1><p class=\"text-gray-400 text-sm mt-1\">Edit titles, NFO fields, and refresh metadata from each library item page.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 122, "<div class=\"space-y-6 max-w-4xl\" data-testid=\"metadata-page\"><div><h1 class=\"text-2xl font-bold\">Metadata</h1><p class=\"text-gray-400 text-sm mt-1\">Edit titles, NFO fields, and refresh metadata from each library item page.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(rows) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 122, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500\">No media libraries registered. Metadata editing appears on item detail once libraries are online.</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 123, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500\">No media libraries registered. Metadata editing appears on item detail once libraries are online.</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 123, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 124, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, r := range rows {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 124, "<div class=\"flex items-center justify-between px-4 py-3\"><div><div class=\"text-sm font-medium text-gray-200\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 125, "<div class=\"flex items-center justify-between px-4 py-3\"><div><div class=\"text-sm font-medium text-gray-200\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var61 string
-				templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinStringErrs(r.Name)
+				var templ_7745c5c3_Var62 string
+				templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(r.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 535, Col: 62}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var61))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 125, "</div><div class=\"text-xs text-gray-500\">Browse → open an item → Refresh metadata / edit fields</div></div><a href=\"")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var62 templ.SafeURL
-				templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(r.Path))
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 538, Col: 37}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 538, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var62))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 126, "\" class=\"text-sm text-indigo-400 hover:text-indigo-300\">Open library →</a></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 126, "</div><div class=\"text-xs text-gray-500\">Browse → open an item → Refresh metadata / edit fields</div></div><a href=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var63 templ.SafeURL
+				templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(r.Path))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 541, Col: 37}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var63))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 127, "\" class=\"text-sm text-indigo-400 hover:text-indigo-300\">Open library →</a></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 127, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "<p class=\"text-xs text-gray-500\">Provider knobs (TMDB, etc.) live under <a href=\"/settings\" class=\"text-indigo-400\">Settings</a>.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "<p class=\"text-xs text-gray-500\">Provider knobs (TMDB, etc.) live under <a href=\"/settings\" class=\"text-indigo-400\">Settings</a>.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1439,17 +1452,17 @@ func AuthSSOPage(data AuthSSOData) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var63 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var63 == nil {
-			templ_7745c5c3_Var63 = templ.NopComponent
+		templ_7745c5c3_Var64 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var64 == nil {
+			templ_7745c5c3_Var64 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "<div class=\"space-y-6 max-w-4xl\" data-testid=\"auth-sso-page\"><div><h1 class=\"text-2xl font-bold\">Authentication / SSO</h1><p class=\"text-gray-400 text-sm mt-1\">Sign-in options: local users, passkeys, and single sign-on modules.</p></div><div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-4 space-y-2 text-sm\"><a href=\"/users\" class=\"block text-indigo-400 hover:text-indigo-300\">Users — passwords, roles, TOTP, passkeys, tokens</a> <a href=\"/settings\" class=\"block text-indigo-400 hover:text-indigo-300\">Settings — auth-local / auth-oidc SettingsProvider entries</a> <a href=\"/branding\" class=\"block text-indigo-400 hover:text-indigo-300\">Branding — login banner / splash</a></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 130, "<div class=\"space-y-6 max-w-4xl\" data-testid=\"auth-sso-page\"><div><h1 class=\"text-2xl font-bold\">Authentication / SSO</h1><p class=\"text-gray-400 text-sm mt-1\">Sign-in options: local users, passkeys, and single sign-on modules.</p></div><div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-4 space-y-2 text-sm\"><a href=\"/users\" class=\"block text-indigo-400 hover:text-indigo-300\">Users — passwords, roles, TOTP, passkeys, tokens</a> <a href=\"/settings\" class=\"block text-indigo-400 hover:text-indigo-300\">Settings — auth-local / auth-oidc SettingsProvider entries</a> <a href=\"/branding\" class=\"block text-indigo-400 hover:text-indigo-300\">Branding — login banner / splash</a></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(data.AuthModules) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 130, "<div><h2 class=\"text-sm font-semibold text-gray-300 mb-2\">Registered auth modules</h2>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 131, "<div><h2 class=\"text-sm font-semibold text-gray-300 mb-2\">Registered auth modules</h2>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1457,46 +1470,46 @@ func AuthSSOPage(data AuthSSOData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 131, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 132, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 132, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500\">No auth* modules discovered yet.</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 133, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500\">No auth* modules discovered yet.</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if len(data.Notes) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 133, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 134, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, n := range data.Notes {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 134, "<div class=\"px-4 py-3 text-sm text-gray-300\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 135, "<div class=\"px-4 py-3 text-sm text-gray-300\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var64 string
-				templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.JoinStringErrs(n)
+				var templ_7745c5c3_Var65 string
+				templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinStringErrs(n)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 580, Col: 53}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_actions.templ`, Line: 583, Col: 53}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var64))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 135, "</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 136, "</div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 136, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 137, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 137, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 138, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

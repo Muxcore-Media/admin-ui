@@ -39,12 +39,16 @@ templ UsersPage(users []*authv1.UserInfo, errorMsg string, resets []PasswordRese
 				hx-get="/users/create-form"
 				hx-target="#create-form"
 				hx-swap="innerHTML"
+				aria-controls="create-form"
 				class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
 			>Add User</button>
 		</div>
+		if errorMsg != "" {
+			<div class="rounded-xl border border-red-900/50 bg-red-950/20 p-4 text-sm text-red-300" role="alert" data-testid="users-error">{ errorMsg }</div>
+		}
 		if len(resets) > 0 {
-			<div class="rounded-xl border border-amber-800/40 bg-amber-950/20 p-4 space-y-2" data-testid="password-reset-requests">
-				<h2 class="text-sm font-semibold text-amber-200">Pending password reset requests</h2>
+			<section class="rounded-xl border border-amber-800/40 bg-amber-950/20 p-4 space-y-2" data-testid="password-reset-requests" aria-labelledby="users-resets-heading">
+				<h2 id="users-resets-heading" class="text-sm font-semibold text-amber-200">Pending password reset requests</h2>
 				<p class="text-xs text-gray-400">From consumer /forgot-password (ADMIN_UI_PASSWORD_RESET_FILE). Open the user below and set a new password.</p>
 				<ul class="divide-y divide-amber-900/40 text-sm">
 					for _, r := range resets {
@@ -59,17 +63,19 @@ templ UsersPage(users []*authv1.UserInfo, errorMsg string, resets []PasswordRese
 						</li>
 					}
 				</ul>
-			</div>
+			</section>
 		}
 		<div id="create-form"></div>
-		<div class="rounded-xl border border-gray-800 overflow-hidden">
+		<section class="rounded-xl border border-gray-800 overflow-hidden" aria-labelledby="users-table-heading">
+			<h2 id="users-table-heading" class="sr-only">Registered users</h2>
 			<table class="w-full text-sm">
+				<caption class="sr-only">Registered users</caption>
 				<thead>
 					<tr class="border-b border-gray-800 bg-gray-900/50">
-						<th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
-						<th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Roles</th>
-						<th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">TOTP</th>
-						<th class="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+						<th scope="col" class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+						<th scope="col" class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Roles</th>
+						<th scope="col" class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">TOTP</th>
+						<th scope="col" class="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-gray-800">
@@ -93,6 +99,8 @@ templ UsersPage(users []*authv1.UserInfo, errorMsg string, resets []PasswordRese
 										hx-get={ templ.SafeURL(fmt.Sprintf("/users/%s/detail", u.GetId())) }
 										hx-target="#user-detail"
 										hx-swap="innerHTML"
+										aria-controls="user-detail"
+										aria-label={ fmt.Sprintf("Manage user %s", u.GetUsername()) }
 										class="text-xs text-indigo-400 hover:text-indigo-300 mr-3"
 									>Manage</button>
 									<button
@@ -100,6 +108,7 @@ templ UsersPage(users []*authv1.UserInfo, errorMsg string, resets []PasswordRese
 										hx-confirm={ fmt.Sprintf("Delete user %q?", u.GetUsername()) }
 										hx-target="body"
 										hx-swap="innerHTML"
+										aria-label={ fmt.Sprintf("Delete user %s", u.GetUsername()) }
 										class="text-xs text-red-400 hover:text-red-300"
 									>Delete</button>
 								</td>
@@ -108,35 +117,40 @@ templ UsersPage(users []*authv1.UserInfo, errorMsg string, resets []PasswordRese
 					}
 				</tbody>
 			</table>
-		</div>
+		</section>
 		<div id="user-detail"></div>
 	</div>
 }
 
 templ UserCreateForm() {
 	<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 mb-4">
-		<h3 class="text-sm font-semibold text-gray-200 mb-3">New User</h3>
+		<h3 id="user-create-heading" class="text-sm font-semibold text-gray-200 mb-3">New User</h3>
 		<form
 			hx-post="/users"
 			hx-target="body"
 			hx-swap="innerHTML"
 			class="space-y-3 max-w-md"
+			aria-labelledby="user-create-heading"
 		>
 			<div>
-				<label class="block text-xs text-gray-500 mb-1">Username</label>
+				<label for="user-create-username" class="block text-xs text-gray-500 mb-1">Username</label>
 				<input
+					id="user-create-username"
 					type="text"
 					name="username"
 					required
+					autocomplete="username"
 					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"
 				/>
 			</div>
 			<div>
-				<label class="block text-xs text-gray-500 mb-1">Password</label>
+				<label for="user-create-password" class="block text-xs text-gray-500 mb-1">Password</label>
 				<input
+					id="user-create-password"
 					type="password"
 					name="password"
 					required
+					autocomplete="new-password"
 					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"
 				/>
 			</div>
@@ -262,12 +276,12 @@ templ RoleCheckbox(currentRoles []string, role, label string) {
 
 templ TOTPBadge(enabled bool) {
 	if enabled {
-		<span class="inline-flex items-center gap-1 rounded-full bg-green-900/30 px-2 py-0.5 text-xs font-medium text-green-400 border border-green-800/50">
-			<span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+		<span class="inline-flex items-center gap-1 rounded-full bg-green-900/30 px-2 py-0.5 text-xs font-medium text-green-400 border border-green-800/50" aria-label="TOTP enabled">
+			<span class="w-1.5 h-1.5 rounded-full bg-green-400" aria-hidden="true"></span>
 			On
 		</span>
 	} else {
-		<span class="inline-flex items-center gap-1 rounded-full bg-gray-800 px-2 py-0.5 text-xs font-medium text-gray-400 border border-gray-700">
+		<span class="inline-flex items-center gap-1 rounded-full bg-gray-800 px-2 py-0.5 text-xs font-medium text-gray-400 border border-gray-700" aria-label="TOTP disabled">
 			Off
 		</span>
 	}
