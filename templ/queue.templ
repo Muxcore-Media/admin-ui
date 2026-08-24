@@ -48,6 +48,7 @@ templ UnifiedQueuePage(data UnifiedQueueData) {
 	<div
 		class="space-y-6"
 		data-testid="unified-queue-page"
+		aria-live="polite"
 		hx-get="/queue"
 		hx-trigger="every 15s"
 		hx-select="[data-testid='unified-queue-page']"
@@ -59,18 +60,18 @@ templ UnifiedQueuePage(data UnifiedQueueData) {
 			<p class="text-gray-400 text-sm mt-1">Pending downloads and recent history — retry or clear stuck items here</p>
 		</div>
 		if data.Flash != "" {
-			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300" data-testid="queue-flash">{ data.Flash }</div>
+			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300" role="status" data-testid="queue-flash">{ data.Flash }</div>
 		}
 		if data.Error != "" {
-			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" data-testid="queue-error">{ data.Error }</div>
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" role="alert" data-testid="queue-error">{ data.Error }</div>
 		}
 		if data.FailureCount == 0 && data.Error == "" {
-			<div class="rounded-xl border border-green-900/40 bg-green-950/15 p-4 text-sm text-green-300/90" data-testid="queue-healthy">No stuck imports or failed downloads need attention.</div>
+			<div class="rounded-xl border border-green-900/40 bg-green-950/15 p-4 text-sm text-green-300/90" role="status" data-testid="queue-healthy">No stuck imports or failed downloads need attention.</div>
 		}
 		if data.FailureCount > 0 {
-			<section class="space-y-3" data-testid="queue-failures-section">
+			<section class="space-y-3" data-testid="queue-failures-section" aria-labelledby="queue-failures-heading">
 				<div class="flex flex-wrap items-center justify-between gap-2">
-					<h2 class="text-lg font-semibold text-amber-200">
+					<h2 id="queue-failures-heading" class="text-lg font-semibold text-amber-200">
 						Needs attention
 						<span class="text-sm font-normal text-amber-300/80">({ fmt.Sprintf("%d", data.FailureCount) })</span>
 					</h2>
@@ -129,10 +130,10 @@ templ UnifiedQueuePage(data UnifiedQueueData) {
 				</ul>
 			</section>
 		}
-		<form class="flex flex-wrap gap-3 items-end" method="get" action="/queue">
+		<form class="flex flex-wrap gap-3 items-end" method="get" action="/queue" aria-label="Filter queue">
 			<div>
-				<label class="block text-xs font-medium text-gray-500 mb-1">Filter</label>
-				<select name="filter" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white">
+				<label for="queue-filter" class="block text-xs font-medium text-gray-500 mb-1">Filter</label>
+				<select id="queue-filter" name="filter" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white">
 					<option value="" selected?={ data.Filter == "" }>All</option>
 					<option value="movie" selected?={ data.Filter == "movie" }>Movies</option>
 					<option value="tv" selected?={ data.Filter == "tv" }>TV</option>
@@ -145,8 +146,8 @@ templ UnifiedQueuePage(data UnifiedQueueData) {
 				<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800" title="Retry all import_failed">Retry imports</button>
 			</form>
 		}
-		<div>
-			<h2 class="text-lg font-semibold mb-3">Wanted <span class="text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", data.Total) })</span></h2>
+		<section aria-labelledby="queue-wanted-heading">
+			<h2 id="queue-wanted-heading" class="text-lg font-semibold mb-3">Wanted <span class="text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", data.Total) })</span></h2>
 			if len(data.Wanted) == 0 {
 				if data.FailureCount == 0 && data.Error == "" {
 					<div class="rounded-xl border border-green-900/30 bg-green-950/10 p-6 text-center text-sm" data-testid="queue-wanted-empty">
@@ -159,12 +160,13 @@ templ UnifiedQueuePage(data UnifiedQueueData) {
 			} else {
 				<div class="overflow-x-auto rounded-xl border border-gray-800" data-testid="queue-wanted-table">
 					<table class="min-w-full divide-y divide-gray-800 text-sm">
+						<caption class="sr-only">Wanted queue items</caption>
 						<thead class="bg-gray-900/50">
 							<tr>
-								<th class="px-4 py-2 text-left text-xs text-gray-500">Title</th>
-								<th class="px-4 py-2 text-left text-xs text-gray-500">Type</th>
-								<th class="px-4 py-2 text-left text-xs text-gray-500">Flags</th>
-								<th class="px-4 py-2 text-right text-xs text-gray-500">Actions</th>
+								<th scope="col" class="px-4 py-2 text-left text-xs text-gray-500">Title</th>
+								<th scope="col" class="px-4 py-2 text-left text-xs text-gray-500">Type</th>
+								<th scope="col" class="px-4 py-2 text-left text-xs text-gray-500">Flags</th>
+								<th scope="col" class="px-4 py-2 text-right text-xs text-gray-500">Actions</th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-gray-800">
@@ -188,7 +190,7 @@ templ UnifiedQueuePage(data UnifiedQueueData) {
 									<td class="px-4 py-2 text-right whitespace-nowrap">
 										<form method="POST" action="/queue/remove" class="inline">
 											<input type="hidden" name="queue_id" value={ it.ID }/>
-											<button type="submit" class="rounded border border-red-900/50 px-2 py-1 text-xs text-red-300 hover:bg-red-950/30" data-testid="queue-remove">Remove</button>
+											<button type="submit" class="rounded border border-red-900/50 px-2 py-1 text-xs text-red-300 hover:bg-red-950/30" data-testid="queue-remove" aria-label={ fmt.Sprintf("Remove %s from queue", it.Title) }>Remove</button>
 										</form>
 									</td>
 								</tr>
@@ -197,9 +199,9 @@ templ UnifiedQueuePage(data UnifiedQueueData) {
 					</table>
 				</div>
 			}
-		</div>
-		<div>
-			<h2 class="text-lg font-semibold mb-3">Download history</h2>
+		</section>
+		<section aria-labelledby="queue-history-heading">
+			<h2 id="queue-history-heading" class="text-lg font-semibold mb-3">Download history</h2>
 			if len(data.History) == 0 {
 				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500" data-testid="queue-history-empty">No download history yet.</div>
 			} else {
@@ -257,7 +259,7 @@ templ UnifiedQueuePage(data UnifiedQueueData) {
 					}
 				</ul>
 			}
-		</div>
+		</section>
 		<p class="text-xs text-gray-600">Full automation controls also live on <a href="/automation" class="text-indigo-400 hover:underline">Automation</a>.</p>
 	</div>
 }

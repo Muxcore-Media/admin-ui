@@ -378,28 +378,31 @@ templ LibrariesLivePage(rows []LibraryModRow) {
 			</p>
 		</div>
 		if len(rows) == 0 {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500" role="status">
 				No media.library modules registered yet.
 			</div>
 		} else {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800">
-				for _, r := range rows {
-					<div class="flex items-center justify-between px-4 py-3">
-						<div>
-							<div class="text-sm font-medium text-gray-200">{ r.Name }</div>
-							<div class="text-xs text-gray-500 font-mono">{ r.ID }</div>
-						</div>
-						<a href={ templ.SafeURL(r.Path) } class="text-sm text-indigo-400 hover:text-indigo-300">Open →</a>
-					</div>
-				}
-			</div>
+			<section aria-labelledby="libraries-list-heading">
+				<h2 id="libraries-list-heading" class="sr-only">Registered libraries</h2>
+				<ul class="rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800" role="list">
+					for _, r := range rows {
+						<li class="flex items-center justify-between px-4 py-3">
+							<div>
+								<div class="text-sm font-medium text-gray-200">{ r.Name }</div>
+								<div class="text-xs text-gray-500 font-mono">{ r.ID }</div>
+							</div>
+							<a href={ templ.SafeURL(r.Path) } class="text-sm text-indigo-400 hover:text-indigo-300" aria-label={ fmt.Sprintf("Open library %s", r.Name) }>Open →</a>
+						</li>
+					}
+				</ul>
+			</section>
 		}
-		<div class="flex flex-wrap gap-3 text-sm">
+		<nav class="flex flex-wrap gap-3 text-sm" aria-label="Library configuration">
 			<a href="/roots" class="text-indigo-400">Root Folders</a>
 			<a href="/rename/templates" class="text-indigo-400">Naming</a>
 			<a href="/formats" class="text-indigo-400">Formats</a>
 			<a href="/jellyfin" class="text-indigo-400">Jellyfin bridge</a>
-		</div>
+		</nav>
 	</div>
 }
 

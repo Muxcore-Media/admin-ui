@@ -48,20 +48,20 @@ templ RequestPage(data RequestPageData) {
 			</p>
 		</div>
 		if data.Error != "" {
-			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" data-testid="request-soft-error">{ data.Error }</div>
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" role="alert" data-testid="request-soft-error">{ data.Error }</div>
 		}
 		if data.SoftEmpty {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400" data-testid="request-soft-empty">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400" role="status" data-testid="request-soft-empty">
 				Soft OK without request-media — configure ADMIN_UI_REQUEST_MEDIA_URL or register media.request.
 			</div>
 		}
 		if data.Message != "" {
-			<div class="rounded-xl border border-indigo-900/40 bg-indigo-950/20 p-4 text-sm text-indigo-200" data-testid="request-message">{ data.Message }</div>
+			<div class="rounded-xl border border-indigo-900/40 bg-indigo-950/20 p-4 text-sm text-indigo-200" role="status" data-testid="request-message">{ data.Message }</div>
 		}
 		if !data.SoftEmpty {
 			if len(data.Pending) > 0 {
-				<section class="space-y-3" data-testid="request-pending-queue">
-					<h2 class="text-lg font-semibold">Pending approval</h2>
+				<section class="space-y-3" data-testid="request-pending-queue" aria-labelledby="request-pending-heading">
+					<h2 id="request-pending-heading" class="text-lg font-semibold">Pending approval</h2>
 					<ul class="divide-y divide-gray-800 rounded-xl border border-amber-900/40 bg-amber-950/10">
 						for _, rec := range data.Pending {
 							<li class="flex flex-wrap items-center justify-between gap-3 px-3 py-2 text-sm">
@@ -71,10 +71,10 @@ templ RequestPage(data RequestPageData) {
 								</div>
 								<div class="flex gap-2">
 									<form method="post" action={ templ.SafeURL("/request/" + rec.ID + "/approve") }>
-										<button type="submit" class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-600" data-testid="request-approve">Approve</button>
+										<button type="submit" class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-600" data-testid="request-approve" aria-label={ fmt.Sprintf("Approve request for %s", rec.Title) }>Approve</button>
 									</form>
 									<form method="post" action={ templ.SafeURL("/request/" + rec.ID + "/deny") }>
-										<button type="submit" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:border-red-500" data-testid="request-deny">Deny</button>
+										<button type="submit" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:border-red-500" data-testid="request-deny" aria-label={ fmt.Sprintf("Deny request for %s", rec.Title) }>Deny</button>
 									</form>
 								</div>
 							</li>
@@ -82,23 +82,23 @@ templ RequestPage(data RequestPageData) {
 					</ul>
 				</section>
 			}
-			<form class="flex flex-wrap gap-3 items-end" method="get" action="/request" data-testid="request-search-form">
+			<form class="flex flex-wrap gap-3 items-end" method="get" action="/request" data-testid="request-search-form" aria-label="Search TMDB">
 				<div>
-					<label class="block text-xs font-medium text-gray-500 mb-1">Type</label>
-					<select name="type" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white">
+					<label for="request-media-type" class="block text-xs font-medium text-gray-500 mb-1">Type</label>
+					<select id="request-media-type" name="type" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white">
 						<option value="movie" selected?={ data.MediaType != "tv" }>Movie</option>
 						<option value="tv" selected?={ data.MediaType == "tv" }>TV</option>
 					</select>
 				</div>
 				<div class="flex-1 min-w-[12rem]">
-					<label class="block text-xs font-medium text-gray-500 mb-1">Search</label>
-					<input type="search" name="q" value={ data.Query } placeholder="Fight Club / Breaking Bad" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500"/>
+					<label for="request-search-query" class="block text-xs font-medium text-gray-500 mb-1">Search</label>
+					<input id="request-search-query" type="search" name="q" value={ data.Query } placeholder="Fight Club / Breaking Bad" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500"/>
 				</div>
 				<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Search</button>
 			</form>
 			if len(data.Results) > 0 {
-				<section class="space-y-3" data-testid="request-search-results">
-					<h2 class="text-lg font-semibold">Search results</h2>
+				<section class="space-y-3" data-testid="request-search-results" aria-labelledby="request-results-heading">
+					<h2 id="request-results-heading" class="text-lg font-semibold">Search results</h2>
 					<ul class="space-y-2">
 						for _, hit := range data.Results {
 							<li class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-800 bg-gray-900/50 p-3">
@@ -113,15 +113,15 @@ templ RequestPage(data RequestPageData) {
 									<input type="hidden" name="overview" value={ hit.Overview }/>
 									<input type="hidden" name="poster" value={ hit.Poster }/>
 									<input type="hidden" name="type" value={ hit.Type }/>
-									<button type="submit" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:border-indigo-500">Request</button>
+									<button type="submit" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:border-indigo-500" aria-label={ fmt.Sprintf("Request %s", hit.Title) }>Request</button>
 								</form>
 							</li>
 						}
 					</ul>
 				</section>
 			}
-			<section class="space-y-3" data-testid="request-history">
-				<h2 class="text-lg font-semibold">All requests</h2>
+			<section class="space-y-3" data-testid="request-history" aria-labelledby="request-history-heading">
+				<h2 id="request-history-heading" class="text-lg font-semibold">All requests</h2>
 				if len(data.Requests) == 0 {
 					<p class="text-sm text-gray-500">No requests yet.</p>
 				} else {

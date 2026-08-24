@@ -33,44 +33,44 @@ templ InvitesPage(data InvitesPageData) {
 			</p>
 		</div>
 		if data.Error != "" {
-			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" data-testid="invites-error">{ data.Error }</div>
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" role="alert" data-testid="invites-error">{ data.Error }</div>
 		}
 		if data.SoftEmpty {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400" data-testid="invites-soft-empty">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400" role="status" data-testid="invites-soft-empty">
 				auth-local HTTP unavailable — set ADMIN_UI_AUTH_INTERNAL_URL / AuthAddr.
 			</div>
 		}
 		if data.CreatedLink != "" {
-			<div class="rounded-xl border border-emerald-900/40 bg-emerald-950/20 p-4 text-sm space-y-2" data-testid="invites-created">
+			<div class="rounded-xl border border-emerald-900/40 bg-emerald-950/20 p-4 text-sm space-y-2" role="status" data-testid="invites-created">
 				<div class="text-emerald-200">Invite created — copy now (token shown once):</div>
 				<code class="block break-all text-xs text-emerald-100 bg-black/30 p-2 rounded">{ data.CreatedLink }</code>
 			</div>
 		}
 		if data.Message != "" {
-			<div class="rounded-xl border border-indigo-900/40 bg-indigo-950/20 p-4 text-sm text-indigo-200">{ data.Message }</div>
+			<div class="rounded-xl border border-indigo-900/40 bg-indigo-950/20 p-4 text-sm text-indigo-200" role="status">{ data.Message }</div>
 		}
 		if !data.SoftEmpty {
-			<form method="post" action="/invites" class="flex flex-wrap gap-3 items-end rounded-xl border border-gray-800 bg-gray-900/40 p-4" data-testid="invites-create-form">
+			<form method="post" action="/invites" class="flex flex-wrap gap-3 items-end rounded-xl border border-gray-800 bg-gray-900/40 p-4" data-testid="invites-create-form" aria-label="Create invite link">
 				<div>
-					<label class="block text-xs font-medium text-gray-500 mb-1">Role</label>
-					<select name="role" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white">
+					<label for="invite-role" class="block text-xs font-medium text-gray-500 mb-1">Role</label>
+					<select id="invite-role" name="role" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white">
 						<option value="user">user</option>
 						<option value="viewer">viewer</option>
 						<option value="manager">manager</option>
 					</select>
 				</div>
 				<div>
-					<label class="block text-xs font-medium text-gray-500 mb-1">Max uses (0=unlimited)</label>
-					<input type="number" name="max_uses" value="1" min="0" class="w-28 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"/>
+					<label for="invite-max-uses" class="block text-xs font-medium text-gray-500 mb-1">Max uses (0=unlimited)</label>
+					<input id="invite-max-uses" type="number" name="max_uses" value="1" min="0" class="w-28 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"/>
 				</div>
 				<div>
-					<label class="block text-xs font-medium text-gray-500 mb-1">TTL hours</label>
-					<input type="number" name="ttl_hours" value="168" min="1" class="w-28 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"/>
+					<label for="invite-ttl-hours" class="block text-xs font-medium text-gray-500 mb-1">TTL hours</label>
+					<input id="invite-ttl-hours" type="number" name="ttl_hours" value="168" min="1" class="w-28 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"/>
 				</div>
 				<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Create invite</button>
 			</form>
-			<section class="space-y-3" data-testid="invites-list">
-				<h2 class="text-lg font-semibold">Existing invites</h2>
+			<section class="space-y-3" data-testid="invites-list" aria-labelledby="invites-list-heading">
+				<h2 id="invites-list-heading" class="text-lg font-semibold">Existing invites</h2>
 				if len(data.Invites) == 0 {
 					<p class="text-sm text-gray-500">No invites yet.</p>
 				} else {
@@ -89,7 +89,7 @@ templ InvitesPage(data InvitesPageData) {
 								</div>
 								if !inv.Revoked {
 									<form method="post" action={ templ.SafeURL("/invites/" + inv.ID + "/revoke") }>
-										<button type="submit" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs hover:border-red-500">Revoke</button>
+										<button type="submit" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs hover:border-red-500" aria-label={ fmt.Sprintf("Revoke invite %s", inv.Prefix) }>Revoke</button>
 									</form>
 								}
 							</li>
