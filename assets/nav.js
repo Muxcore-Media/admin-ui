@@ -25,6 +25,16 @@
     });
   }
 
+  function sidebarOpen(sidebar, overlay) {
+    return !sidebar.classList.contains('-translate-x-full');
+  }
+
+  function setSidebarOpen(sidebar, overlay, open) {
+    sidebar.classList.toggle('-translate-x-full', !open);
+    overlay.classList.toggle('hidden', !open);
+    overlay.setAttribute('aria-hidden', open ? 'false' : 'true');
+  }
+
   function init() {
     var sidebar = document.getElementById('sidebar');
     var overlay = document.getElementById('sidebar-overlay');
@@ -33,18 +43,27 @@
     // Create hamburger button
     var btn = document.createElement('button');
     btn.className = 'fixed top-4 left-4 z-50 lg:hidden text-gray-300 hover:text-white p-2 rounded-full bg-gray-900 border border-gray-700 shadow-lg';
-    btn.setAttribute('aria-label', 'Toggle navigation');
-    btn.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>';
+    btn.setAttribute('aria-label', 'Open navigation menu');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-controls', 'sidebar');
+    btn.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>';
     document.body.appendChild(btn);
 
+    function syncMenuButton() {
+      var open = sidebarOpen(sidebar, overlay);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.setAttribute('aria-label', open ? 'Close navigation menu' : 'Open navigation menu');
+    }
+
     btn.addEventListener('click', function() {
-      sidebar.classList.toggle('-translate-x-full');
-      overlay.classList.toggle('hidden');
+      var open = sidebarOpen(sidebar, overlay);
+      setSidebarOpen(sidebar, overlay, !open);
+      syncMenuButton();
     });
 
     overlay.addEventListener('click', function() {
-      sidebar.classList.add('-translate-x-full');
-      overlay.classList.add('hidden');
+      setSidebarOpen(sidebar, overlay, false);
+      syncMenuButton();
     });
 
     document.addEventListener('htmx:afterSettle', function(evt) {
@@ -55,8 +74,8 @@
 
       // Close sidebar on mobile after navigation
       if (window.innerWidth < 1024) {
-        sidebar.classList.add('-translate-x-full');
-        overlay.classList.add('hidden');
+        setSidebarOpen(sidebar, overlay, false);
+        syncMenuButton();
       }
     });
   }

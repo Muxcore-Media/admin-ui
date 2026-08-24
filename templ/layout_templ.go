@@ -42,7 +42,7 @@ func Layout(title string, nav templ.Component, content templ.Component) templ.Co
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " - MuxCore Admin</title><link rel=\"stylesheet\" href=\"/static/dist/styles.css\"><script src=\"/static/htmx.min.js\"></script><script src=\"/static/sse.js\"></script><script src=\"/static/csrf.js\"></script><script src=\"/static/webauthn.js\"></script><script src=\"/static/nav.js\"></script></head><body class=\"h-full font-sans antialiased\" style=\"color:var(--text-primary)\" hx-boost=\"true\" hx-target=\"#main-content\" hx-select=\"#main-content\" hx-indicator=\"#loading-bar\"><div id=\"loading-bar\" class=\"fixed top-0 left-0 z-50 h-0.5 w-full bg-[var(--accent-color)] htmx-indicator\"></div><div class=\"flex h-full\"><nav id=\"sidebar\" class=\"fixed inset-y-0 left-0 z-40 w-64 shrink-0 -translate-x-full overflow-y-auto border-r border-[var(--border-subtle)] bg-[var(--bg-elevated)] transition-transform duration-200 ease-in-out lg:static lg:translate-x-0\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " - MuxCore Admin</title><link rel=\"stylesheet\" href=\"/static/dist/styles.css\"><script src=\"/static/htmx.min.js\"></script><script src=\"/static/sse.js\"></script><script src=\"/static/csrf.js\"></script><script src=\"/static/webauthn.js\"></script><script src=\"/static/nav.js\"></script></head><body class=\"h-full font-sans antialiased\" style=\"color:var(--text-primary)\" hx-boost=\"true\" hx-target=\"#main-content\" hx-select=\"#main-content\" hx-indicator=\"#loading-bar\"><a href=\"#main-content\" class=\"sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-1/2 focus:z-[60] focus:-translate-x-1/2 focus:rounded-[var(--radius-md)] focus:bg-[var(--accent-color)] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-black focus:outline-none focus:ring-2 focus:ring-white\">Skip to main content</a><div id=\"loading-bar\" class=\"fixed top-0 left-0 z-50 h-0.5 w-full bg-[var(--accent-color)] htmx-indicator\" role=\"status\" aria-live=\"polite\" aria-label=\"Loading page content\"></div><div class=\"flex h-full\"><aside id=\"sidebar\" aria-label=\"Admin navigation\" class=\"fixed inset-y-0 left-0 z-40 w-64 shrink-0 -translate-x-full overflow-y-auto border-r border-[var(--border-subtle)] bg-[var(--bg-elevated)] transition-transform duration-200 ease-in-out lg:static lg:translate-x-0\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -50,7 +50,7 @@ func Layout(title string, nav templ.Component, content templ.Component) templ.Co
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</nav><div id=\"sidebar-overlay\" class=\"fixed inset-0 z-30 hidden bg-black/50 lg:hidden\"></div><main id=\"main-content\" class=\"flex-1 overflow-y-auto p-4 pt-16 sm:p-6 lg:pt-6 htmx-settling:hidden\"><div class=\"mx-auto max-w-[1600px]\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</aside><div id=\"sidebar-overlay\" class=\"fixed inset-0 z-30 hidden bg-black/50 lg:hidden\" aria-hidden=\"true\"></div><main id=\"main-content\" tabindex=\"-1\" class=\"flex-1 overflow-y-auto p-4 pt-16 sm:p-6 lg:pt-6 htmx-settling:hidden\"><div class=\"mx-auto max-w-[1600px]\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -94,7 +94,7 @@ func ErrorLayout(title string, content templ.Component) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/layout.templ`, Line: 50, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/layout.templ`, Line: 63, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {

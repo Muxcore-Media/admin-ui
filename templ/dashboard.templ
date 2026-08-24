@@ -47,7 +47,7 @@ func nodeAvatar(id string) string {
 templ NoAuthPage() {
 	<div class="flex min-h-full items-center justify-center">
 		<div class="text-center max-w-md">
-			<div class="mx-auto w-12 h-12 rounded-[var(--radius-lg)] bg-yellow-600/20 border border-yellow-700/50 flex items-center justify-center text-xl mb-4">!</div>
+			<div class="mx-auto w-12 h-12 rounded-[var(--radius-lg)] bg-yellow-600/20 border border-yellow-700/50 flex items-center justify-center text-xl mb-4" aria-hidden="true">!</div>
 			<h1 class="text-2xl font-bold mb-2">No Auth Provider</h1>
 			<p class="text-gray-400 text-sm mb-4">
 				No <code class="text-gray-300 bg-gray-800 px-1 rounded">AuthProvider</code> module is registered with core.
@@ -64,7 +64,7 @@ templ DashboardPage(data DashboardData) {
 	if data.Disconnected {
 		<div class="flex min-h-full items-center justify-center">
 			<div class="text-center max-w-md">
-				<div class="mx-auto w-12 h-12 rounded-[var(--radius-lg)] bg-red-600/20 border border-red-700/50 flex items-center justify-center text-xl mb-4">!</div>
+				<div class="mx-auto w-12 h-12 rounded-[var(--radius-lg)] bg-red-600/20 border border-red-700/50 flex items-center justify-center text-xl mb-4" aria-hidden="true">!</div>
 				<h1 class="text-2xl font-bold mb-2">Disconnected</h1>
 				<p class="text-gray-400 text-sm">Could not connect to core at the configured gRPC address.</p>
 			</div>
@@ -83,7 +83,7 @@ templ DashboardPage(data DashboardData) {
 				@ClusterStatCard("Version", "v0.1.0", "MuxCore version")
 			</div>
 			if data.QueueFailureCount > 0 {
-				<div class="rounded-[var(--radius-lg)] border border-amber-800/60 bg-amber-950/20 p-4" data-testid="dashboard-queue-alert">
+				<div class="rounded-[var(--radius-lg)] border border-amber-800/60 bg-amber-950/20 p-4" data-testid="dashboard-queue-alert" role="alert">
 					<div class="flex flex-wrap items-center justify-between gap-3">
 						<p class="text-sm text-amber-200">
 							<span class="font-semibold">{ fmt.Sprintf("%d", data.QueueFailureCount) }</span>
@@ -94,9 +94,9 @@ templ DashboardPage(data DashboardData) {
 				</div>
 			}
 			<div class="grid grid-cols-1 lg:grid-cols-2 gap-4" data-testid="dashboard-daily-driver">
-				<div class="rounded-[var(--radius-lg)] border border-gray-800 bg-gray-900/50 p-4 space-y-3">
+				<section class="rounded-[var(--radius-lg)] border border-gray-800 bg-gray-900/50 p-4 space-y-3" aria-labelledby="dashboard-queue-heading">
 					<div class="flex items-center justify-between gap-2">
-						<h2 class="text-sm font-semibold text-gray-300">Download queue</h2>
+						<h2 id="dashboard-queue-heading" class="text-sm font-semibold text-gray-300">Download queue</h2>
 						<a href="/queue" class="text-xs text-[var(--accent-color)] hover:underline">Open queue</a>
 					</div>
 					<div class="flex flex-wrap gap-4 text-sm">
@@ -109,10 +109,10 @@ templ DashboardPage(data DashboardData) {
 							<div class="text-xs text-gray-500">Need attention</div>
 						</div>
 					</div>
-				</div>
-				<div class="rounded-[var(--radius-lg)] border border-gray-800 bg-gray-900/50 p-4 space-y-3">
+				</section>
+				<section class="rounded-[var(--radius-lg)] border border-gray-800 bg-gray-900/50 p-4 space-y-3" aria-labelledby="dashboard-calendar-heading">
 					<div class="flex items-center justify-between gap-2">
-						<h2 class="text-sm font-semibold text-gray-300">Upcoming releases</h2>
+						<h2 id="dashboard-calendar-heading" class="text-sm font-semibold text-gray-300">Upcoming releases</h2>
 						<a href="/calendar" class="text-xs text-[var(--accent-color)] hover:underline">Full calendar</a>
 					</div>
 					if len(data.UpcomingCalendar) == 0 {
@@ -130,10 +130,10 @@ templ DashboardPage(data DashboardData) {
 							}
 						</ul>
 					}
-				</div>
+				</section>
 			</div>
-			<div class="rounded-[var(--radius-lg)] border border-gray-800 bg-gray-900/50 p-4">
-				<h2 class="text-sm font-semibold text-gray-300 mb-3">Common tasks</h2>
+			<section class="rounded-[var(--radius-lg)] border border-gray-800 bg-gray-900/50 p-4" aria-labelledby="dashboard-tasks-heading">
+				<h2 id="dashboard-tasks-heading" class="text-sm font-semibold text-gray-300 mb-3">Common tasks</h2>
 				<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-sm">
 					<a href="/users" class="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60">Manage users</a>
 					<a href="/invites" class="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60">Invite someone</a>
@@ -147,9 +147,9 @@ templ DashboardPage(data DashboardData) {
 					<a href="/streams" class="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60">Who is watching</a>
 					<a href="/settings" class="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-gray-400 hover:border-gray-700 hover:bg-gray-900/60">Advanced settings</a>
 				</div>
-			</div>
-			<div>
-				<h2 class="text-lg font-semibold mb-3">Module Health</h2>
+			</section>
+			<section aria-labelledby="dashboard-health-heading">
+				<h2 id="dashboard-health-heading" class="text-lg font-semibold mb-3">Module Health</h2>
 				<div
 					id="health-grid"
 					class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
@@ -160,9 +160,9 @@ templ DashboardPage(data DashboardData) {
 				>
 					@LoadingCard()
 				</div>
-			</div>
-			<div>
-				<h2 class="text-lg font-semibold mb-3">Health Monitor</h2>
+			</section>
+			<section aria-labelledby="dashboard-monitor-heading">
+				<h2 id="dashboard-monitor-heading" class="text-lg font-semibold mb-3">Health Monitor</h2>
 				<div
 					id="monitor-summary"
 					hx-get="/dashboard/monitor"
@@ -172,7 +172,7 @@ templ DashboardPage(data DashboardData) {
 				>
 					@LoadingCard()
 				</div>
-			</div>
+			</section>
 		</div>
 	}
 }

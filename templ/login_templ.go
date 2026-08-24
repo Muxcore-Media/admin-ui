@@ -29,7 +29,7 @@ func LoginPage(errorMsg string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" class=\"h-full bg-gray-950\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Login - MuxCore Admin</title><link rel=\"stylesheet\" href=\"/static/dist/styles.css\"><script src=\"/static/htmx.min.js\"></script><script src=\"/static/csrf.js\"></script></head><body class=\"h-full font-sans antialiased\" style=\"color:var(--text-primary)\"><div class=\"flex min-h-full items-center justify-center px-4\"><div class=\"w-full max-w-sm\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" class=\"h-full bg-gray-950\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Login - MuxCore Admin</title><link rel=\"stylesheet\" href=\"/static/dist/styles.css\"><script src=\"/static/htmx.min.js\"></script><script src=\"/static/csrf.js\"></script></head><body class=\"h-full font-sans antialiased\" style=\"color:var(--text-primary)\"><a href=\"#login-form\" class=\"sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-1/2 focus:z-[60] focus:-translate-x-1/2 focus:rounded-[var(--radius-md)] focus:bg-[var(--accent-color)] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-black focus:outline-none focus:ring-2 focus:ring-white\">Skip to sign in form</a><main id=\"main-content\" class=\"flex min-h-full items-center justify-center px-4\"><div class=\"w-full max-w-sm\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -41,7 +41,7 @@ func LoginPage(errorMsg string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div></div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div></main></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -70,7 +70,7 @@ func loginHeader() templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"mb-8 text-center\"><div class=\"mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-[var(--radius-md)] bg-[var(--accent-color)] text-xl font-bold text-black\">M</div><h1 class=\"text-2xl font-bold\">MuxCore Admin</h1><p class=\"mt-1 text-sm text-[var(--text-secondary)]\">Sign in to manage your cluster</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"mb-8 text-center\"><div class=\"mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-[var(--radius-md)] bg-[var(--accent-color)] text-xl font-bold text-black\" aria-hidden=\"true\">M</div><h1 class=\"text-2xl font-bold\">MuxCore Admin</h1><p class=\"mt-1 text-sm text-[var(--text-secondary)]\">Sign in to manage your cluster</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -99,19 +99,19 @@ func LoginForm(errorMsg string) templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<form class=\"space-y-4\" method=\"POST\" action=\"/login\" hx-post=\"/login\" hx-target=\"this\" hx-swap=\"outerHTML\"><div><label for=\"username\" class=\"mb-1 block text-sm font-medium text-[var(--text-secondary)]\">Username</label> <input type=\"text\" id=\"username\" name=\"username\" required autocomplete=\"username\" autofocus class=\"w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated-2)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition focus:border-[var(--accent-color)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]\" placeholder=\"admin\"></div><div><label for=\"password\" class=\"mb-1 block text-sm font-medium text-[var(--text-secondary)]\">Password</label> <input type=\"password\" id=\"password\" name=\"password\" required autocomplete=\"current-password\" class=\"w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated-2)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition focus:border-[var(--accent-color)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]\" placeholder=\"password\"></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<form id=\"login-form\" class=\"space-y-4\" method=\"POST\" action=\"/login\" hx-post=\"/login\" hx-target=\"this\" hx-swap=\"outerHTML\" aria-label=\"Sign in\"><div><label for=\"username\" class=\"mb-1 block text-sm font-medium text-[var(--text-secondary)]\">Username</label> <input type=\"text\" id=\"username\" name=\"username\" required autocomplete=\"username\" autofocus class=\"w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated-2)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition focus:border-[var(--accent-color)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]\" placeholder=\"admin\"></div><div><label for=\"password\" class=\"mb-1 block text-sm font-medium text-[var(--text-secondary)]\">Password</label> <input type=\"password\" id=\"password\" name=\"password\" required autocomplete=\"current-password\" class=\"w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated-2)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition focus:border-[var(--accent-color)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]\" placeholder=\"password\"></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if errorMsg != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"rounded-[var(--radius-md)] border border-red-800 bg-red-900/50 px-3 py-2 text-sm text-red-400\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"rounded-[var(--radius-md)] border border-red-800 bg-red-900/50 px-3 py-2 text-sm text-red-400\" role=\"alert\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(errorMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/login.templ`, Line: 69, Col: 14}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/login.templ`, Line: 77, Col: 14}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
