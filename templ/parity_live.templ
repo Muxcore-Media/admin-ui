@@ -178,27 +178,27 @@ templ BrandingEditPage(data BrandingData) {
 			</p>
 		</div>
 		if data.Saved {
-			<div class="rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300">Saved.</div>
+			<div class="rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300" role="status">Saved.</div>
 		}
 		if data.Error != "" {
-			<div class="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-2 text-sm text-red-300">{ data.Error }</div>
+			<div class="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-2 text-sm text-red-300" role="alert">{ data.Error }</div>
 		}
-		<form method="POST" action="/branding" class="space-y-4 rounded-xl border border-gray-800 bg-gray-900/50 p-4">
-			<label class="block space-y-1 text-sm">
+		<form method="POST" action="/branding" class="space-y-4 rounded-xl border border-gray-800 bg-gray-900/50 p-4" aria-label="Branding settings">
+			<label for="branding-server-name" class="block space-y-1 text-sm">
 				<span class="text-gray-400">Server name</span>
-				<input name="server_name" value={ data.ServerName } class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm"/>
+				<input id="branding-server-name" name="server_name" value={ data.ServerName } class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm"/>
 			</label>
-			<label class="block space-y-1 text-sm">
+			<label for="branding-login-banner" class="block space-y-1 text-sm">
 				<span class="text-gray-400">Login banner / disclaimer</span>
-				<textarea name="login_banner" rows="3" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm">{ data.LoginBanner }</textarea>
+				<textarea id="branding-login-banner" name="login_banner" rows="3" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm">{ data.LoginBanner }</textarea>
 			</label>
-			<label class="block space-y-1 text-sm">
+			<label for="branding-splash-url" class="block space-y-1 text-sm">
 				<span class="text-gray-400">Splash image URL</span>
-				<input name="splash_url" value={ data.SplashURL } class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm"/>
+				<input id="branding-splash-url" name="splash_url" value={ data.SplashURL } class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm"/>
 			</label>
-			<label class="block space-y-1 text-sm">
+			<label for="branding-custom-css" class="block space-y-1 text-sm">
 				<span class="text-gray-400">Custom CSS</span>
-				<textarea name="custom_css" rows="10" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-xs">{ data.CustomCSS }</textarea>
+				<textarea id="branding-custom-css" name="custom_css" rows="10" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-xs">{ data.CustomCSS }</textarea>
 			</label>
 			<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
 				Save branding

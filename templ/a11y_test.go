@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	authv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/auth/v1"
+	rootsv1 "github.com/Muxcore-Media/media-root-folders/proto/rootsv1"
 	"github.com/a-h/templ"
 )
 
@@ -250,6 +251,149 @@ func TestQueuePage_HasLiveRegionTableCaptionAndSections(t *testing.T) {
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("queue page HTML missing %q", want)
+		}
+	}
+}
+
+func TestCalendarPage_HasHeadingFilterLabelsAndTableCaption(t *testing.T) {
+	html := renderComponent(t, UnifiedCalendarPage(UnifiedCalendarData{
+		Error:   "calendar offline",
+		Warning: "partial data",
+		Start:   "2026-01-01",
+		End:     "2026-01-31",
+		Items: []UnifiedCalendarItem{{
+			ModuleID:   "lib-1",
+			ModuleName: "Movies",
+			ParentID:   "item-1",
+			Title:      "Dune",
+			Date:       "2026-01-15",
+			HasFile:    true,
+		}},
+	}))
+
+	for _, want := range []string{
+		`<h1 class="text-2xl font-bold">Calendar</h1>`,
+		`role="alert"`,
+		`calendar offline`,
+		`role="status"`,
+		`partial data`,
+		`id="calendar-filter-heading"`,
+		`for="calendar-start"`,
+		`for="calendar-end"`,
+		`for="calendar-unmonitored"`,
+		`id="calendar-items-heading"`,
+		`<caption class="sr-only">Upcoming calendar items</caption>`,
+		`scope="col"`,
+		`aria-label="Open Dune"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("calendar page HTML missing %q", want)
+		}
+	}
+}
+
+func TestBackupsPage_HasAlertsSectionsAndFormLabels(t *testing.T) {
+	html := renderComponent(t, BackupsLivePage([]BackupRow{{
+		ID:        "bak-1",
+		Timestamp: "2026-01-01",
+		Size:      "10 MB",
+	}}, "backup module unavailable", "Backup created"))
+
+	for _, want := range []string{
+		`<h1 class="text-2xl font-bold">Backups</h1>`,
+		`role="status"`,
+		`Backup created`,
+		`role="alert"`,
+		`backup module unavailable`,
+		`id="backups-list-heading"`,
+		`aria-labelledby="backups-list-heading"`,
+		`aria-label="Delete backup bak-1"`,
+		`aria-label="Restore backup bak-1"`,
+		`id="backup-restore-path-bak-1"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("backups page HTML missing %q", want)
+		}
+	}
+}
+
+func TestBrandingPage_HasAccessibleFormAndAlerts(t *testing.T) {
+	html := renderComponent(t, BrandingEditPage(BrandingData{
+		ServerName: "MuxCore",
+		Saved:      true,
+		Error:      "save failed",
+		CustomCSS:  "body { color: red; }",
+	}))
+
+	for _, want := range []string{
+		`<h1 class="text-2xl font-bold">Branding</h1>`,
+		`role="status"`,
+		`Saved.`,
+		`role="alert"`,
+		`save failed`,
+		`aria-label="Branding settings"`,
+		`id="branding-server-name"`,
+		`id="branding-login-banner"`,
+		`id="branding-splash-url"`,
+		`id="branding-custom-css"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("branding page HTML missing %q", want)
+		}
+	}
+}
+
+func TestActivityPage_HasFilterLabelsTableCaptionAndSections(t *testing.T) {
+	html := renderComponent(t, ActivityPage(ActivityPageData{
+		EventType: "grab",
+		Entries: []ActivityEntry{{
+			ID:         "act-1",
+			EventType:  "grab",
+			Title:      "Inception",
+			ModuleID:   "lib-1",
+			ItemID:     "item-1",
+			ModuleName: "Movies",
+			CreatedAt:  "2026-01-01",
+		}},
+	}))
+
+	for _, want := range []string{
+		`<h1 class="text-2xl font-bold">Activity</h1>`,
+		`id="activity-filter-heading"`,
+		`for="activity-event-type"`,
+		`id="activity-event-type"`,
+		`id="activity-table-heading"`,
+		`<caption class="sr-only">Activity history</caption>`,
+		`scope="col"`,
+		`aria-label="Open Inception"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("activity page HTML missing %q", want)
+		}
+	}
+}
+
+func TestRootsPage_HasAlertsSectionsAndActionLabels(t *testing.T) {
+	html := renderComponent(t, RootsListPage([]*rootsv1.RootFolder{{
+		Id:         "root-1",
+		Name:       "Movies",
+		Path:       "/media/movies",
+		MediaKind:  "movies",
+		Accessible: true,
+	}}, "Roots module unavailable"))
+
+	for _, want := range []string{
+		`<h1 class="text-2xl font-bold">Root Folders</h1>`,
+		`role="alert"`,
+		`Roots module unavailable`,
+		`id="roots-list-heading"`,
+		`aria-labelledby="roots-list-heading"`,
+		`aria-label="Add root folder"`,
+		`aria-label="Edit root folder Movies"`,
+		`aria-label="Delete root folder Movies"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("roots page HTML missing %q", want)
 		}
 	}
 }
