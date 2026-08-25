@@ -43,11 +43,11 @@ func (h *Handler) ReleaseProfilesList(w http.ResponseWriter, r *http.Request) {
 			for _, p := range resp.GetProfiles() {
 				data = append(data, templates.ReleaseProfileRow{
 					ID: p.GetId(), Name: p.GetName(),
-					Preferred: joinCSV(p.GetPreferred()),
-					MustContain: joinCSV(p.GetMustContain()),
+					Preferred:      joinCSV(p.GetPreferred()),
+					MustContain:    joinCSV(p.GetMustContain()),
 					MustNotContain: joinCSV(p.GetMustNotContain()),
 					PreferredScore: int(p.GetPreferredScore()),
-					Enabled: p.GetEnabled(),
+					Enabled:        p.GetEnabled(),
 				})
 			}
 		}
@@ -71,11 +71,11 @@ func (h *Handler) ReleaseProfileUpsert(w http.ResponseWriter, r *http.Request) {
 	score, _ := strconv.Atoi(r.FormValue("preferred_score"))
 	_, err = client.UpsertReleaseProfile(ctx, &formatsv1.UpsertReleaseProfileRequest{
 		Id: r.FormValue("id"), Name: r.FormValue("name"),
-		Preferred: splitCSV(r.FormValue("preferred")),
-		MustContain: splitCSV(r.FormValue("must_contain")),
+		Preferred:      splitCSV(r.FormValue("preferred")),
+		MustContain:    splitCSV(r.FormValue("must_contain")),
 		MustNotContain: splitCSV(r.FormValue("must_not_contain")),
 		PreferredScore: int32(score),
-		Enabled: r.FormValue("enabled") == "1",
+		Enabled:        r.FormValue("enabled") == "1",
 	})
 	if err != nil {
 		http.Redirect(w, r, "/formats/release-profiles?error="+err.Error(), http.StatusSeeOther)

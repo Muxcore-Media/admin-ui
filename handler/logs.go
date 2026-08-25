@@ -127,7 +127,7 @@ func tailLogFile(dir, name string, maxLines int) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("open: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if maxLines <= 0 {
 		maxLines = 200

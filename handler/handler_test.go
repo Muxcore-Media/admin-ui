@@ -127,7 +127,7 @@ func TestForbiddenOnAuthorizedRoutes(t *testing.T) {
 
 	handler := h.requireAuth(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		_, _ = w.Write([]byte("OK"))
 	})
 
 	r := mustRequest("GET", "/")

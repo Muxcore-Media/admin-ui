@@ -62,7 +62,7 @@ func (h *Handler) InvitesPage(w http.ResponseWriter, r *http.Request) {
 		h.renderInvites(w, r, data)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode >= 300 {
 		data.Error = fmt.Sprintf("list invites HTTP %d", resp.StatusCode)
@@ -144,7 +144,7 @@ func (h *Handler) InvitesCreate(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/invites?msg="+url.QueryEscape("create failed"), http.StatusSeeOther)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode >= 300 {
 		http.Redirect(w, r, "/invites?msg="+url.QueryEscape(string(body)), http.StatusSeeOther)
@@ -177,7 +177,7 @@ func (h *Handler) InvitesRevoke(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/invites", http.StatusSeeOther)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
 	http.Redirect(w, r, "/invites?msg=revoked", http.StatusSeeOther)
 }

@@ -73,7 +73,7 @@ func (h *Handler) JellyfinStatusPage(w http.ResponseWriter, r *http.Request) {
 		h.renderJellyfin(w, r, data)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	client := jellyfinv1.NewJellyfinBridgeClient(conn)
 	readCtx, readCancel := context.WithTimeout(pageCtx, jellyfinReadTimeout)
@@ -142,7 +142,7 @@ func (h *Handler) JellyfinSync(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/jellyfin?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	client := jellyfinv1.NewJellyfinBridgeClient(conn)
 	readCtx, readCancel := context.WithTimeout(pageCtx, jellyfinReadTimeout)
 	resp, err := client.SyncLibrary(readCtx, &jellyfinv1.SyncLibraryRequest{Direction: "both"})
@@ -175,7 +175,7 @@ func (h *Handler) JellyfinRefresh(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/jellyfin?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	client := jellyfinv1.NewJellyfinBridgeClient(conn)
 	readCtx, readCancel := context.WithTimeout(pageCtx, jellyfinReadTimeout)
 	resp, err := client.RefreshLibrary(readCtx, &jellyfinv1.RefreshLibraryRequest{})

@@ -288,16 +288,16 @@ func (h *Handler) MaintainerAddRule(w http.ResponseWriter, r *http.Request) {
 
 	readCtx, readCancel := context.WithTimeout(pageCtx, maintainerReadTimeout)
 	_, err = client.UpsertRule(readCtx, &maintainv1.UpsertRuleRequest{Rule: &maintainv1.RuleGroup{
-		Name:              strings.TrimSpace(r.FormValue("name")),
-		Enabled:           true,
-		Scope:             scope,
-		DefinitionJson:    strings.TrimSpace(r.FormValue("definition_json")),
-		Outcome:           outcome,
-		ArrAction:         action,
-		AutoActEnabled:    r.FormValue("auto_act_enabled") == "1",
-		AutoActDelayDays:  int32(delay),
-		MaxActionsPerRun:  50,
-		QualityProfileId:  strings.TrimSpace(r.FormValue("quality_profile_id")),
+		Name:             strings.TrimSpace(r.FormValue("name")),
+		Enabled:          true,
+		Scope:            scope,
+		DefinitionJson:   strings.TrimSpace(r.FormValue("definition_json")),
+		Outcome:          outcome,
+		ArrAction:        action,
+		AutoActEnabled:   r.FormValue("auto_act_enabled") == "1",
+		AutoActDelayDays: int32(delay),
+		MaxActionsPerRun: 50,
+		QualityProfileId: strings.TrimSpace(r.FormValue("quality_profile_id")),
 	}})
 	readCancel()
 	if err != nil {

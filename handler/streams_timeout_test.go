@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/grpc"
 	"net"
+
+	"google.golang.org/grpc"
 
 	"github.com/Muxcore-Media/admin-ui/session"
 	discoveryv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/discovery/v1"
@@ -40,7 +41,7 @@ func testStreamsPageFailsFastOnBlockedDiscovery(t *testing.T, handler func(*Hand
 	}
 	srv := grpc.NewServer()
 	discoveryv1.RegisterDiscoveryServiceServer(srv, blockingDiscovery{})
-	go srv.Serve(lis)
+	go func() { _ = srv.Serve(lis) }()
 	t.Cleanup(func() {
 		srv.Stop()
 		_ = lis.Close()

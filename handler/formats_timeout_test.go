@@ -47,7 +47,7 @@ func TestFormatsListFailsFastOnBlockedDiscovery(t *testing.T) {
 	}
 	srv := grpc.NewServer()
 	discoveryv1.RegisterDiscoveryServiceServer(srv, formatsBlockingDiscovery{})
-	go srv.Serve(lis)
+	go func() { _ = srv.Serve(lis) }()
 	t.Cleanup(func() {
 		srv.Stop()
 		_ = lis.Close()
@@ -103,7 +103,7 @@ func TestProfilesListFailsFastOnBlockedDiscovery(t *testing.T) {
 	}
 	srv := grpc.NewServer()
 	discoveryv1.RegisterDiscoveryServiceServer(srv, formatsBlockingDiscovery{})
-	go srv.Serve(lis)
+	go func() { _ = srv.Serve(lis) }()
 	t.Cleanup(func() {
 		srv.Stop()
 		_ = lis.Close()

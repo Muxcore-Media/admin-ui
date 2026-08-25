@@ -192,7 +192,7 @@ func (h *Handler) AutomationQueuePage(w http.ResponseWriter, r *http.Request) {
 				Loop:         int(e.GetLoop()),
 				Reason:       e.GetReason(),
 				Title:        e.GetTitle(),
-				CreatedAt:   e.GetCreatedAt(),
+				CreatedAt:    e.GetCreatedAt(),
 			})
 		}
 	}
@@ -441,8 +441,8 @@ func (h *Handler) AutomationBlocklistClear(w http.ResponseWriter, r *http.Reques
 	defer closer()
 	req := &automationv1.ClearBlocklistRequest{
 		WantedItemId: r.FormValue("wanted_item_id"),
-		Guid:          r.FormValue("guid"),
-		ClearAll:      r.FormValue("clear_all") == "1",
+		Guid:         r.FormValue("guid"),
+		ClearAll:     r.FormValue("clear_all") == "1",
 	}
 	if _, err := client.ClearBlocklist(ctx, req); err != nil {
 		http.Redirect(w, r, "/automation?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)

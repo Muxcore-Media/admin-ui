@@ -110,7 +110,7 @@ func TestHealthEndpoint(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"status":"ok"}`))
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 	mux.ServeHTTP(w, r)
 
@@ -132,7 +132,7 @@ func TestHealthEndpointDegraded(t *testing.T) {
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte(`{"status":"degraded"}`))
+		_, _ = w.Write([]byte(`{"status":"degraded"}`))
 	})
 	mux.ServeHTTP(w, r)
 

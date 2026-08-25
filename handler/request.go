@@ -88,7 +88,7 @@ func (h *Handler) requestGET(ctx context.Context, base, path string) ([]byte, in
 	if err != nil {
 		return nil, 0, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	return body, resp.StatusCode, err
 }
@@ -259,7 +259,7 @@ func (h *Handler) RequestCreate(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/request", http.StatusSeeOther)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
 
 	redir := "/request?type=" + url.QueryEscape(itemType)
@@ -323,7 +323,7 @@ func (h *Handler) requestDecide(w http.ResponseWriter, r *http.Request, action s
 		http.Redirect(w, r, "/request", http.StatusSeeOther)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
 	http.Redirect(w, r, "/request", http.StatusSeeOther)
 }

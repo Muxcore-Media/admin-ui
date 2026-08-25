@@ -75,7 +75,7 @@ func (h *Handler) taggingMeshCall(ctx context.Context, moduleID, httpAddr, metho
 	if httpAddr != "" {
 		conn, err := grpc.NewClient(httpAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err == nil {
-			defer conn.Close()
+			defer func() { _ = conn.Close() }()
 			client := meshv1.NewModuleMeshClient(conn)
 			resp, err := client.Call(ctx, &meshv1.CallRequest{
 				TargetModule: moduleID,
@@ -130,7 +130,7 @@ func (h *Handler) taggingFetchTags(ctx context.Context, moduleID, grpcAddr strin
 	if httpErr != nil {
 		return nil, fmt.Errorf("mesh: %v; http: %w", err, httpErr)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("mesh: %v; http status %d", err, resp.StatusCode)
@@ -155,7 +155,7 @@ func (h *Handler) taggingFetchRules(ctx context.Context, moduleID, grpcAddr stri
 	if httpErr != nil {
 		return nil, fmt.Errorf("mesh: %v; http: %w", err, httpErr)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("mesh: %v; http status %d", err, resp.StatusCode)
@@ -268,12 +268,12 @@ func (h *Handler) TaggingCreateTag(w http.ResponseWriter, r *http.Request) {
 		resp, httpErr := taggingHTTPDo(ctx, req)
 		if httpErr != nil || resp.StatusCode != http.StatusOK {
 			if resp != nil {
-				resp.Body.Close()
+				_ = resp.Body.Close()
 			}
 			http.Error(w, fmt.Sprintf("create tag failed: %v", err), http.StatusBadGateway)
 			return
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}
 	http.Redirect(w, r, "/tagging?ok=Tag+created", http.StatusSeeOther)
 }
@@ -313,12 +313,12 @@ func (h *Handler) TaggingCreateRule(w http.ResponseWriter, r *http.Request) {
 		resp, httpErr := taggingHTTPDo(ctx, req)
 		if httpErr != nil || resp.StatusCode != http.StatusOK {
 			if resp != nil {
-				resp.Body.Close()
+				_ = resp.Body.Close()
 			}
 			http.Error(w, fmt.Sprintf("create rule failed: %v", err), http.StatusBadGateway)
 			return
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}
 	http.Redirect(w, r, "/tagging?ok=Rule+created", http.StatusSeeOther)
 }
@@ -351,13 +351,13 @@ func (h *Handler) TaggingDeleteRule(w http.ResponseWriter, r *http.Request) {
 		resp, httpErr := taggingHTTPDo(ctx, req)
 		if httpErr != nil || (resp != nil && resp.StatusCode != http.StatusOK) {
 			if resp != nil {
-				resp.Body.Close()
+				_ = resp.Body.Close()
 			}
 			http.Error(w, fmt.Sprintf("delete rule failed: %v", err), http.StatusBadGateway)
 			return
 		}
 		if resp != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 	}
 	http.Redirect(w, r, "/tagging?ok=Rule+deleted", http.StatusSeeOther)

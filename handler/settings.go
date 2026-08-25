@@ -23,9 +23,9 @@ const (
 	methodGet    = "Settings"
 	methodUpdate = "UpdateSetting"
 
-	settingsDialTimeout  = 3 * time.Second
-	settingsReadTimeout  = 5 * time.Second
-	settingsPageTimeout  = settingsDialTimeout + 3*settingsReadTimeout + time.Second
+	settingsDialTimeout   = 3 * time.Second
+	settingsReadTimeout   = 5 * time.Second
+	settingsPageTimeout   = settingsDialTimeout + 3*settingsReadTimeout + time.Second
 	settingsActionTimeout = settingsDialTimeout + settingsReadTimeout + time.Second
 )
 
@@ -50,7 +50,7 @@ func (h *Handler) settingsMeshCall(ctx context.Context, moduleID, httpAddr, meth
 	if httpAddr != "" {
 		conn, err := grpc.NewClient(httpAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err == nil {
-			defer conn.Close()
+			defer func() { _ = conn.Close() }()
 			client := meshv1.NewModuleMeshClient(conn)
 			resp, err := client.Call(ctx, &meshv1.CallRequest{
 				TargetModule: moduleID,
@@ -172,7 +172,7 @@ func (h *Handler) SettingsUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := r.ParseForm(); err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">invalid form data</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">invalid form data</div>`))
 		return
 	}
 
@@ -185,7 +185,7 @@ func (h *Handler) SettingsUpdate(w http.ResponseWriter, r *http.Request) {
 	payload, err := json.Marshal(req)
 	if err != nil {
 		slog.Error("settings: marshal update req", "error", err)
-		w.Write([]byte(`<div class="text-xs text-red-400">internal error</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">internal error</div>`))
 		return
 	}
 
@@ -204,7 +204,7 @@ func (h *Handler) SettingsUpdate(w http.ResponseWriter, r *http.Request) {
 	readCancel()
 	if err != nil {
 		slog.Warn("settings: update failed", "module", moduleID, "key", key, "error", err)
-		w.Write([]byte(`<div class="text-xs text-red-400">update failed</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">update failed</div>`))
 		return
 	}
 
@@ -215,5 +215,5 @@ func (h *Handler) SettingsUpdate(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	w.Write([]byte(fmt.Sprintf(`<div class="text-xs text-green-400">%s updated</div>`, key)))
+	_, _ = fmt.Fprintf(w, `<div class="text-xs text-green-400">%s updated</div>`, key)
 }

@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	monitorv1 "github.com/Muxcore-Media/playback-monitor/proto/monitorv1"
 	templates "github.com/Muxcore-Media/admin-ui/templ"
+	monitorv1 "github.com/Muxcore-Media/playback-monitor/proto/monitorv1"
 )
 
 const (
-	streamsLibrariesReads      = 6
+	streamsLibrariesReads       = 6
 	streamsLibrariesPageTimeout = playbackMonitorDialTimeout + streamsLibrariesReads*playbackMonitorReadTimeout + time.Second
 )
 

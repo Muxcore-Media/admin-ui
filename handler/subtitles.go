@@ -19,17 +19,17 @@ import (
 )
 
 const (
-	capMediaSubtitles            = "media.subtitles"
-	subtitlesDialTimeout         = 3 * time.Second
-	subtitlesReadTimeout         = 5 * time.Second
-	subtitlesPageTimeout         = subtitlesDialTimeout + 7*subtitlesReadTimeout + time.Second
-	subtitlesDetailPageTimeout   = subtitlesDialTimeout + 4*subtitlesReadTimeout + subtitlesSearchTimeout + time.Second
-	subtitlesSeriesPageTimeout   = subtitlesDialTimeout + subtitlesReadTimeout + time.Second
-	subtitlesSearchTimeout       = 20 * time.Second
-	subtitlesActionTimeout       = subtitlesDialTimeout + subtitlesReadTimeout + time.Second
-	subtitlesSyncTimeout         = 30 * time.Second
-	subtitlesBatchTimeout        = 60 * time.Second
-	subtitlesTestTimeout         = 15 * time.Second
+	capMediaSubtitles          = "media.subtitles"
+	subtitlesDialTimeout       = 3 * time.Second
+	subtitlesReadTimeout       = 5 * time.Second
+	subtitlesPageTimeout       = subtitlesDialTimeout + 7*subtitlesReadTimeout + time.Second
+	subtitlesDetailPageTimeout = subtitlesDialTimeout + 4*subtitlesReadTimeout + subtitlesSearchTimeout + time.Second
+	subtitlesSeriesPageTimeout = subtitlesDialTimeout + subtitlesReadTimeout + time.Second
+	subtitlesSearchTimeout     = 20 * time.Second
+	subtitlesActionTimeout     = subtitlesDialTimeout + subtitlesReadTimeout + time.Second
+	subtitlesSyncTimeout       = 30 * time.Second
+	subtitlesBatchTimeout      = 60 * time.Second
+	subtitlesTestTimeout       = 15 * time.Second
 )
 
 func (h *Handler) withSubtitlesClient(ctx context.Context) (subtv1.SubtitleServiceClient, func(), error) {
@@ -203,7 +203,7 @@ func (h *Handler) SubtitlesPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) renderSubtitles(w http.ResponseWriter, r *http.Request, data templates.SubtitlesPageData) {
-	templates.Layout("Subtitles", h.nav(r.URL.Path), templates.SubtitlesPage(data)).Render(r.Context(), w)
+	_ = templates.Layout("Subtitles", h.nav(r.URL.Path), templates.SubtitlesPage(data)).Render(r.Context(), w)
 }
 
 func (h *Handler) SubtitlesSync(w http.ResponseWriter, r *http.Request) {
@@ -498,7 +498,7 @@ func (h *Handler) SubtitlesMediaDetail(w http.ResponseWriter, r *http.Request) {
 	dialCancel()
 	if err != nil {
 		data.Error = err.Error()
-		templates.Layout("Subtitles", h.nav("/subtitles"), templates.SubtitlesMediaDetailPage(data)).Render(r.Context(), w)
+		_ = templates.Layout("Subtitles", h.nav("/subtitles"), templates.SubtitlesMediaDetailPage(data)).Render(r.Context(), w)
 		return
 	}
 	defer closer()
@@ -508,7 +508,7 @@ func (h *Handler) SubtitlesMediaDetail(w http.ResponseWriter, r *http.Request) {
 	readCancel()
 	if err != nil {
 		data.Error = err.Error()
-		templates.Layout("Subtitles", h.nav("/subtitles"), templates.SubtitlesMediaDetailPage(data)).Render(r.Context(), w)
+		_ = templates.Layout("Subtitles", h.nav("/subtitles"), templates.SubtitlesMediaDetailPage(data)).Render(r.Context(), w)
 		return
 	}
 	it := media.GetItem()
@@ -559,10 +559,6 @@ func (h *Handler) SubtitlesMediaDetail(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if it.GetSeriesId() != "" && it.GetMediaType() == "episode" {
-		// no-op; series list is on series page
-	}
-
 	doSearch := r.URL.Query().Get("q") != ""
 	if doSearch {
 		query := it.GetTitle()
@@ -591,7 +587,7 @@ func (h *Handler) SubtitlesMediaDetail(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	templates.Layout(it.GetTitle(), h.nav("/subtitles"), templates.SubtitlesMediaDetailPage(data)).Render(r.Context(), w)
+	_ = templates.Layout(it.GetTitle(), h.nav("/subtitles"), templates.SubtitlesMediaDetailPage(data)).Render(r.Context(), w)
 }
 
 func (h *Handler) SubtitlesSeriesDetail(w http.ResponseWriter, r *http.Request) {
@@ -608,7 +604,7 @@ func (h *Handler) SubtitlesSeriesDetail(w http.ResponseWriter, r *http.Request) 
 	dialCancel()
 	if err != nil {
 		data.Error = err.Error()
-		templates.Layout("Series", h.nav("/subtitles"), templates.SubtitlesMediaDetailPage(data)).Render(r.Context(), w)
+		_ = templates.Layout("Series", h.nav("/subtitles"), templates.SubtitlesMediaDetailPage(data)).Render(r.Context(), w)
 		return
 	}
 	defer closer()
@@ -631,7 +627,7 @@ func (h *Handler) SubtitlesSeriesDetail(w http.ResponseWriter, r *http.Request) 
 			})
 		}
 	}
-	templates.Layout(data.Item.Title, h.nav("/subtitles"), templates.SubtitlesMediaDetailPage(data)).Render(r.Context(), w)
+	_ = templates.Layout(data.Item.Title, h.nav("/subtitles"), templates.SubtitlesMediaDetailPage(data)).Render(r.Context(), w)
 }
 
 func (h *Handler) SubtitlesMediaSearchWanted(w http.ResponseWriter, r *http.Request) {

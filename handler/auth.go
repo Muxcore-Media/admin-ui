@@ -152,7 +152,7 @@ func (h *Handler) AuthCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, msg, http.StatusServiceUnavailable)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		http.Error(w, "code exchange failed", http.StatusUnauthorized)
@@ -262,5 +262,5 @@ func (h *Handler) AuthStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
+	_ = json.NewEncoder(w).Encode(status)
 }

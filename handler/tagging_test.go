@@ -88,7 +88,7 @@ func TestTaggingPageListsViaMesh(t *testing.T) {
 	}
 	tagSrv := grpc.NewServer()
 	meshv1.RegisterModuleMeshServer(tagSrv, stub)
-	go tagSrv.Serve(tagLis)
+	go func() { _ = tagSrv.Serve(tagLis) }()
 	t.Cleanup(func() {
 		tagSrv.Stop()
 		_ = tagLis.Close()
@@ -101,13 +101,13 @@ func TestTaggingPageListsViaMesh(t *testing.T) {
 	discSrv := grpc.NewServer()
 	discoveryv1.RegisterDiscoveryServiceServer(discSrv, fixedDiscovery{
 		mod: &discoveryv1.ModuleInfoProto{
-			Id:       "media-tagging",
-			Name:     "Content Tagging",
-			HttpAddr: tagLis.Addr().String(),
+			Id:           "media-tagging",
+			Name:         "Content Tagging",
+			HttpAddr:     tagLis.Addr().String(),
 			Capabilities: []string{"media.tagging"},
 		},
 	})
-	go discSrv.Serve(discLis)
+	go func() { _ = discSrv.Serve(discLis) }()
 	t.Cleanup(func() {
 		discSrv.Stop()
 		_ = discLis.Close()

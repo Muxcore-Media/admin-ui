@@ -168,7 +168,7 @@ func (h *Handler) MediaCollectionDetail(w http.ResponseWriter, r *http.Request) 
 	if id, err := strconv.Atoi(collectionID); err == nil && id > 0 {
 		if addr, err := h.mediaModuleAddr(r.Context(), moduleID); err == nil {
 			if conn, movieClient, err := h.dialMovieModule(addr); err == nil {
-				defer conn.Close()
+				defer func() { _ = conn.Close() }()
 				if prefs, err := movieClient.GetCollectionPrefs(r.Context(), &mgmntv1.GetCollectionPrefsRequest{CollectionId: int32(id)}); err == nil {
 					monitored = prefs.GetMonitored()
 				}
@@ -200,7 +200,7 @@ func (h *Handler) MediaCollectionMonitor(w http.ResponseWriter, r *http.Request)
 		http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	if _, err := client.SetCollectionMonitored(r.Context(), &mgmntv1.SetCollectionMonitoredRequest{
 		CollectionId: int32(id), Monitored: monitored, SearchOnAdd: true,
 	}); err != nil {
@@ -230,7 +230,7 @@ func (h *Handler) MediaCollectionSync(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	resp, err := client.SyncCollection(r.Context(), &mgmntv1.SyncCollectionRequest{
 		CollectionId: int32(id), AddMissing: r.FormValue("add_missing") != "0",
 	})

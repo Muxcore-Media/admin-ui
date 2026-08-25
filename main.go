@@ -32,14 +32,14 @@ var staticAssets embed.FS
 var version = "0.0.0-dev"
 
 type Config struct {
-	Addr              string
-	CoreAddr          string
-	Insecure          bool
-	TLSCert           string
-	TLSKey            string
-	SessionTTL        time.Duration
-	LogLevel          string
-	LogFormat         string
+	Addr             string
+	CoreAddr         string
+	Insecure         bool
+	TLSCert          string
+	TLSKey           string
+	SessionTTL       time.Duration
+	LogLevel         string
+	LogFormat        string
 	AuthAddr         string
 	AuthInternalAddr string
 	PublicURL        string
@@ -174,12 +174,12 @@ func main() {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(code)
-		fmt.Fprintf(w, `{"status":"%s","version":"%s"}`, status, version)
+		_, _ = fmt.Fprintf(w, `{"status":"%s","version":"%s"}`, status, version)
 	})
 
 	mux.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"version":"%s"}`, version)
+		_, _ = fmt.Fprintf(w, `{"version":"%s"}`, version)
 	})
 
 	mux.Handle("GET /metrics", http.HandlerFunc(met.serve))
@@ -188,7 +188,7 @@ func main() {
 
 	mux.HandleFunc("GET /no-auth", func(w http.ResponseWriter, r *http.Request) {
 		component := templates.ErrorLayout("No Auth Provider", templates.NoAuthPage())
-		component.Render(r.Context(), w)
+		_ = component.Render(r.Context(), w)
 	})
 
 	go func() {
@@ -235,7 +235,7 @@ func main() {
 	}
 
 	if coreClient != nil {
-		coreClient.Close()
+		_ = coreClient.Close()
 	}
 }
 
@@ -307,7 +307,7 @@ func (w *loggingResponseWriter) Unwrap() http.ResponseWriter {
 }
 
 func withMiddleware(next http.Handler, csrfKey string, loginRL *rateLimiter, trustedProxies []net.IPNet) http.Handler {
-	var inner http.Handler = next
+	inner := next
 
 	inner = recoveryMiddleware(inner)
 	inner = requestLoggingMiddleware(inner)

@@ -110,7 +110,7 @@ func (h *httpSpoolAPI) DeployTag(ctx context.Context, spoolURL, tagName string) 
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("api-rest deploy: %s", strings.TrimSpace(string(body)))
@@ -131,7 +131,7 @@ func (h *httpSpoolAPI) get(ctx context.Context, path string, dest any) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 300 {
 		b, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("api-rest %s: %s", path, strings.TrimSpace(string(b)))
@@ -257,11 +257,11 @@ func (h *Handler) MarketplaceDeploy(w http.ResponseWriter, r *http.Request) {
 		actor = sess.UserID
 	}
 	h.auditLog(r.Context(), actor, "marketplace.deploy", "spool", tagName, map[string]string{
-		"spool_url":           spoolURL,
-		"tag":                 tagName,
-		"checksum_verified":   "true",
-		"spawned":             fmt.Sprintf("%d", resp.GetSpawned()),
-		"failed":              fmt.Sprintf("%d", resp.GetFailed()),
+		"spool_url":         spoolURL,
+		"tag":               tagName,
+		"checksum_verified": "true",
+		"spawned":           fmt.Sprintf("%d", resp.GetSpawned()),
+		"failed":            fmt.Sprintf("%d", resp.GetFailed()),
 	})
 	http.Redirect(w, r, "/marketplace?deployed="+url.QueryEscape(msg), http.StatusSeeOther)
 }

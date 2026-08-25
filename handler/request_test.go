@@ -113,4 +113,3 @@ func TestRequestPageFixtureData(t *testing.T) {
 		t.Fatal("expected request history section")
 	}
 }
-

@@ -84,7 +84,7 @@ func TestMusicPageListsViaMesh(t *testing.T) {
 			{"id": "ar_fix", "name": "Fixture Artist", "monitored": true, "path": "/lib/Fixture Artist"},
 		},
 	})
-	go musicSrv.Serve(musicLis)
+	go func() { _ = musicSrv.Serve(musicLis) }()
 	t.Cleanup(func() {
 		musicSrv.Stop()
 		_ = musicLis.Close()
@@ -102,7 +102,7 @@ func TestMusicPageListsViaMesh(t *testing.T) {
 			HttpAddr: musicLis.Addr().String(),
 		},
 	})
-	go discSrv.Serve(discLis)
+	go func() { _ = discSrv.Serve(discLis) }()
 	t.Cleanup(func() {
 		discSrv.Stop()
 		_ = discLis.Close()

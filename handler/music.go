@@ -80,7 +80,7 @@ func (h *Handler) musicMeshCall(ctx context.Context, moduleID, httpAddr, method 
 	if httpAddr != "" {
 		conn, err := grpc.NewClient(httpAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err == nil {
-			defer conn.Close()
+			defer func() { _ = conn.Close() }()
 			client := meshv1.NewModuleMeshClient(conn)
 			resp, err := client.Call(ctx, &meshv1.CallRequest{
 				TargetModule: moduleID,
@@ -148,7 +148,7 @@ func (h *Handler) musicFetchArtists(ctx context.Context, moduleID, grpcAddr, que
 	if httpErr != nil {
 		return nil, fmt.Errorf("mesh: %v; http: %w", err, httpErr)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("mesh: %v; http status %d", err, resp.StatusCode)
@@ -176,7 +176,7 @@ func (h *Handler) musicFetchArtist(ctx context.Context, moduleID, grpcAddr, id s
 	if httpErr != nil {
 		return templates.MusicArtistRow{}, nil, fmt.Errorf("mesh: %v; http: %w", err, httpErr)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return templates.MusicArtistRow{}, nil, fmt.Errorf("mesh: %v; http status %d", err, resp.StatusCode)

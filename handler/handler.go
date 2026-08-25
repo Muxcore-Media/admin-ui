@@ -497,7 +497,7 @@ func (h *Handler) checkAuthorized(ctx context.Context, sess *session.Session) er
 	if err != nil {
 		return fmt.Errorf("dial authorizer %s: %w", addr, err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	ac := authv1.NewAuthServiceClient(conn)
 	cresp, err := ac.Can(ctx, &authv1.CanRequest{

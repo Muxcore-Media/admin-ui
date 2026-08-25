@@ -93,11 +93,11 @@ func TestCount(t *testing.T) {
 	if s.Count() != 0 {
 		t.Fatalf("expected 0, got %d", s.Count())
 	}
-	s.Create("user1", "testuser", nil, nil)
+	_, _ = s.Create("user1", "testuser", nil, nil)
 	if s.Count() != 1 {
 		t.Fatalf("expected 1, got %d", s.Count())
 	}
-	s.Create("user2", "testuser2", nil, nil)
+	_, _ = s.Create("user2", "testuser2", nil, nil)
 	if s.Count() != 2 {
 		t.Fatalf("expected 2, got %d", s.Count())
 	}

@@ -23,17 +23,17 @@ import (
 )
 
 const (
-	capBackup            = "backup"
-	capScheduler         = "scheduler"
-	backupDialTimeout    = 3 * time.Second
-	backupReadTimeout    = 5 * time.Second
+	capBackup             = "backup"
+	capScheduler          = "scheduler"
+	backupDialTimeout     = 3 * time.Second
+	backupReadTimeout     = 5 * time.Second
 	backupListPageTimeout = backupDialTimeout + backupReadTimeout + time.Second
-	backupActionTimeout  = backupDialTimeout + backupReadTimeout + time.Second
-	schedulerDialTimeout = 3 * time.Second
-	schedulerReadTimeout = 5 * time.Second
-	schedulerPageTimeout = schedulerDialTimeout + schedulerReadTimeout + time.Second
-	metadataDialTimeout  = 3 * time.Second
-	metadataPageTimeout  = metadataDialTimeout + time.Second
+	backupActionTimeout   = backupDialTimeout + backupReadTimeout + time.Second
+	schedulerDialTimeout  = 3 * time.Second
+	schedulerReadTimeout  = 5 * time.Second
+	schedulerPageTimeout  = schedulerDialTimeout + schedulerReadTimeout + time.Second
+	metadataDialTimeout   = 3 * time.Second
+	metadataPageTimeout   = metadataDialTimeout + time.Second
 	moduleListDialTimeout = 3 * time.Second
 	moduleListReadTimeout = 5 * time.Second
 	moduleListPageTimeout = moduleListDialTimeout + moduleListReadTimeout + time.Second
@@ -71,7 +71,7 @@ func (h *Handler) APIKeysRevoke(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	_, _ = client.DeleteAPIToken(r.Context(), &authv1.DeleteAPITokenRequest{TokenId: tokenID})
 	if sess := SessionFromContext(r.Context()); sess != nil {
 		h.auditLog(r.Context(), sess.UserID, "admin.apikey.revoke", "token", tokenID, map[string]string{"user_id": userID})
@@ -86,7 +86,7 @@ func (h *Handler) collectAPIKeys(ctx context.Context) ([]templates.APIKeyRow, st
 	if err != nil {
 		return nil, "auth unavailable: " + err.Error()
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	readCtx, readCancel := context.WithTimeout(ctx, usersReadTimeout)
 	users, err := client.ListUsers(readCtx, &authv1.ListUsersRequest{})
 	readCancel()
@@ -157,7 +157,7 @@ func (h *Handler) listBackupRows(ctx context.Context) ([]templates.BackupRow, st
 	if err != nil {
 		return nil, err.Error()
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	readCtx, readCancel := context.WithTimeout(ctx, backupReadTimeout)
 	resp, err := client.ListBackups(readCtx, &backupv1.ListBackupsRequest{})
 	readCancel()
@@ -198,7 +198,7 @@ func (h *Handler) BackupsCreate(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/backups?ok="+urlQuery(err.Error()), http.StatusSeeOther)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	sourcePaths := h.libraryBackupSourcePaths(pageCtx)
 	readCtx, readCancel := context.WithTimeout(pageCtx, backupReadTimeout)
 	resp, err := client.CreateBackup(readCtx, &backupv1.CreateBackupRequest{SourcePaths: sourcePaths})
@@ -254,7 +254,7 @@ func (h *Handler) BackupsDelete(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/backups?ok="+urlQuery(err.Error()), http.StatusSeeOther)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	readCtx, readCancel := context.WithTimeout(pageCtx, backupReadTimeout)
 	_, err = client.DeleteBackup(readCtx, &backupv1.DeleteBackupRequest{BackupId: id})
 	readCancel()
@@ -278,7 +278,7 @@ func (h *Handler) BackupsRestore(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/backups?ok="+urlQuery(err.Error()), http.StatusSeeOther)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	readCtx, readCancel := context.WithTimeout(pageCtx, backupReadTimeout)
 	resp, err := client.RestoreBackup(readCtx, &backupv1.RestoreBackupRequest{BackupId: id, TargetPath: target})
 	readCancel()
@@ -344,7 +344,7 @@ func (h *Handler) listTaskRows(ctx context.Context) ([]templates.TaskRow, string
 	if err != nil {
 		return nil, err.Error()
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 300 {
 		return nil, fmt.Sprintf("scheduler /list: %s", strings.TrimSpace(string(body)))
@@ -388,7 +388,7 @@ func (h *Handler) TasksCancel(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		msg = err.Error()
 	} else {
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		if resp.StatusCode >= 300 {
 			b, _ := io.ReadAll(resp.Body)
 			msg = strings.TrimSpace(string(b))
@@ -710,11 +710,11 @@ func savePlayback(p playbackFile) error {
 }
 
 const (
-	capTranscoder        = "transcoder"
-	capMediaTranscode    = "media.transcoder"
-	playbackDialTimeout  = 3 * time.Second
-	playbackReadTimeout  = 5 * time.Second
-	playbackPageTimeout  = playbackDialTimeout + playbackReadTimeout + time.Second
+	capTranscoder         = "transcoder"
+	capMediaTranscode     = "media.transcoder"
+	playbackDialTimeout   = 3 * time.Second
+	playbackReadTimeout   = 5 * time.Second
+	playbackPageTimeout   = playbackDialTimeout + playbackReadTimeout + time.Second
 	playbackActionTimeout = playbackDialTimeout + playbackReadTimeout + time.Second
 )
 

@@ -98,7 +98,7 @@ func (h *Handler) MediaLibraryList(w http.ResponseWriter, r *http.Request) {
 		h.render(w, r, component)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	if page < 1 {
@@ -164,7 +164,7 @@ func (h *Handler) MediaLibraryItem(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/media/"+moduleID, http.StatusSeeOther)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	info, _ := client.GetMediaTypeInfo(ctx, &mediaadminv1.GetMediaTypeInfoRequest{})
 	displayName := moduleID
@@ -266,7 +266,7 @@ func (h *Handler) MediaItemDispatch(w http.ResponseWriter, r *http.Request) {
 			redirectErr(err.Error())
 			return
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		info, _ := client.GetMediaTypeInfo(ctx, &mediaadminv1.GetMediaTypeInfoRequest{})
 		displayName := moduleID
@@ -325,22 +325,22 @@ func (h *Handler) MediaLibraryUpdate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	if err := r.ParseForm(); err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">invalid form data</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">invalid form data</div>`))
 		return
 	}
 
 	addr, err := h.mediaModuleAddr(ctx, moduleID)
 	if err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">module unavailable</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">module unavailable</div>`))
 		return
 	}
 
 	conn, client, err := h.dialMediaModule(addr)
 	if err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">connection failed</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">connection failed</div>`))
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	metadata := make(map[string]string)
 	for k := range r.Form {
@@ -361,7 +361,7 @@ func (h *Handler) MediaLibraryUpdate(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		slog.Warn("media: UpdateMetadata failed", "module", moduleID, "id", itemID, "error", err)
-		w.Write([]byte(`<div class="text-xs text-red-400">update failed</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">update failed</div>`))
 		return
 	}
 
@@ -372,7 +372,7 @@ func (h *Handler) MediaLibraryUpdate(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	w.Write([]byte(`<div class="text-xs text-green-400">saved</div>`))
+	_, _ = w.Write([]byte(`<div class="text-xs text-green-400">saved</div>`))
 }
 
 func (h *Handler) MediaLibraryArtwork(w http.ResponseWriter, r *http.Request) {
@@ -382,21 +382,21 @@ func (h *Handler) MediaLibraryArtwork(w http.ResponseWriter, r *http.Request) {
 
 	addr, err := h.mediaModuleAddr(ctx, moduleID)
 	if err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">module unavailable</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">module unavailable</div>`))
 		return
 	}
 
 	conn, client, err := h.dialMediaModule(addr)
 	if err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">connection failed</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">connection failed</div>`))
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	resp, err := client.ListArtwork(ctx, &mediaadminv1.ListArtworkRequest{Id: itemID})
 	if err != nil {
 		slog.Warn("media: ListArtwork failed", "module", moduleID, "id", itemID, "error", err)
-		w.Write([]byte(`<div class="text-xs text-red-400">failed to load artwork</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">failed to load artwork</div>`))
 		return
 	}
 

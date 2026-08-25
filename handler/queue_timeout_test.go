@@ -29,7 +29,7 @@ func TestUnifiedQueuePageFailsFastOnBlockedDiscovery(t *testing.T) {
 	}
 	srv := grpc.NewServer()
 	discoveryv1.RegisterDiscoveryServiceServer(srv, blockingDiscovery{})
-	go srv.Serve(lis)
+	go func() { _ = srv.Serve(lis) }()
 	t.Cleanup(func() {
 		srv.Stop()
 		_ = lis.Close()

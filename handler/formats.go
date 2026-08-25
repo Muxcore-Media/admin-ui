@@ -18,10 +18,10 @@ import (
 )
 
 const (
-	capMediaFormats     = "media.formats"
-	formatsDialTimeout  = 3 * time.Second
-	formatsReadTimeout  = 5 * time.Second
-	formatsPageTimeout  = formatsDialTimeout + formatsReadTimeout + time.Second
+	capMediaFormats    = "media.formats"
+	formatsDialTimeout = 3 * time.Second
+	formatsReadTimeout = 5 * time.Second
+	formatsPageTimeout = formatsDialTimeout + formatsReadTimeout + time.Second
 )
 
 func (h *Handler) formatsModuleAddr(ctx context.Context) (string, error) {
@@ -341,9 +341,9 @@ func (h *Handler) FormatsSyncTrash(w http.ResponseWriter, r *http.Request) {
 	defer closer()
 
 	resp, syncErr := client.SyncTrashGuides(r.Context(), &formatsv1.SyncTrashGuidesRequest{
-		ScoreSet:        scoreSet,
-		ImportProfiles:  importProfiles,
-		Services:        services,
+		ScoreSet:       scoreSet,
+		ImportProfiles: importProfiles,
+		Services:       services,
 	})
 	if syncErr != nil {
 		data.SyncResult = &templates.TrashSyncResult{Error: syncErr.Error()}

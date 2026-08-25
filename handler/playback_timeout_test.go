@@ -52,7 +52,7 @@ func TestPlaybackAdminPageFailsFastOnBlockedDiscovery(t *testing.T) {
 	}
 	srv := grpc.NewServer()
 	discoveryv1.RegisterDiscoveryServiceServer(srv, playbackBlockingDiscovery{})
-	go srv.Serve(lis)
+	go func() { _ = srv.Serve(lis) }()
 	t.Cleanup(func() {
 		srv.Stop()
 		_ = lis.Close()
@@ -105,7 +105,7 @@ func TestPlaybackAdminSaveFailsFastOnBlockedDiscovery(t *testing.T) {
 	}
 	srv := grpc.NewServer()
 	discoveryv1.RegisterDiscoveryServiceServer(srv, playbackBlockingDiscovery{})
-	go srv.Serve(lis)
+	go func() { _ = srv.Serve(lis) }()
 	t.Cleanup(func() {
 		srv.Stop()
 		_ = lis.Close()
