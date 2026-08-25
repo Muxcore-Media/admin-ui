@@ -82,37 +82,38 @@ templ ListSyncPage(data ListSyncPageData) {
 				<h1 class="text-2xl font-bold">List Sync</h1>
 				<p class="text-gray-400 text-sm mt-1">Keep your library in sync with watchlists and shared lists from online sources.</p>
 			</div>
-			<div class="flex flex-wrap gap-2">
+			<div class="flex flex-wrap gap-2" role="toolbar" aria-label="List sync actions">
 				<a href="/list-sync/items" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Items</a>
 				<a href="/list-sync/history" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">History</a>
 				<form method="POST" action="/list-sync/sync">
-					<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500" data-testid="list-sync-now">
+					<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500" data-testid="list-sync-now" aria-label="Sync all list sources">
 						Sync all
 					</button>
 				</form>
 			</div>
 		</div>
 		if data.Flash != "" {
-			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300" data-testid="list-sync-flash">{ data.Flash }</div>
+			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300" data-testid="list-sync-flash" role="status">{ data.Flash }</div>
 		}
 		if data.Error != "" {
-			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ data.Error }</div>
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" role="alert">{ data.Error }</div>
 		}
-		<div>
-			<h2 class="text-lg font-semibold mb-3">Sources</h2>
+		<section aria-labelledby="list-sync-sources-heading">
+			<h2 id="list-sync-sources-heading" class="text-lg font-semibold mb-3">Sources</h2>
 			if len(data.Sources) == 0 {
-				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">No sources configured.</div>
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500" role="status">No sources configured.</div>
 			} else {
 				<div class="overflow-x-auto rounded-xl border border-gray-800">
 					<table class="min-w-full divide-y divide-gray-800 text-sm">
+						<caption class="sr-only">List sync sources</caption>
 						<thead class="bg-gray-900/50">
 							<tr>
-								<th class="px-4 py-2 text-left text-xs text-gray-500">Name</th>
-								<th class="px-4 py-2 text-left text-xs text-gray-500">Type</th>
-								<th class="px-4 py-2 text-left text-xs text-gray-500">Enabled</th>
-								<th class="px-4 py-2 text-left text-xs text-gray-500">Interval</th>
-								<th class="px-4 py-2 text-left text-xs text-gray-500">Last synced</th>
-								<th class="px-4 py-2 text-left text-xs text-gray-500"></th>
+								<th scope="col" class="px-4 py-2 text-left text-xs text-gray-500">Name</th>
+								<th scope="col" class="px-4 py-2 text-left text-xs text-gray-500">Type</th>
+								<th scope="col" class="px-4 py-2 text-left text-xs text-gray-500">Enabled</th>
+								<th scope="col" class="px-4 py-2 text-left text-xs text-gray-500">Interval</th>
+								<th scope="col" class="px-4 py-2 text-left text-xs text-gray-500">Last synced</th>
+								<th scope="col" class="px-4 py-2 text-left text-xs text-gray-500"><span class="sr-only">Actions</span></th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-gray-800">
@@ -144,19 +145,19 @@ templ ListSyncPage(data ListSyncPageData) {
 									</td>
 									<td class="px-4 py-2 text-right whitespace-nowrap">
 										<div class="flex justify-end gap-2 items-center">
-											<a href={ templ.SafeURL(fmt.Sprintf("/list-sync/sources/%s/edit", s.ID)) } class="text-xs text-indigo-400 hover:text-indigo-300">Edit</a>
+											<a href={ templ.SafeURL(fmt.Sprintf("/list-sync/sources/%s/edit", s.ID)) } class="text-xs text-indigo-400 hover:text-indigo-300" aria-label={ fmt.Sprintf("Edit source %s", s.Name) }>Edit</a>
 											<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/list-sync/sources/%s/toggle", s.ID)) }>
 												if s.Enabled {
-													<button type="submit" class="text-xs text-gray-400 hover:text-gray-300">Disable</button>
+													<button type="submit" class="text-xs text-gray-400 hover:text-gray-300" aria-label={ fmt.Sprintf("Disable source %s", s.Name) }>Disable</button>
 												} else {
-													<button type="submit" class="text-xs text-green-400 hover:text-green-300">Enable</button>
+													<button type="submit" class="text-xs text-green-400 hover:text-green-300" aria-label={ fmt.Sprintf("Enable source %s", s.Name) }>Enable</button>
 												}
 											</form>
 											<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/list-sync/sources/%s/sync", s.ID)) }>
-												<button type="submit" class="text-xs text-indigo-400 hover:text-indigo-300">Sync</button>
+												<button type="submit" class="text-xs text-indigo-400 hover:text-indigo-300" aria-label={ fmt.Sprintf("Sync source %s", s.Name) }>Sync</button>
 											</form>
 											<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/list-sync/sources/%s/delete", s.ID)) }>
-												<button type="submit" class="text-xs text-red-400 hover:text-red-300">Remove</button>
+												<button type="submit" class="text-xs text-red-400 hover:text-red-300" aria-label={ fmt.Sprintf("Remove source %s", s.Name) }>Remove</button>
 											</form>
 										</div>
 									</td>
@@ -166,11 +167,11 @@ templ ListSyncPage(data ListSyncPageData) {
 					</table>
 				</div>
 			}
-		</div>
-		<div class="max-w-xl">
-			<h2 class="text-lg font-semibold mb-3">Add source</h2>
+		</section>
+		<section class="max-w-xl" aria-labelledby="list-sync-add-heading">
+			<h2 id="list-sync-add-heading" class="text-lg font-semibold mb-3">Add source</h2>
 			@listSyncSourceForm("/list-sync/sources", "", ListSyncSourceRow{IntervalMin: 60, SearchOnAdd: true}, false, "", data.Profiles, data.Roots)
-		</div>
+		</section>
 	</div>
 }
 
@@ -182,14 +183,14 @@ templ listSyncSourceForm(action, method string, s ListSyncSourceRow, showEnabled
 			submitLabel = "Add source"
 		}
 	}
-	<form method="POST" action={ templ.SafeURL(action) } class="space-y-3 rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+	<form method="POST" action={ templ.SafeURL(action) } class="space-y-3 rounded-xl border border-gray-800 bg-gray-900/50 p-4" aria-label={ submitLabel }>
 		if method == "PUT" {
 			<input type="hidden" name="_method" value="PUT"/>
 		}
 		<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 			<div>
-				<label class="block text-xs text-gray-500 mb-1">Name</label>
-				<input type="text" name="name" required value={ s.Name } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				<label for="list-sync-name" class="block text-xs text-gray-500 mb-1">Name</label>
+				<input id="list-sync-name" type="text" name="name" required value={ s.Name } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
 			</div>
 			if showEnabled {
 				<div class="flex items-end pb-2">
@@ -201,8 +202,8 @@ templ listSyncSourceForm(action, method string, s ListSyncSourceRow, showEnabled
 				</div>
 			} else {
 				<div>
-					<label class="block text-xs text-gray-500 mb-1">Type</label>
-					<select name="type" required class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+					<label for="list-sync-type" class="block text-xs text-gray-500 mb-1">Type</label>
+					<select id="list-sync-type" name="type" required class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
 						<option value="trakt" selected?={ s.Type == "trakt" }>trakt (watchlist)</option>
 						<option value="trakt_list" selected?={ s.Type == "trakt_list" }>trakt_list (custom list)</option>
 						<option value="imdb" selected?={ s.Type == "imdb" }>imdb</option>
@@ -221,28 +222,28 @@ templ listSyncSourceForm(action, method string, s ListSyncSourceRow, showEnabled
 				</div>
 			}
 			<div>
-				<label class="block text-xs text-gray-500 mb-1">Username</label>
-				<input type="text" name="username" value={ s.Username } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				<label for="list-sync-username" class="block text-xs text-gray-500 mb-1">Username</label>
+				<input id="list-sync-username" type="text" name="username" value={ s.Username } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
 			</div>
 			<div>
-				<label class="block text-xs text-gray-500 mb-1">Client ID</label>
-				<input type="text" name="client_id" value={ s.ClientID } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				<label for="list-sync-client-id" class="block text-xs text-gray-500 mb-1">Client ID</label>
+				<input id="list-sync-client-id" type="text" name="client_id" value={ s.ClientID } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
 			</div>
 			<div class="sm:col-span-2">
-				<label class="block text-xs text-gray-500 mb-1">List URL / playlist id / TMDB preset / Watcharr filter</label>
-				<input type="text" name="list_url" value={ s.ListURL } placeholder="e.g. status:PLANNED, tag:3, public:1/alice" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				<label for="list-sync-list-url" class="block text-xs text-gray-500 mb-1">List URL / playlist id / TMDB preset / Watcharr filter</label>
+				<input id="list-sync-list-url" type="text" name="list_url" value={ s.ListURL } placeholder="e.g. status:PLANNED, tag:3, public:1/alice" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
 			</div>
 			<div>
-				<label class="block text-xs text-gray-500 mb-1">Base URL</label>
-				<input type="text" name="base_url" value={ s.BaseURL } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				<label for="list-sync-base-url" class="block text-xs text-gray-500 mb-1">Base URL</label>
+				<input id="list-sync-base-url" type="text" name="base_url" value={ s.BaseURL } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
 			</div>
 			<div>
-				<label class="block text-xs text-gray-500 mb-1">API key / token</label>
-				<input type="password" name="api_key" placeholder="leave blank to keep existing" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				<label for="list-sync-api-key" class="block text-xs text-gray-500 mb-1">API key / token</label>
+				<input id="list-sync-api-key" type="password" name="api_key" placeholder="leave blank to keep existing" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
 			</div>
 			<div>
-				<label class="block text-xs text-gray-500 mb-1">Sync interval (minutes)</label>
-				<input type="number" name="sync_interval_minutes" value={ fmt.Sprintf("%d", s.IntervalMin) } min="1" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				<label for="list-sync-interval" class="block text-xs text-gray-500 mb-1">Sync interval (minutes)</label>
+				<input id="list-sync-interval" type="number" name="sync_interval_minutes" value={ fmt.Sprintf("%d", s.IntervalMin) } min="1" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
 			</div>
 			if len(profiles) > 0 {
 				<div>

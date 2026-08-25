@@ -12,27 +12,29 @@ templ MediaMissingPage(displayName string, moduleID string, features []string, i
 		@MediaSubnav(moduleID, displayName, features, "missing")
 		<div>
 			<h1 class="text-2xl font-bold">Missing</h1>
-			<p class="text-gray-400 text-sm mt-1">{ strconv.Itoa(total) } items</p>
+			<p class="text-gray-400 text-sm mt-1" aria-live="polite">{ strconv.Itoa(total) } items</p>
 		</div>
 		if len(items) == 0 {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center" role="status">
 				<p class="text-gray-400">Nothing missing.</p>
 			</div>
 		} else {
-			<div class="rounded-xl border border-gray-800 overflow-hidden">
+			<section class="rounded-xl border border-gray-800 overflow-hidden" aria-labelledby="media-missing-heading">
+				<h2 id="media-missing-heading" class="sr-only">Missing items</h2>
 				<table class="w-full text-sm">
+					<caption class="sr-only">Missing library items</caption>
 					<thead class="bg-gray-900/80 text-gray-400 text-left">
 						<tr>
-							<th class="px-4 py-2 font-medium">Title</th>
-							<th class="px-4 py-2 font-medium">Year</th>
-							<th class="px-4 py-2 font-medium">Details</th>
+							<th scope="col" class="px-4 py-2 font-medium">Title</th>
+							<th scope="col" class="px-4 py-2 font-medium">Year</th>
+							<th scope="col" class="px-4 py-2 font-medium">Details</th>
 						</tr>
 					</thead>
 					<tbody>
 						for _, it := range items {
 							<tr class="border-t border-gray-800 hover:bg-gray-900/40">
 								<td class="px-4 py-2">
-									<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s", moduleID, it.GetParentId())) } class="text-indigo-400 hover:text-indigo-300">
+									<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s", moduleID, it.GetParentId())) } class="text-indigo-400 hover:text-indigo-300" aria-label={ fmt.Sprintf("Open %s", it.GetTitle()) }>
 										{ it.GetTitle() }
 									</a>
 								</td>
@@ -51,17 +53,17 @@ templ MediaMissingPage(displayName string, moduleID string, features []string, i
 						}
 					</tbody>
 				</table>
-			</div>
+			</section>
 			if total > pageSize {
-				<div class="flex items-center justify-center gap-2">
+				<nav class="flex items-center justify-center gap-2" aria-label="Missing items pagination">
 					if page > 1 {
-						<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/missing?page=%d", moduleID, page-1)) } class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800">Prev</a>
+						<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/missing?page=%d", moduleID, page-1)) } class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800" aria-label="Previous page">Prev</a>
 					}
-					<span class="text-sm text-gray-500">Page { strconv.Itoa(page) }</span>
+					<span class="text-sm text-gray-500" aria-current="page">Page { strconv.Itoa(page) }</span>
 					if page*pageSize < total {
-						<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/missing?page=%d", moduleID, page+1)) } class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800">Next</a>
+						<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/missing?page=%d", moduleID, page+1)) } class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800" aria-label="Next page">Next</a>
 					}
-				</div>
+				</nav>
 			}
 		}
 	</div>
@@ -73,37 +75,45 @@ templ MediaTagsPage(displayName string, moduleID string, features []string, tags
 		<div>
 			<h1 class="text-2xl font-bold">Tags</h1>
 		</div>
-		<form method="post" action={ templ.SafeURL(fmt.Sprintf("/media/%s/tags", moduleID)) } class="flex gap-2">
-			<input type="hidden" name="action" value="create"/>
-			<input
-				type="text"
-				name="label"
-				placeholder="New tag label"
-				required
-				class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
-			/>
-			<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Create</button>
-		</form>
+		<section aria-labelledby="media-tags-create-heading">
+			<h2 id="media-tags-create-heading" class="sr-only">Create tag</h2>
+			<form method="post" action={ templ.SafeURL(fmt.Sprintf("/media/%s/tags", moduleID)) } class="flex gap-2" aria-label="Create tag">
+				<input type="hidden" name="action" value="create"/>
+				<label for="media-tag-label" class="sr-only">New tag label</label>
+				<input
+					id="media-tag-label"
+					type="text"
+					name="label"
+					placeholder="New tag label"
+					required
+					class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+				/>
+				<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Create</button>
+			</form>
+		</section>
 		if len(tags) == 0 {
-			<p class="text-gray-400 text-sm">No tags yet.</p>
+			<p class="text-gray-400 text-sm" role="status">No tags yet.</p>
 		} else {
-			<ul class="space-y-2">
-				for _, t := range tags {
-					<li class="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3">
-						<div>
-							<a href={ templ.SafeURL(fmt.Sprintf("/media/%s?tag=%s", moduleID, t.GetId())) } class="text-indigo-400 hover:text-indigo-300 font-medium">
-								{ t.GetLabel() }
-							</a>
-							<span class="text-xs text-gray-500 ml-2">{ t.GetId() }</span>
-						</div>
-						<form method="post" action={ templ.SafeURL(fmt.Sprintf("/media/%s/tags", moduleID)) }>
-							<input type="hidden" name="action" value="delete"/>
-							<input type="hidden" name="tag_id" value={ t.GetId() }/>
-							<button type="submit" class="text-xs text-red-400 hover:text-red-300">Delete</button>
-						</form>
-					</li>
-				}
-			</ul>
+			<section aria-labelledby="media-tags-list-heading">
+				<h2 id="media-tags-list-heading" class="sr-only">Tags</h2>
+				<ul class="space-y-2" role="list">
+					for _, t := range tags {
+						<li class="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3">
+							<div>
+								<a href={ templ.SafeURL(fmt.Sprintf("/media/%s?tag=%s", moduleID, t.GetId())) } class="text-indigo-400 hover:text-indigo-300 font-medium" aria-label={ fmt.Sprintf("Browse items tagged %s", t.GetLabel()) }>
+									{ t.GetLabel() }
+								</a>
+								<span class="text-xs text-gray-500 ml-2">{ t.GetId() }</span>
+							</div>
+							<form method="post" action={ templ.SafeURL(fmt.Sprintf("/media/%s/tags", moduleID)) }>
+								<input type="hidden" name="action" value="delete"/>
+								<input type="hidden" name="tag_id" value={ t.GetId() }/>
+								<button type="submit" class="text-xs text-red-400 hover:text-red-300" aria-label={ fmt.Sprintf("Delete tag %s", t.GetLabel()) }>Delete</button>
+							</form>
+						</li>
+					}
+				</ul>
+			</section>
 		}
 	</div>
 }
@@ -115,21 +125,27 @@ templ MediaCollectionsPage(displayName string, moduleID string, features []strin
 			<h1 class="text-2xl font-bold">Collections</h1>
 		</div>
 		if len(collections) == 0 {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center" role="status">
 				<p class="text-gray-400">No collections.</p>
 			</div>
 		} else {
-			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-				for _, c := range collections {
-					<a
-						href={ templ.SafeURL(fmt.Sprintf("/media/%s/collections/%s", moduleID, c.GetId())) }
-						class="block rounded-xl border border-gray-800 bg-gray-900/50 p-4 hover:border-gray-700"
-					>
-						<h3 class="font-semibold text-white">{ c.GetName() }</h3>
-						<p class="text-sm text-gray-500 mt-1">{ strconv.Itoa(int(c.GetItemCount())) } items</p>
-					</a>
-				}
-			</div>
+			<section aria-labelledby="media-collections-heading">
+				<h2 id="media-collections-heading" class="sr-only">Collections</h2>
+				<ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" role="list">
+					for _, c := range collections {
+						<li>
+							<a
+								href={ templ.SafeURL(fmt.Sprintf("/media/%s/collections/%s", moduleID, c.GetId())) }
+								class="block rounded-xl border border-gray-800 bg-gray-900/50 p-4 hover:border-gray-700"
+								aria-label={ fmt.Sprintf("Open collection %s", c.GetName()) }
+							>
+								<h3 class="font-semibold text-white">{ c.GetName() }</h3>
+								<p class="text-sm text-gray-500 mt-1">{ strconv.Itoa(int(c.GetItemCount())) } items</p>
+							</a>
+						</li>
+					}
+				</ul>
+			</section>
 		}
 	</div>
 }
@@ -160,7 +176,7 @@ templ MediaCollectionDetailPage(displayName string, moduleID string, features []
 			</div>
 		</div>
 		if flash != "" {
-			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-3 text-sm text-green-300">{ flash }</div>
+			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-3 text-sm text-green-300" role="status">{ flash }</div>
 		}
 		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
 			for _, item := range items {
@@ -176,34 +192,39 @@ templ MediaCalendarPage(displayName string, moduleID string, features []string, 
 		<div>
 			<h1 class="text-2xl font-bold">Calendar</h1>
 		</div>
-		<form method="get" action={ templ.SafeURL(fmt.Sprintf("/media/%s/calendar", moduleID)) } class="flex flex-wrap gap-2 items-end">
-			<div>
-				<label class="block text-xs text-gray-500 mb-1">Start</label>
-				<input type="date" name="start" value={ start } class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
-			</div>
-			<div>
-				<label class="block text-xs text-gray-500 mb-1">End</label>
-				<input type="date" name="end" value={ end } class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
-			</div>
-			<label class="flex items-center gap-2 text-sm text-gray-400 pb-2">
-				<input type="checkbox" name="unmonitored" value="1"/>
-				Include unmonitored
-			</label>
-			<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Apply</button>
-		</form>
+		<section aria-labelledby="media-calendar-filter-heading">
+			<h2 id="media-calendar-filter-heading" class="sr-only">Calendar filter</h2>
+			<form method="get" action={ templ.SafeURL(fmt.Sprintf("/media/%s/calendar", moduleID)) } class="flex flex-wrap gap-2 items-end">
+				<div>
+					<label for="media-calendar-start" class="block text-xs text-gray-500 mb-1">Start</label>
+					<input id="media-calendar-start" type="date" name="start" value={ start } class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<div>
+					<label for="media-calendar-end" class="block text-xs text-gray-500 mb-1">End</label>
+					<input id="media-calendar-end" type="date" name="end" value={ end } class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<label for="media-calendar-unmonitored" class="flex items-center gap-2 text-sm text-gray-400 pb-2">
+					<input id="media-calendar-unmonitored" type="checkbox" name="unmonitored" value="1"/>
+					Include unmonitored
+				</label>
+				<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Apply</button>
+			</form>
+		</section>
 		if len(items) == 0 {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center" role="status">
 				<p class="text-gray-400">No airings in this range.</p>
 			</div>
 		} else {
-			<div class="rounded-xl border border-gray-800 overflow-hidden">
+			<section class="rounded-xl border border-gray-800 overflow-hidden" aria-labelledby="media-calendar-items-heading">
+				<h2 id="media-calendar-items-heading" class="sr-only">Calendar items</h2>
 				<table class="w-full text-sm">
+					<caption class="sr-only">Upcoming calendar items</caption>
 					<thead class="bg-gray-900/80 text-gray-400 text-left">
 						<tr>
-							<th class="px-4 py-2 font-medium">Date</th>
-							<th class="px-4 py-2 font-medium">Series</th>
-							<th class="px-4 py-2 font-medium">Episode</th>
-							<th class="px-4 py-2 font-medium">Status</th>
+							<th scope="col" class="px-4 py-2 font-medium">Date</th>
+							<th scope="col" class="px-4 py-2 font-medium">Series</th>
+							<th scope="col" class="px-4 py-2 font-medium">Episode</th>
+							<th scope="col" class="px-4 py-2 font-medium">Status</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -211,7 +232,7 @@ templ MediaCalendarPage(displayName string, moduleID string, features []string, 
 							<tr class="border-t border-gray-800">
 								<td class="px-4 py-2 text-gray-400">{ it.GetDate() }</td>
 								<td class="px-4 py-2">
-									<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s", moduleID, it.GetParentId())) } class="text-indigo-400 hover:text-indigo-300">
+									<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s", moduleID, it.GetParentId())) } class="text-indigo-400 hover:text-indigo-300" aria-label={ fmt.Sprintf("Open %s", it.GetTitle()) }>
 										{ it.GetTitle() }
 									</a>
 								</td>
@@ -232,7 +253,7 @@ templ MediaCalendarPage(displayName string, moduleID string, features []string, 
 						}
 					</tbody>
 				</table>
-			</div>
+			</section>
 		}
 	</div>
 }
