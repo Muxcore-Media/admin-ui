@@ -92,44 +92,59 @@ templ SubtitlesPage(data SubtitlesPageData) {
 				<h1 class="text-2xl font-bold">Subtitles</h1>
 				<p class="text-gray-400 text-sm mt-1">Find, download, and manage subtitles for your library.</p>
 			</div>
-			<div class="flex flex-wrap gap-2">
+			<div class="flex flex-wrap gap-2" role="toolbar" aria-label="Subtitle actions">
 				<form method="post" action="/subtitles/sync">
-					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Sync library</button>
+					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800" aria-label="Sync subtitle library">Sync library</button>
 				</form>
 				<form method="post" action="/subtitles/search-wanted">
-					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Search wanted</button>
+					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800" aria-label="Search wanted subtitles">Search wanted</button>
 				</form>
 				<form method="post" action="/subtitles/upgrade">
-					<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Upgrade</button>
+					<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500" aria-label="Upgrade subtitles">Upgrade</button>
 				</form>
 				<form method="post" action="/subtitles/history/clear" onsubmit="return confirm('Clear all subtitle history?')">
-					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-400 hover:bg-gray-800">Clear history</button>
+					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-400 hover:bg-gray-800" aria-label="Clear subtitle history">Clear history</button>
 				</form>
 				<form method="post" action="/subtitles/test-arr">
 					<input type="hidden" name="target" value="sonarr"/>
-					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-400 hover:bg-gray-800">Test Sonarr</button>
+					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-400 hover:bg-gray-800" aria-label="Test Sonarr connection">Test Sonarr</button>
 				</form>
 				<form method="post" action="/subtitles/test-arr">
 					<input type="hidden" name="target" value="radarr"/>
-					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-400 hover:bg-gray-800">Test Radarr</button>
+					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-400 hover:bg-gray-800" aria-label="Test Radarr connection">Test Radarr</button>
 				</form>
 			</div>
 		</div>
 		if data.Flash != "" {
-			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300">{ data.Flash }</div>
+			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300" role="status">{ data.Flash }</div>
 		}
 		if data.Error != "" {
-			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ data.Error }</div>
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" role="alert">{ data.Error }</div>
 		}
-		<div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
-			<h2 class="text-sm font-semibold text-gray-300 mb-3">Manual search</h2>
-			<form method="get" action="/subtitles" class="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+		<section class="rounded-xl border border-gray-800 bg-gray-900/40 p-4" aria-labelledby="subtitles-search-heading">
+			<h2 id="subtitles-search-heading" class="text-sm font-semibold text-gray-300 mb-3">Manual search</h2>
+			<form method="get" action="/subtitles" class="grid gap-2 sm:grid-cols-2 lg:grid-cols-6" aria-label="Subtitle search">
 				<input type="hidden" name="tab" value="search"/>
-				<input type="text" name="q" placeholder="Title query" class="rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200 lg:col-span-2"/>
-				<input type="text" name="imdb" placeholder="IMDb id" class="rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200"/>
-				<input type="text" name="lang" placeholder="Language (en)" value="en" class="rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200"/>
-				<input type="number" name="season" placeholder="Season" min="0" class="rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200"/>
-				<input type="number" name="episode" placeholder="Episode" min="0" class="rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200"/>
+				<div class="lg:col-span-2">
+					<label for="subtitles-search-query" class="sr-only">Title query</label>
+					<input id="subtitles-search-query" type="text" name="q" placeholder="Title query" class="w-full rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200"/>
+				</div>
+				<div>
+					<label for="subtitles-search-imdb" class="sr-only">IMDb id</label>
+					<input id="subtitles-search-imdb" type="text" name="imdb" placeholder="IMDb id" class="w-full rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200"/>
+				</div>
+				<div>
+					<label for="subtitles-search-lang" class="sr-only">Language</label>
+					<input id="subtitles-search-lang" type="text" name="lang" placeholder="Language (en)" value="en" class="w-full rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200"/>
+				</div>
+				<div>
+					<label for="subtitles-search-season" class="sr-only">Season</label>
+					<input id="subtitles-search-season" type="number" name="season" placeholder="Season" min="0" class="w-full rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200"/>
+				</div>
+				<div>
+					<label for="subtitles-search-episode" class="sr-only">Episode</label>
+					<input id="subtitles-search-episode" type="number" name="episode" placeholder="Episode" min="0" class="w-full rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200"/>
+				</div>
 				<button type="submit" class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-800">Search</button>
 			</form>
 			if len(data.SearchHits) > 0 {
@@ -146,33 +161,34 @@ templ SubtitlesPage(data SubtitlesPageData) {
 								<input type="hidden" name="language" value={ hit.Language }/>
 								<input type="hidden" name="release" value={ hit.Release }/>
 								<input type="hidden" name="score" value={ fmt.Sprintf("%d", hit.Score) }/>
-								<button type="submit" class="rounded px-2 py-1 text-xs bg-indigo-900/50 text-indigo-200 hover:bg-indigo-800/60">Download</button>
+								<button type="submit" class="rounded px-2 py-1 text-xs bg-indigo-900/50 text-indigo-200 hover:bg-indigo-800/60" aria-label={ fmt.Sprintf("Download subtitle %s", hit.Release) }>Download</button>
 							</form>
 						</li>
 					}
 				</ul>
 			}
-		</div>
-		<div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
-			<h2 class="text-sm font-semibold text-gray-300 mb-3">Wanted ({ data.WantedTot })</h2>
+		</section>
+		<section class="rounded-xl border border-gray-800 bg-gray-900/40 p-4" aria-labelledby="subtitles-wanted-heading">
+			<h2 id="subtitles-wanted-heading" class="text-sm font-semibold text-gray-300 mb-3">Wanted ({ data.WantedTot })</h2>
 			if len(data.Wanted) == 0 {
-				<p class="text-sm text-gray-500">No missing subtitles. Sync library after configuring a language profile.</p>
+				<p class="text-sm text-gray-500" role="status">No missing subtitles. Sync library after configuring a language profile.</p>
 			} else {
 				<div class="overflow-x-auto">
 					<table class="w-full text-sm">
+						<caption class="sr-only">Wanted subtitles</caption>
 						<thead class="text-xs uppercase text-gray-500">
 							<tr>
-								<th class="text-left py-2">Title</th>
-								<th class="text-left py-2">Lang</th>
-								<th class="text-left py-2">Type</th>
-								<th class="text-left py-2">S/E</th>
+								<th scope="col" class="text-left py-2">Title</th>
+								<th scope="col" class="text-left py-2">Lang</th>
+								<th scope="col" class="text-left py-2">Type</th>
+								<th scope="col" class="text-left py-2">S/E</th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-gray-800">
 							for _, w := range data.Wanted {
 								<tr>
 									<td class="py-2">
-										<a class="text-indigo-300 hover:underline" href={ templ.SafeURL(fmt.Sprintf("/subtitles/media/%s", firstNonEmptyWanted(w.MediaID, w.ID))) }>{ w.Title }</a>
+										<a class="text-indigo-300 hover:underline" href={ templ.SafeURL(fmt.Sprintf("/subtitles/media/%s", firstNonEmptyWanted(w.MediaID, w.ID))) } aria-label={ fmt.Sprintf("Open %s", w.Title) }>{ w.Title }</a>
 									</td>
 									<td class="py-2 text-gray-400">{ w.Language }</td>
 									<td class="py-2 text-gray-400">{ w.Type }</td>
@@ -187,22 +203,24 @@ templ SubtitlesPage(data SubtitlesPageData) {
 					</table>
 				</div>
 			}
-		</div>
-		<div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
-			<h2 class="text-sm font-semibold text-gray-300 mb-3">Library ({ data.MediaTot })</h2>
+		</section>
+		<section class="rounded-xl border border-gray-800 bg-gray-900/40 p-4" aria-labelledby="subtitles-library-heading">
+			<h2 id="subtitles-library-heading" class="text-sm font-semibold text-gray-300 mb-3">Library ({ data.MediaTot })</h2>
 			if len(data.Media) == 0 {
-				<p class="text-sm text-gray-500">No synced media. Run Sync library.</p>
+				<p class="text-sm text-gray-500" role="status">No synced media. Run Sync library.</p>
 			} else {
-				<form method="post" action="/subtitles/mass-edit" class="space-y-3">
+				<form method="post" action="/subtitles/mass-edit" class="space-y-3" aria-label="Mass edit subtitles">
 					<div class="flex flex-wrap gap-2 items-center">
-						<select name="action" class="rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200">
+						<label for="subtitles-mass-action" class="sr-only">Mass edit action</label>
+						<select id="subtitles-mass-action" name="action" class="rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200">
 							<option value="monitor">Monitor</option>
 							<option value="unmonitor">Unmonitor</option>
 							<option value="profile">Set language profile</option>
 							<option value="search">Search wanted for selected</option>
 						</select>
 						if len(data.Profiles) > 0 {
-							<select name="profile_id" class="rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200">
+							<label for="subtitles-mass-profile" class="sr-only">Language profile</label>
+							<select id="subtitles-mass-profile" name="profile_id" class="rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200">
 								for _, p := range data.Profiles {
 									<option value={ p.ID }>{ p.Name }</option>
 								}
@@ -212,22 +230,24 @@ templ SubtitlesPage(data SubtitlesPageData) {
 					</div>
 					<div class="overflow-x-auto max-h-72 overflow-y-auto">
 						<table class="w-full text-sm">
+							<caption class="sr-only">Subtitle library media</caption>
 							<thead class="text-xs uppercase text-gray-500 sticky top-0 bg-gray-900">
 								<tr>
-									<th class="text-left py-2 w-8"></th>
-									<th class="text-left py-2">Title</th>
-									<th class="text-left py-2">Type</th>
-									<th class="text-left py-2">Monitored</th>
+									<th scope="col" class="text-left py-2 w-8"><span class="sr-only">Select</span></th>
+									<th scope="col" class="text-left py-2">Title</th>
+									<th scope="col" class="text-left py-2">Type</th>
+									<th scope="col" class="text-left py-2">Monitored</th>
 								</tr>
 							</thead>
 							<tbody class="divide-y divide-gray-800">
 								for _, it := range data.Media {
 									<tr>
 										<td class="py-2">
-											<input type="checkbox" name="media_id" value={ it.ID } class="rounded border-gray-600"/>
+											<label class="sr-only" for={ "subtitles-media-" + it.ID }>Select { it.Title }</label>
+											<input id={ "subtitles-media-" + it.ID } type="checkbox" name="media_id" value={ it.ID } class="rounded border-gray-600"/>
 										</td>
 										<td class="py-2">
-											<a class="text-indigo-300 hover:underline" href={ templ.SafeURL(fmt.Sprintf("/subtitles/media/%s", it.ID)) }>{ it.Title }</a>
+											<a class="text-indigo-300 hover:underline" href={ templ.SafeURL(fmt.Sprintf("/subtitles/media/%s", it.ID)) } aria-label={ fmt.Sprintf("Open %s", it.Title) }>{ it.Title }</a>
 										</td>
 										<td class="py-2 text-gray-400">{ it.Type }</td>
 										<td class="py-2 text-gray-400">
@@ -244,13 +264,13 @@ templ SubtitlesPage(data SubtitlesPageData) {
 					</div>
 				</form>
 			}
-		</div>
-		<div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
-			<h2 class="text-sm font-semibold text-gray-300 mb-3">History ({ data.HistoryTot })</h2>
+		</section>
+		<section class="rounded-xl border border-gray-800 bg-gray-900/40 p-4" aria-labelledby="subtitles-history-heading">
+			<h2 id="subtitles-history-heading" class="text-sm font-semibold text-gray-300 mb-3">History ({ data.HistoryTot })</h2>
 			if len(data.History) == 0 {
-				<p class="text-sm text-gray-500">No subtitle history yet.</p>
+				<p class="text-sm text-gray-500" role="status">No subtitle history yet.</p>
 			} else {
-				<ul class="space-y-2 text-sm">
+				<ul class="space-y-2 text-sm" role="list">
 					for _, h := range data.History {
 						<li class="flex flex-wrap gap-2 text-gray-300">
 							<span class="text-gray-500">{ h.At }</span>
@@ -265,10 +285,10 @@ templ SubtitlesPage(data SubtitlesPageData) {
 					}
 				</ul>
 			}
-		</div>
+		</section>
 		<div class="grid gap-4 lg:grid-cols-2">
-			<div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
-				<h2 class="text-sm font-semibold text-gray-300 mb-3">Language profiles</h2>
+			<section class="rounded-xl border border-gray-800 bg-gray-900/40 p-4" aria-labelledby="subtitles-profiles-heading">
+				<h2 id="subtitles-profiles-heading" class="text-sm font-semibold text-gray-300 mb-3">Language profiles</h2>
 				if len(data.Profiles) == 0 {
 					<p class="text-sm text-gray-500">No profiles yet. Create one via module settings / API.</p>
 				} else {
@@ -287,19 +307,21 @@ templ SubtitlesPage(data SubtitlesPageData) {
 					</ul>
 				}
 				<p class="mt-3 text-xs text-gray-600">Language catalog: { fmt.Sprintf("%d", data.LangTot) } supported codes</p>
-				<form method="post" action="/subtitles/profiles" class="mt-4 space-y-2 border-t border-gray-800 pt-3">
+				<form method="post" action="/subtitles/profiles" class="mt-4 space-y-2 border-t border-gray-800 pt-3" aria-label="Create or update language profile">
 					<div class="text-xs font-medium text-gray-400">Create / update profile</div>
-					<input type="text" name="name" required placeholder="Profile name" class="w-full rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200"/>
-					<input type="text" name="languages" required placeholder="Languages (en,es+hi,fr+forced)" class="w-full rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200"/>
-					<label class="flex items-center gap-2 text-xs text-gray-400">
-						<input type="checkbox" name="is_default" value="true" class="rounded border-gray-600"/>
+					<label for="subtitles-profile-name" class="sr-only">Profile name</label>
+					<input id="subtitles-profile-name" type="text" name="name" required placeholder="Profile name" class="w-full rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200"/>
+					<label for="subtitles-profile-languages" class="sr-only">Languages</label>
+					<input id="subtitles-profile-languages" type="text" name="languages" required placeholder="Languages (en,es+hi,fr+forced)" class="w-full rounded border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-200"/>
+					<label for="subtitles-profile-default" class="flex items-center gap-2 text-xs text-gray-400">
+						<input id="subtitles-profile-default" type="checkbox" name="is_default" value="true" class="rounded border-gray-600"/>
 						Default profile
 					</label>
 					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-800">Save profile</button>
 				</form>
-			</div>
-			<div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
-				<h2 class="text-sm font-semibold text-gray-300 mb-3">Blacklist</h2>
+			</section>
+			<section class="rounded-xl border border-gray-800 bg-gray-900/40 p-4" aria-labelledby="subtitles-blacklist-heading">
+				<h2 id="subtitles-blacklist-heading" class="text-sm font-semibold text-gray-300 mb-3">Blacklist</h2>
 				if len(data.Blacklist) == 0 {
 					<p class="text-sm text-gray-500">Empty.</p>
 				} else {
@@ -311,16 +333,16 @@ templ SubtitlesPage(data SubtitlesPageData) {
 									<div class="text-gray-500">{ b.Provider } · { b.Language } · { b.Reason }</div>
 								</div>
 								<form method="post" action={ templ.SafeURL(fmt.Sprintf("/subtitles/blacklist/%s/delete", b.ID)) }>
-									<button type="submit" class="text-xs text-red-400 hover:text-red-300">Remove</button>
+									<button type="submit" class="text-xs text-red-400 hover:text-red-300" aria-label={ fmt.Sprintf("Remove %s from blacklist", b.Title) }>Remove</button>
 								</form>
 							</li>
 						}
 					</ul>
 				}
-			</div>
-			<div class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
-				<h2 class="text-sm font-semibold text-gray-300 mb-3">Providers</h2>
-				<ul class="space-y-1 text-sm max-h-80 overflow-y-auto">
+			</section>
+			<section class="rounded-xl border border-gray-800 bg-gray-900/40 p-4" aria-labelledby="subtitles-providers-heading">
+				<h2 id="subtitles-providers-heading" class="text-sm font-semibold text-gray-300 mb-3">Providers</h2>
+				<ul class="space-y-1 text-sm max-h-80 overflow-y-auto" role="list">
 					for _, p := range data.Providers {
 						<li class="flex items-center justify-between gap-2 py-1">
 							<div>
@@ -331,7 +353,7 @@ templ SubtitlesPage(data SubtitlesPageData) {
 							</div>
 							<form method="post" action={ templ.SafeURL(fmt.Sprintf("/subtitles/providers/%s", p.ID)) }>
 								<input type="hidden" name="enabled" value={ boolStr(!p.Enabled) }/>
-								<button type="submit" class={ providerBtnClass(p.Enabled) }>
+								<button type="submit" class={ providerBtnClass(p.Enabled) } aria-label={ fmt.Sprintf("%s provider %s", p.Name, boolToggleLabel(p.Enabled)) }>
 									if p.Enabled {
 										On
 									} else {
@@ -342,9 +364,16 @@ templ SubtitlesPage(data SubtitlesPageData) {
 						</li>
 					}
 				</ul>
-			</div>
+			</section>
 		</div>
 	</div>
+}
+
+func boolToggleLabel(on bool) string {
+	if on {
+		return "disable"
+	}
+	return "enable"
 }
 
 func boolStr(b bool) string {

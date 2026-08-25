@@ -60,90 +60,120 @@ func automationItemTypeForTemplate(moduleID, displayName string) string {
 }
 
 templ MediaSubnav(moduleID string, displayName string, features []string, active string) {
-	<div class="flex flex-wrap items-center gap-2 border-b border-gray-800 pb-3">
+	<nav class="flex flex-wrap items-center gap-2 border-b border-gray-800 pb-3" aria-label={ fmt.Sprintf("%s library navigation", displayName) }>
 		<span class="text-sm font-semibold text-gray-300 mr-2">{ displayName }</span>
 		<a
 			href={ templ.SafeURL(fmt.Sprintf("/media/%s", moduleID)) }
 			class={ "text-sm px-2 py-1 rounded", templ.KV("bg-indigo-600 text-white", active == "browse"), templ.KV("text-gray-400 hover:text-white", active != "browse") }
+			if active == "browse" {
+				aria-current="page"
+			}
 		>Browse</a>
 		if mediaHasFeature(features, "missing") {
 			<a
 				href={ templ.SafeURL(fmt.Sprintf("/media/%s/missing", moduleID)) }
 				class={ "text-sm px-2 py-1 rounded", templ.KV("bg-indigo-600 text-white", active == "missing"), templ.KV("text-gray-400 hover:text-white", active != "missing") }
+				if active == "missing" {
+					aria-current="page"
+				}
 			>Missing</a>
 		}
 		if mediaHasFeature(features, "tags") {
 			<a
 				href={ templ.SafeURL(fmt.Sprintf("/media/%s/tags", moduleID)) }
 				class={ "text-sm px-2 py-1 rounded", templ.KV("bg-indigo-600 text-white", active == "tags"), templ.KV("text-gray-400 hover:text-white", active != "tags") }
+				if active == "tags" {
+					aria-current="page"
+				}
 			>Tags</a>
 		}
 		if mediaHasFeature(features, "collections") {
 			<a
 				href={ templ.SafeURL(fmt.Sprintf("/media/%s/collections", moduleID)) }
 				class={ "text-sm px-2 py-1 rounded", templ.KV("bg-indigo-600 text-white", active == "collections"), templ.KV("text-gray-400 hover:text-white", active != "collections") }
+				if active == "collections" {
+					aria-current="page"
+				}
 			>Collections</a>
 		}
 		if mediaHasFeature(features, "calendar") {
 			<a
 				href={ templ.SafeURL(fmt.Sprintf("/media/%s/calendar", moduleID)) }
 				class={ "text-sm px-2 py-1 rounded", templ.KV("bg-indigo-600 text-white", active == "calendar"), templ.KV("text-gray-400 hover:text-white", active != "calendar") }
+				if active == "calendar" {
+					aria-current="page"
+				}
 			>Calendar</a>
 		}
-	</div>
+	</nav>
 }
 
 templ MediaListPage(displayName string, items []*mediaadminv1.MediaItem, total, page, pageSize int, moduleID string, features []string, search, tagID string) {
 	<div class="space-y-6" data-testid="media-list-page">
 		@MediaSubnav(moduleID, displayName, features, "browse")
-		<div class="flex flex-col sm:flex-row sm:items-end gap-3">
-			<form method="get" action={ templ.SafeURL(fmt.Sprintf("/media/%s", moduleID)) } class="flex flex-wrap gap-2 flex-1">
-				<input
-					type="search"
-					name="q"
-					value={ search }
-					placeholder="Search…"
-					class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm min-w-[12rem]"
-				/>
+		<div>
+			<h1 class="text-2xl font-bold">{ displayName }</h1>
+			if items != nil {
+				<p class="text-gray-400 text-sm mt-1" data-testid="media-item-count" aria-live="polite">{ strconv.Itoa(total) } items</p>
+			}
+		</div>
+		<section aria-labelledby="media-search-heading">
+			<h2 id="media-search-heading" class="sr-only">Search library</h2>
+			<form method="get" action={ templ.SafeURL(fmt.Sprintf("/media/%s", moduleID)) } class="flex flex-wrap gap-2 items-end">
+				<div>
+					<label for="media-search-query" class="block text-xs font-medium text-gray-500 mb-1">Search</label>
+					<input
+						id="media-search-query"
+						type="search"
+						name="q"
+						value={ search }
+						placeholder="Search…"
+						class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm min-w-[12rem]"
+					/>
+				</div>
 				if tagID != "" {
 					<input type="hidden" name="tag" value={ tagID }/>
 				}
 				<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Search</button>
 			</form>
-			if items != nil {
-				<p class="text-gray-400 text-sm" data-testid="media-item-count">{ strconv.Itoa(total) } items</p>
-			}
-		</div>
+		</section>
 		if items == nil {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center" data-testid="media-soft-empty">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center" data-testid="media-soft-empty" role="status">
 				<p class="text-gray-400">Soft OK without this library module — empty until it is registered or reachable.</p>
 			</div>
 		} else if len(items) == 0 {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center" data-testid="media-empty">
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center" data-testid="media-empty" role="status">
 				<p class="text-gray-400">No items found.</p>
 			</div>
 		} else {
-			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-				for _, item := range items {
-					@MediaItemCard(item, moduleID)
-				}
-			</div>
+			<section aria-labelledby="media-items-heading">
+				<h2 id="media-items-heading" class="sr-only">Library items</h2>
+				<ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" role="list">
+					for _, item := range items {
+						<li>
+							@MediaItemCard(item, moduleID)
+						</li>
+					}
+				</ul>
+			</section>
 			if total > pageSize {
-				<div class="mt-4 flex items-center justify-center gap-2">
+				<nav class="mt-4 flex items-center justify-center gap-2" aria-label="Library pagination">
 					if page > 1 {
 						<a
 							href={ templ.SafeURL(fmt.Sprintf("/media/%s%s", moduleID, mediaListQuery(search, tagID, page-1))) }
 							class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800"
+							aria-label="Previous page"
 						>Prev</a>
 					}
-					<span class="text-sm text-gray-500">Page { strconv.Itoa(page) }</span>
+					<span class="text-sm text-gray-500" aria-current="page">Page { strconv.Itoa(page) }</span>
 					if page*pageSize < total {
 						<a
 							href={ templ.SafeURL(fmt.Sprintf("/media/%s%s", moduleID, mediaListQuery(search, tagID, page+1))) }
 							class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800"
+							aria-label="Next page"
 						>Next</a>
 					}
-				</div>
+				</nav>
 			}
 		}
 	</div>
@@ -153,6 +183,7 @@ templ MediaItemCard(item *mediaadminv1.MediaItem, moduleID string) {
 	<a
 		href={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s", moduleID, item.GetId())) }
 		class="block rounded-xl border border-gray-800 bg-gray-900/50 p-4 hover:border-gray-700 transition-colors"
+		aria-label={ fmt.Sprintf("Open %s", item.GetTitle()) }
 	>
 		if mediaPosterURL(item) != "" {
 			<img

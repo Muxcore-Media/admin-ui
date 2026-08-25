@@ -9,6 +9,7 @@ import (
 
 	authv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/auth/v1"
 	formatsv1 "github.com/Muxcore-Media/media-custom-formats/proto/formatsv1"
+	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
 	renamev1 "github.com/Muxcore-Media/media-rename/proto/renamev1"
 	rootsv1 "github.com/Muxcore-Media/media-root-folders/proto/rootsv1"
 	"github.com/a-h/templ"
@@ -526,6 +527,141 @@ func TestReleaseProfilesPage_HasFormLabelsAlertsAndSections(t *testing.T) {
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("release profiles page HTML missing %q", want)
+		}
+	}
+}
+
+func TestMediaLibraryPage_HasHeadingSearchLabelsAndSections(t *testing.T) {
+	html := renderComponent(t, MediaListPage("Movies", []*mediaadminv1.MediaItem{{
+		Id:    "item-1",
+		Title: "Inception",
+		Year:  2010,
+	}}, 1, 1, 24, "movies", []string{"missing"}, "dune", ""))
+
+	for _, want := range []string{
+		`<h1 class="text-2xl font-bold">Movies</h1>`,
+		`aria-label="Movies library navigation"`,
+		`aria-current="page"`,
+		`id="media-search-query"`,
+		`for="media-search-query"`,
+		`id="media-items-heading"`,
+		`aria-label="Open Inception"`,
+		`role="list"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("media library page HTML missing %q", want)
+		}
+	}
+}
+
+func TestAutomationPage_HasLiveRegionAlertsAndTableCaptions(t *testing.T) {
+	html := renderComponent(t, AutomationPage(AutomationPageData{
+		Error: "automation offline",
+		Flash: "dl-1",
+		Items: []AutomationQueueItem{{
+			ID: "q1", ItemID: "i1", ItemType: "movie", Title: "Dune", Year: 2021,
+		}},
+		Total: 1,
+	}))
+
+	for _, want := range []string{
+		`<h1 class="text-2xl font-bold">Automation</h1>`,
+		`aria-live="polite"`,
+		`role="alert"`,
+		`automation offline`,
+		`role="status"`,
+		`id="automation-filter"`,
+		`for="automation-filter"`,
+		`id="automation-queue-heading"`,
+		`<caption class="sr-only">Wanted queue items</caption>`,
+		`scope="col"`,
+		`aria-label="Search and dispatch Dune"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("automation page HTML missing %q", want)
+		}
+	}
+}
+
+func TestManualImportPage_HasAlertsTableCaptionAndActionLabels(t *testing.T) {
+	html := renderComponent(t, ManualImportPage(ManualImportPageData{
+		Error: "scanner offline",
+		Flash: "Imported 1 file",
+		Candidates: []ImportCandidateRow{{
+			Path: "/watch/Inception.mkv",
+			Name: "Inception.mkv",
+			Size: 1024,
+		}},
+	}))
+
+	for _, want := range []string{
+		`<h1 class="text-2xl font-bold">Manual import</h1>`,
+		`role="alert"`,
+		`scanner offline`,
+		`role="status"`,
+		`Imported 1 file`,
+		`<caption class="sr-only">Pending import candidates</caption>`,
+		`scope="col"`,
+		`aria-label="Import Inception.mkv"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("import page HTML missing %q", want)
+		}
+	}
+}
+
+func TestSubtitlesPage_HasLabelledSectionsAlertsAndTables(t *testing.T) {
+	html := renderComponent(t, SubtitlesPage(SubtitlesPageData{
+		Error: "subtitles offline",
+		Flash: "synced",
+		Wanted: []SubtitlesWantedItem{{
+			ID: "w1", Title: "Dune", Language: "en", Type: "movie",
+		}},
+		WantedTot: 1,
+	}))
+
+	for _, want := range []string{
+		`<h1 class="text-2xl font-bold">Subtitles</h1>`,
+		`role="alert"`,
+		`subtitles offline`,
+		`role="status"`,
+		`aria-label="Subtitle actions"`,
+		`id="subtitles-search-query"`,
+		`id="subtitles-wanted-heading"`,
+		`<caption class="sr-only">Wanted subtitles</caption>`,
+		`scope="col"`,
+		`aria-label="Open Dune"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("subtitles page HTML missing %q", want)
+		}
+	}
+}
+
+func TestListSyncPage_HasAlertsTableCaptionAndFormLabels(t *testing.T) {
+	html := renderComponent(t, ListSyncPage(ListSyncPageData{
+		Error: "list-sync offline",
+		Flash: "sync started",
+		Sources: []ListSyncSourceRow{{
+			ID: "src-1", Name: "Trakt watchlist", Type: "trakt", Enabled: true, IntervalMin: 60,
+		}},
+	}))
+
+	for _, want := range []string{
+		`<h1 class="text-2xl font-bold">List Sync</h1>`,
+		`role="alert"`,
+		`list-sync offline`,
+		`role="status"`,
+		`sync started`,
+		`id="list-sync-sources-heading"`,
+		`<caption class="sr-only">List sync sources</caption>`,
+		`scope="col"`,
+		`aria-label="Edit source Trakt watchlist"`,
+		`id="list-sync-name"`,
+		`for="list-sync-name"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("list sync page HTML missing %q", want)
 		}
 	}
 }

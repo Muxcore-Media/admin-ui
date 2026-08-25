@@ -75,6 +75,7 @@ templ AutomationPage(data AutomationPageData) {
 	<div
 		class="space-y-6"
 		data-testid="automation-page"
+		aria-live="polite"
 		hx-get="/automation"
 		hx-trigger="every 15s"
 		hx-select="[data-testid='automation-page']"
@@ -86,7 +87,7 @@ templ AutomationPage(data AutomationPageData) {
 			<p class="text-gray-400 text-sm mt-1">Downloads in progress and recent history</p>
 		</div>
 		if data.Flash != "" {
-			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300" data-testid="dispatch-flash">
+			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300" data-testid="dispatch-flash" role="status">
 				Dispatched download_id={ data.Flash }
 				if data.FlashStatus != "" {
 					<span class="text-gray-400">status={ data.FlashStatus }</span>
@@ -94,11 +95,11 @@ templ AutomationPage(data AutomationPageData) {
 			</div>
 		}
 		if data.Error != "" {
-			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ data.Error }</div>
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" role="alert">{ data.Error }</div>
 		}
-		<div data-testid="acquisition-peers" class="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
+		<section data-testid="acquisition-peers" class="rounded-xl border border-gray-800 bg-gray-900/40 p-4" aria-labelledby="automation-peers-heading">
 			<div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-				<h2 class="text-sm font-semibold text-gray-300">Acquisition peers</h2>
+				<h2 id="automation-peers-heading" class="text-sm font-semibold text-gray-300">Acquisition peers</h2>
 				<a href="/settings" class="text-xs text-indigo-400 hover:underline">Configure via Settings</a>
 			</div>
 			<p class="text-xs text-gray-500 mb-3">Indexer and download-client settings live on each peer’s Settings page.</p>
@@ -136,33 +137,37 @@ templ AutomationPage(data AutomationPageData) {
 					}
 				</div>
 			</div>
-		</div>
-		<form class="flex flex-wrap gap-3 items-end" method="get" action="/automation">
-			<div>
-				<label class="block text-xs font-medium text-gray-500 mb-1">Filter</label>
-				<select name="filter" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white">
-					<option value="" selected?={ data.Filter == "" }>All</option>
-					<option value="movie" selected?={ data.Filter == "movie" }>Movies</option>
-					<option value="tv" selected?={ data.Filter == "tv" }>TV</option>
-				</select>
-			</div>
-			<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Apply</button>
-		</form>
-		<div>
-			<h2 class="text-lg font-semibold mb-3">Wanted queue <span class="text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", data.Total) })</span></h2>
+		</section>
+		<section aria-labelledby="automation-filter-heading">
+			<h2 id="automation-filter-heading" class="sr-only">Queue filter</h2>
+			<form class="flex flex-wrap gap-3 items-end" method="get" action="/automation">
+				<div>
+					<label for="automation-filter" class="block text-xs font-medium text-gray-500 mb-1">Filter</label>
+					<select id="automation-filter" name="filter" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white">
+						<option value="" selected?={ data.Filter == "" }>All</option>
+						<option value="movie" selected?={ data.Filter == "movie" }>Movies</option>
+						<option value="tv" selected?={ data.Filter == "tv" }>TV</option>
+					</select>
+				</div>
+				<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Apply</button>
+			</form>
+		</section>
+		<section aria-labelledby="automation-queue-heading">
+			<h2 id="automation-queue-heading" class="text-lg font-semibold mb-3">Wanted queue <span class="text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", data.Total) })</span></h2>
 			if len(data.Items) == 0 {
-				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">Queue is empty.</div>
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500" role="status">Queue is empty.</div>
 			} else {
 				<div class="overflow-x-auto rounded-xl border border-gray-800">
 					<table class="min-w-full divide-y divide-gray-800 text-sm">
+						<caption class="sr-only">Wanted queue items</caption>
 						<thead class="bg-gray-900/50">
 							<tr>
-								<th class="px-4 py-2 text-left text-xs text-gray-500">Title</th>
-								<th class="px-4 py-2 text-left text-xs text-gray-500">Type</th>
-								<th class="px-4 py-2 text-left text-xs text-gray-500">TMDB</th>
-								<th class="px-4 py-2 text-left text-xs text-gray-500">Flags</th>
-								<th class="px-4 py-2 text-left text-xs text-gray-500">Updated</th>
-								<th class="px-4 py-2 text-right text-xs text-gray-500">Actions</th>
+								<th scope="col" class="px-4 py-2 text-left text-xs text-gray-500">Title</th>
+								<th scope="col" class="px-4 py-2 text-left text-xs text-gray-500">Type</th>
+								<th scope="col" class="px-4 py-2 text-left text-xs text-gray-500">TMDB</th>
+								<th scope="col" class="px-4 py-2 text-left text-xs text-gray-500">Flags</th>
+								<th scope="col" class="px-4 py-2 text-left text-xs text-gray-500">Updated</th>
+								<th scope="col" class="px-4 py-2 text-right text-xs text-gray-500">Actions</th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-gray-800">
@@ -192,12 +197,12 @@ templ AutomationPage(data AutomationPageData) {
 											<input type="hidden" name="title" value={ it.Title }/>
 											<input type="hidden" name="tmdb_id" value={ fmt.Sprintf("%d", it.TMDBID) }/>
 											<input type="hidden" name="year" value={ fmt.Sprintf("%d", it.Year) }/>
-											<button type="submit" name="fixture" value="1" class="rounded bg-gray-700 px-2 py-1 text-xs text-white hover:bg-gray-600" title="Dispatch fixture magnet (offline)">Fixture</button>
-											<button type="submit" class="rounded bg-indigo-600 px-2 py-1 text-xs text-white hover:bg-indigo-500 ml-1" title="Search indexers then dispatch best">Search</button>
+											<button type="submit" name="fixture" value="1" class="rounded bg-gray-700 px-2 py-1 text-xs text-white hover:bg-gray-600" title="Dispatch fixture magnet (offline)" aria-label={ fmt.Sprintf("Dispatch fixture download for %s", it.Title) }>Fixture</button>
+											<button type="submit" class="rounded bg-indigo-600 px-2 py-1 text-xs text-white hover:bg-indigo-500 ml-1" title="Search indexers then dispatch best" aria-label={ fmt.Sprintf("Search and dispatch %s", it.Title) }>Search</button>
 										</form>
 										<form method="POST" action="/automation/queue/remove" class="inline ml-1">
 											<input type="hidden" name="queue_id" value={ it.ID }/>
-											<button type="submit" class="rounded border border-red-900/50 px-2 py-1 text-xs text-red-300 hover:bg-red-950/30" data-testid="queue-remove">Remove</button>
+											<button type="submit" class="rounded border border-red-900/50 px-2 py-1 text-xs text-red-300 hover:bg-red-950/30" data-testid="queue-remove" aria-label={ fmt.Sprintf("Remove %s from queue", it.Title) }>Remove</button>
 										</form>
 									</td>
 								</tr>
@@ -206,13 +211,13 @@ templ AutomationPage(data AutomationPageData) {
 					</table>
 				</div>
 			}
-		</div>
-		<div>
-			<h2 class="text-lg font-semibold mb-3">Recent history</h2>
+		</section>
+		<section aria-labelledby="automation-history-heading">
+			<h2 id="automation-history-heading" class="text-lg font-semibold mb-3">Recent history</h2>
 			if len(data.History) == 0 {
-				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">No download history yet.</div>
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500" role="status">No download history yet.</div>
 			} else {
-				<ul class="space-y-2">
+				<ul class="space-y-2" role="list">
 					for _, h := range data.History {
 						<li class="rounded-lg border border-gray-800 bg-gray-900/40 px-3 py-2 text-sm">
 							<span class="text-gray-200">{ h.Title }</span>
@@ -227,21 +232,22 @@ templ AutomationPage(data AutomationPageData) {
 					}
 				</ul>
 			}
-		</div>
-		<div data-testid="cutoff-unmet">
-			<h2 class="text-lg font-semibold mb-3">Cutoff unmet <span class="text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", len(data.Cutoff)) })</span></h2>
+		</section>
+		<section data-testid="cutoff-unmet" aria-labelledby="automation-cutoff-heading">
+			<h2 id="automation-cutoff-heading" class="text-lg font-semibold mb-3">Cutoff unmet <span class="text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", len(data.Cutoff)) })</span></h2>
 			if len(data.Cutoff) == 0 {
-				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-500">No owned items below quality cutoff.</div>
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-500" role="status">No owned items below quality cutoff.</div>
 			} else {
 				<div class="overflow-x-auto rounded-xl border border-gray-800 mb-6">
 					<table class="min-w-full divide-y divide-gray-800 text-sm">
+						<caption class="sr-only">Items below quality cutoff</caption>
 						<thead class="bg-gray-900/50">
 							<tr>
-								<th class="px-3 py-2 text-left text-xs text-gray-500">Title</th>
-								<th class="px-3 py-2 text-left text-xs text-gray-500">Type</th>
-								<th class="px-3 py-2 text-left text-xs text-gray-500">Score</th>
-								<th class="px-3 py-2 text-left text-xs text-gray-500">Cutoff</th>
-								<th class="px-3 py-2 text-right text-xs text-gray-500">Actions</th>
+								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Title</th>
+								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Type</th>
+								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Score</th>
+								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Cutoff</th>
+								<th scope="col" class="px-3 py-2 text-right text-xs text-gray-500">Actions</th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-gray-800">
@@ -262,7 +268,7 @@ templ AutomationPage(data AutomationPageData) {
 											<input type="hidden" name="item_type" value={ it.ItemType }/>
 											<input type="hidden" name="title" value={ it.Title }/>
 											<input type="hidden" name="year" value={ fmt.Sprintf("%d", it.Year) }/>
-											<button type="submit" class="rounded bg-indigo-600 px-2 py-1 text-xs text-white hover:bg-indigo-500">Search upgrade</button>
+											<button type="submit" class="rounded bg-indigo-600 px-2 py-1 text-xs text-white hover:bg-indigo-500" aria-label={ fmt.Sprintf("Search upgrade for %s", it.Title) }>Search upgrade</button>
 										</form>
 									</td>
 								</tr>
@@ -271,9 +277,9 @@ templ AutomationPage(data AutomationPageData) {
 					</table>
 				</div>
 			}
-		</div>
-		<div data-testid="delay-profiles">
-			<h2 class="text-lg font-semibold mb-3">Delay profiles</h2>
+		</section>
+		<section data-testid="delay-profiles" aria-labelledby="automation-delay-heading">
+			<h2 id="automation-delay-heading" class="text-lg font-semibold mb-3">Delay profiles</h2>
 			if len(data.DelayProfiles) == 0 {
 				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-500">No delay profiles.</div>
 			} else {
@@ -286,37 +292,38 @@ templ AutomationPage(data AutomationPageData) {
 								<span class="text-sm text-gray-200">{ dp.Protocol }</span>
 							</div>
 							<div>
-								<label class="block text-xs text-gray-500 mb-1">Wait (minutes)</label>
-								<input type="number" min="0" name="wait_minutes" value={ fmt.Sprintf("%d", dp.WaitMinutes) } class="w-24 rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm"/>
+								<label for={ fmt.Sprintf("automation-delay-%s", dp.Protocol) } class="block text-xs text-gray-500 mb-1">Wait (minutes)</label>
+								<input id={ fmt.Sprintf("automation-delay-%s", dp.Protocol) } type="number" min="0" name="wait_minutes" value={ fmt.Sprintf("%d", dp.WaitMinutes) } class="w-24 rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm"/>
 							</div>
-							<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500">Save</button>
+							<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500" aria-label={ fmt.Sprintf("Save delay profile for %s", dp.Protocol) }>Save</button>
 						</form>
 					}
 				</div>
 			}
-		</div>
-		<div data-testid="blocklist">
+		</section>
+		<section data-testid="blocklist" aria-labelledby="automation-blocklist-heading">
 			<div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-				<h2 class="text-lg font-semibold">Release blocklist <span class="text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", len(data.Blocklist)) })</span></h2>
+				<h2 id="automation-blocklist-heading" class="text-lg font-semibold">Release blocklist <span class="text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", len(data.Blocklist)) })</span></h2>
 				if len(data.Blocklist) > 0 {
 					<form method="POST" action="/automation/blocklist/clear">
 						<input type="hidden" name="clear_all" value="1"/>
-						<button type="submit" class="rounded border border-gray-700 px-2 py-1 text-xs text-gray-300 hover:bg-gray-800">Clear all</button>
+						<button type="submit" class="rounded border border-gray-700 px-2 py-1 text-xs text-gray-300 hover:bg-gray-800" aria-label="Clear entire release blocklist">Clear all</button>
 					</form>
 				}
 			</div>
 			if len(data.Blocklist) == 0 {
-				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-500">No blacklisted releases.</div>
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-500" role="status">No blacklisted releases.</div>
 			} else {
 				<div class="overflow-x-auto rounded-xl border border-gray-800">
 					<table class="min-w-full divide-y divide-gray-800 text-sm">
+						<caption class="sr-only">Release blocklist</caption>
 						<thead class="bg-gray-900/50">
 							<tr>
-								<th class="px-3 py-2 text-left text-xs text-gray-500">Title</th>
-								<th class="px-3 py-2 text-left text-xs text-gray-500">GUID</th>
-								<th class="px-3 py-2 text-left text-xs text-gray-500">Loop</th>
-								<th class="px-3 py-2 text-left text-xs text-gray-500">Reason</th>
-								<th class="px-3 py-2 text-right text-xs text-gray-500">Actions</th>
+								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Title</th>
+								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">GUID</th>
+								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Loop</th>
+								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Reason</th>
+								<th scope="col" class="px-3 py-2 text-right text-xs text-gray-500">Actions</th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-gray-800">
@@ -330,7 +337,7 @@ templ AutomationPage(data AutomationPageData) {
 										<form method="POST" action="/automation/blocklist/clear" class="inline">
 											<input type="hidden" name="wanted_item_id" value={ b.WantedItemID }/>
 											<input type="hidden" name="guid" value={ b.GUID }/>
-											<button type="submit" class="text-xs text-red-300 hover:underline">Clear</button>
+											<button type="submit" class="text-xs text-red-300 hover:underline" aria-label={ fmt.Sprintf("Clear blocklist entry for %s", b.Title) }>Clear</button>
 										</form>
 									</td>
 								</tr>
@@ -339,6 +346,6 @@ templ AutomationPage(data AutomationPageData) {
 					</table>
 				</div>
 			}
-		</div>
+		</section>
 	</div>
 }
