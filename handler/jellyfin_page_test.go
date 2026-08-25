@@ -79,7 +79,7 @@ func TestJellyfinPageSoftUnconfiguredStatus(t *testing.T) {
 	}
 	jfSrv := grpc.NewServer()
 	jellyfinv1.RegisterJellyfinBridgeServer(jfSrv, softJellyfinBridge{})
-	go jfSrv.Serve(jfLis)
+	go func() { _ = jfSrv.Serve(jfLis) }()
 	t.Cleanup(func() {
 		jfSrv.Stop()
 		_ = jfLis.Close()
@@ -97,7 +97,7 @@ func TestJellyfinPageSoftUnconfiguredStatus(t *testing.T) {
 			HttpAddr: jfLis.Addr().String(),
 		},
 	})
-	go discSrv.Serve(discLis)
+	go func() { _ = discSrv.Serve(discLis) }()
 	t.Cleanup(func() {
 		discSrv.Stop()
 		_ = discLis.Close()
@@ -139,7 +139,7 @@ func TestJellyfinSyncSoftUnconfigured(t *testing.T) {
 	}
 	jfSrv := grpc.NewServer()
 	jellyfinv1.RegisterJellyfinBridgeServer(jfSrv, softJellyfinBridge{})
-	go jfSrv.Serve(jfLis)
+	go func() { _ = jfSrv.Serve(jfLis) }()
 	t.Cleanup(func() {
 		jfSrv.Stop()
 		_ = jfLis.Close()
@@ -156,7 +156,7 @@ func TestJellyfinSyncSoftUnconfigured(t *testing.T) {
 			HttpAddr: jfLis.Addr().String(),
 		},
 	})
-	go discSrv.Serve(discLis)
+	go func() { _ = discSrv.Serve(discLis) }()
 	t.Cleanup(func() {
 		discSrv.Stop()
 		_ = discLis.Close()

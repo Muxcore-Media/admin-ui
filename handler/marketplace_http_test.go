@@ -91,7 +91,7 @@ func TestHttpSpoolAPIFetchTag(t *testing.T) {
 			return
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"name": tagName,
+			"name":        tagName,
 			"description": "stable channel",
 		})
 	}))

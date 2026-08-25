@@ -43,7 +43,7 @@ func TestAutomationQueuePageShowsAcquisitionPeers(t *testing.T) {
 			// no media.automation → soft error + peers still rendered
 		},
 	})
-	go discSrv.Serve(discLis)
+	go func() { _ = discSrv.Serve(discLis) }()
 	t.Cleanup(func() {
 		discSrv.Stop()
 		_ = discLis.Close()

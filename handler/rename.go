@@ -18,11 +18,11 @@ import (
 )
 
 const (
-	capMediaRenamer      = "media.renamer"
-	renameDialTimeout    = 3 * time.Second
-	renameReadTimeout    = 5 * time.Second
-	renamePageTimeout    = renameDialTimeout + renameReadTimeout + time.Second
-	renameBatchTimeout   = 60 * time.Second
+	capMediaRenamer    = "media.renamer"
+	renameDialTimeout  = 3 * time.Second
+	renameReadTimeout  = 5 * time.Second
+	renamePageTimeout  = renameDialTimeout + renameReadTimeout + time.Second
+	renameBatchTimeout = 60 * time.Second
 )
 
 func (h *Handler) renameModuleAddr(ctx context.Context) (string, error) {

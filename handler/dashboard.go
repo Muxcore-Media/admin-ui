@@ -91,14 +91,14 @@ func (h *Handler) HealthGrid(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 
 	if h.Core == nil {
-		w.Write([]byte(`<div class="col-span-full text-sm text-red-400">Core disconnected</div>`))
+		_, _ = w.Write([]byte(`<div class="col-span-full text-sm text-red-400">Core disconnected</div>`))
 		return
 	}
 
 	members, _, err := h.Core.Discovery.Members(r.Context())
 	if err != nil {
 		slog.Warn("health: Members call failed", "error", err)
-		w.Write([]byte(`<div class="col-span-full text-sm text-red-400">Failed to load health data</div>`))
+		_, _ = w.Write([]byte(`<div class="col-span-full text-sm text-red-400">Failed to load health data</div>`))
 		return
 	}
 
@@ -132,7 +132,7 @@ func (h *Handler) MonitorSummary(w http.ResponseWriter, r *http.Request) {
 
 	base := strings.TrimRight(h.HealthMonitorURL, "/")
 	if base == "" {
-		w.Write([]byte(`<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-500" data-testid="monitor-unconfigured">Health monitor URL not configured (ADMIN_UI_HEALTH_MONITOR_URL).</div>`))
+		_, _ = w.Write([]byte(`<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-500" data-testid="monitor-unconfigured">Health monitor URL not configured (ADMIN_UI_HEALTH_MONITOR_URL).</div>`))
 		return
 	}
 
@@ -140,13 +140,13 @@ func (h *Handler) MonitorSummary(w http.ResponseWriter, r *http.Request) {
 	resp, err := client.Get(base + "/status")
 	if err != nil {
 		slog.Warn("monitor: fetch /status failed", "url", base+"/status", "error", err)
-		w.Write([]byte(`<div class="rounded-xl border border-red-900/50 bg-red-950/30 p-4 text-sm text-red-400">Health monitor unreachable</div>`))
+		_, _ = w.Write([]byte(`<div class="rounded-xl border border-red-900/50 bg-red-950/30 p-4 text-sm text-red-400">Health monitor unreachable</div>`))
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode != http.StatusOK {
-		w.Write([]byte(`<div class="rounded-xl border border-red-900/50 bg-red-950/30 p-4 text-sm text-red-400">Health monitor HTTP ` + resp.Status + `</div>`))
+		_, _ = w.Write([]byte(`<div class="rounded-xl border border-red-900/50 bg-red-950/30 p-4 text-sm text-red-400">Health monitor HTTP ` + resp.Status + `</div>`))
 		return
 	}
 
@@ -169,7 +169,7 @@ func (h *Handler) MonitorSummary(w http.ResponseWriter, r *http.Request) {
 		} `json:"recent_events"`
 	}
 	if err := json.Unmarshal(body, &st); err != nil {
-		w.Write([]byte(`<div class="rounded-xl border border-red-900/50 bg-red-950/30 p-4 text-sm text-red-400">Invalid health-monitor status JSON</div>`))
+		_, _ = w.Write([]byte(`<div class="rounded-xl border border-red-900/50 bg-red-950/30 p-4 text-sm text-red-400">Invalid health-monitor status JSON</div>`))
 		return
 	}
 

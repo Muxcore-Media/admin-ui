@@ -17,13 +17,13 @@ import (
 )
 
 const (
-	capMediaRoots         = "media.roots"
-	rootsDialTimeout      = 3 * time.Second
-	rootsReadTimeout      = 5 * time.Second
-	rootsListPageTimeout  = rootsDialTimeout + rootsReadTimeout + time.Second
-	rootsEditPageTimeout  = rootsDialTimeout + 2*rootsReadTimeout + time.Second
-	rootsActionTimeout    = rootsDialTimeout + rootsReadTimeout + time.Second
-	rootsBrowseTimeout    = rootsDialTimeout + rootsReadTimeout + time.Second
+	capMediaRoots        = "media.roots"
+	rootsDialTimeout     = 3 * time.Second
+	rootsReadTimeout     = 5 * time.Second
+	rootsListPageTimeout = rootsDialTimeout + rootsReadTimeout + time.Second
+	rootsEditPageTimeout = rootsDialTimeout + 2*rootsReadTimeout + time.Second
+	rootsActionTimeout   = rootsDialTimeout + rootsReadTimeout + time.Second
+	rootsBrowseTimeout   = rootsDialTimeout + rootsReadTimeout + time.Second
 )
 
 func (h *Handler) rootsModuleAddr(ctx context.Context) (string, error) {

@@ -31,16 +31,16 @@ func (h *Handler) UsersDetail(w http.ResponseWriter, r *http.Request) {
 	client, conn, err := h.authClient(dialCtx)
 	dialCancel()
 	if err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
 	resp, err := client.ListUsers(readCtx, &authv1.ListUsersRequest{})
 	readCancel()
 	if err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">list users failed</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">list users failed</div>`))
 		return
 	}
 
@@ -52,7 +52,7 @@ func (h *Handler) UsersDetail(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Write([]byte(`<div class="text-xs text-red-400">user not found</div>`))
+	_, _ = w.Write([]byte(`<div class="text-xs text-red-400">user not found</div>`))
 }
 
 func (h *Handler) UsersTOTPStatus(w http.ResponseWriter, r *http.Request) {
@@ -64,22 +64,22 @@ func (h *Handler) UsersTOTPStatus(w http.ResponseWriter, r *http.Request) {
 	client, conn, err := h.authClient(dialCtx)
 	dialCancel()
 	if err != nil {
-		w.Write([]byte(`<span class="text-xs text-red-400">auth unavailable</span>`))
+		_, _ = w.Write([]byte(`<span class="text-xs text-red-400">auth unavailable</span>`))
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
 	status, err := client.TOTPStatus(readCtx, &authv1.TOTPStatusRequest{UserId: userID})
 	readCancel()
 	if err != nil {
-		w.Write([]byte(`<span class="text-xs text-red-400">totp status failed</span>`))
+		_, _ = w.Write([]byte(`<span class="text-xs text-red-400">totp status failed</span>`))
 		return
 	}
 	if status.GetEnabled() {
-		w.Write([]byte(`<span class="text-xs text-green-400">TOTP is enabled</span>`))
+		_, _ = w.Write([]byte(`<span class="text-xs text-green-400">TOTP is enabled</span>`))
 	} else {
-		w.Write([]byte(`<span class="text-xs text-gray-400">TOTP is disabled</span>`))
+		_, _ = w.Write([]byte(`<span class="text-xs text-gray-400">TOTP is disabled</span>`))
 	}
 }
 
@@ -99,7 +99,7 @@ func (h *Handler) UsersPage(w http.ResponseWriter, r *http.Request) {
 		h.render(w, r, component)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
 	resp, err := client.ListUsers(readCtx, &authv1.ListUsersRequest{})
@@ -121,7 +121,7 @@ func (h *Handler) UsersPage(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) UsersCreate(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">invalid form data</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">invalid form data</div>`))
 		return
 	}
 
@@ -132,15 +132,15 @@ func (h *Handler) UsersCreate(w http.ResponseWriter, r *http.Request) {
 	client, conn, err := h.authClient(dialCtx)
 	dialCancel()
 	if err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 	if username == "" || password == "" {
-		w.Write([]byte(`<div class="text-xs text-red-400">username and password required</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">username and password required</div>`))
 		return
 	}
 
@@ -152,11 +152,11 @@ func (h *Handler) UsersCreate(w http.ResponseWriter, r *http.Request) {
 	readCancel()
 	if err != nil {
 		slog.Warn("users: CreateUser failed", "error", err)
-		w.Write([]byte(`<div class="text-xs text-red-400">create failed</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">create failed</div>`))
 		return
 	}
 	if resp.Error != "" {
-		w.Write([]byte(fmt.Sprintf(`<div class="text-xs text-red-400">%s</div>`, resp.Error)))
+		_, _ = fmt.Fprintf(w, `<div class="text-xs text-red-400">%s</div>`, resp.Error)
 		return
 	}
 
@@ -179,21 +179,21 @@ func (h *Handler) UsersDelete(w http.ResponseWriter, r *http.Request) {
 	client, conn, err := h.authClient(dialCtx)
 	dialCancel()
 	if err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
 	resp, err := client.DeleteUser(readCtx, &authv1.DeleteUserRequest{UserId: userID})
 	readCancel()
 	if err != nil {
 		slog.Warn("users: DeleteUser failed", "error", err)
-		w.Write([]byte(`<div class="text-xs text-red-400">delete failed</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">delete failed</div>`))
 		return
 	}
 	if resp.Error != "" {
-		w.Write([]byte(fmt.Sprintf(`<div class="text-xs text-red-400">%s</div>`, resp.Error)))
+		_, _ = fmt.Fprintf(w, `<div class="text-xs text-red-400">%s</div>`, resp.Error)
 		return
 	}
 
@@ -208,7 +208,7 @@ func (h *Handler) UsersDelete(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UsersSetPassword(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
 	if err := r.ParseForm(); err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">invalid form data</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">invalid form data</div>`))
 		return
 	}
 
@@ -219,14 +219,14 @@ func (h *Handler) UsersSetPassword(w http.ResponseWriter, r *http.Request) {
 	client, conn, err := h.authClient(dialCtx)
 	dialCancel()
 	if err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	password := r.FormValue("password")
 	if password == "" {
-		w.Write([]byte(`<div class="text-xs text-red-400">password required</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">password required</div>`))
 		return
 	}
 
@@ -238,11 +238,11 @@ func (h *Handler) UsersSetPassword(w http.ResponseWriter, r *http.Request) {
 	readCancel()
 	if err != nil {
 		slog.Warn("users: SetPassword failed", "error", err)
-		w.Write([]byte(`<div class="text-xs text-red-400">set password failed</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">set password failed</div>`))
 		return
 	}
 	if resp.Error != "" {
-		w.Write([]byte(fmt.Sprintf(`<div class="text-xs text-red-400">%s</div>`, resp.Error)))
+		_, _ = fmt.Fprintf(w, `<div class="text-xs text-red-400">%s</div>`, resp.Error)
 		return
 	}
 
@@ -257,7 +257,7 @@ func (h *Handler) UsersSetPassword(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UsersSetRoles(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
 	if err := r.ParseForm(); err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">invalid form data</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">invalid form data</div>`))
 		return
 	}
 
@@ -268,10 +268,10 @@ func (h *Handler) UsersSetRoles(w http.ResponseWriter, r *http.Request) {
 	client, conn, err := h.authClient(dialCtx)
 	dialCancel()
 	if err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	roles := r.Form["roles"]
 
@@ -283,11 +283,11 @@ func (h *Handler) UsersSetRoles(w http.ResponseWriter, r *http.Request) {
 	readCancel()
 	if err != nil {
 		slog.Warn("users: SetRoles failed", "error", err)
-		w.Write([]byte(`<div class="text-xs text-red-400">set roles failed</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">set roles failed</div>`))
 		return
 	}
 	if resp.Error != "" {
-		w.Write([]byte(fmt.Sprintf(`<div class="text-xs text-red-400">%s</div>`, resp.Error)))
+		_, _ = fmt.Fprintf(w, `<div class="text-xs text-red-400">%s</div>`, resp.Error)
 		return
 	}
 
@@ -309,16 +309,16 @@ func (h *Handler) UsersTOTP(w http.ResponseWriter, r *http.Request) {
 	client, conn, err := h.authClient(dialCtx)
 	dialCancel()
 	if err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
 	status, err := client.TOTPStatus(readCtx, &authv1.TOTPStatusRequest{UserId: userID})
 	readCancel()
 	if err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">totp status failed</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">totp status failed</div>`))
 		return
 	}
 
@@ -327,34 +327,34 @@ func (h *Handler) UsersTOTP(w http.ResponseWriter, r *http.Request) {
 		resp, err := client.DisableTOTP(readCtx, &authv1.DisableTOTPRequest{UserId: userID})
 		readCancel()
 		if err != nil {
-			w.Write([]byte(`<div class="text-xs text-red-400">disable totp failed</div>`))
+			_, _ = w.Write([]byte(`<div class="text-xs text-red-400">disable totp failed</div>`))
 			return
 		}
 		if resp.Error != "" {
-			w.Write([]byte(fmt.Sprintf(`<div class="text-xs text-red-400">%s</div>`, resp.Error)))
+			_, _ = fmt.Fprintf(w, `<div class="text-xs text-red-400">%s</div>`, resp.Error)
 			return
 		}
 		if sess := SessionFromContext(r.Context()); sess != nil {
 			h.auditLog(r.Context(), sess.UserID, "admin.user.totp_disable", "user", userID, nil)
 		}
-		w.Write([]byte(`<span class="text-xs text-green-400">TOTP disabled</span>`))
+		_, _ = w.Write([]byte(`<span class="text-xs text-green-400">TOTP disabled</span>`))
 	} else {
 		readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
 		resp, err := client.EnableTOTP(readCtx, &authv1.EnableTOTPRequest{UserId: userID})
 		readCancel()
 		if err != nil {
-			w.Write([]byte(`<div class="text-xs text-red-400">enable totp failed</div>`))
+			_, _ = w.Write([]byte(`<div class="text-xs text-red-400">enable totp failed</div>`))
 			return
 		}
 		if resp.Error != "" {
-			w.Write([]byte(fmt.Sprintf(`<div class="text-xs text-red-400">%s</div>`, resp.Error)))
+			_, _ = fmt.Fprintf(w, `<div class="text-xs text-red-400">%s</div>`, resp.Error)
 			return
 		}
 		if sess := SessionFromContext(r.Context()); sess != nil {
 			h.auditLog(r.Context(), sess.UserID, "admin.user.totp_enable", "user", userID, nil)
 		}
-		w.Write([]byte(fmt.Sprintf(`<div class="text-xs space-y-1"><p class="text-green-400">TOTP enabled</p><p class="text-gray-400">Secret: <code class="text-gray-200">%s</code></p><p class="text-gray-400">QR URL: <a href="%s" class="text-indigo-400 hover:text-indigo-300" target="_blank">open</a></p></div>`,
-			resp.GetSecret(), resp.GetQrCodeUrl())))
+		_, _ = fmt.Fprintf(w, `<div class="text-xs space-y-1"><p class="text-green-400">TOTP enabled</p><p class="text-gray-400">Secret: <code class="text-gray-200">%s</code></p><p class="text-gray-400">QR URL: <a href="%s" class="text-indigo-400 hover:text-indigo-300" target="_blank">open</a></p></div>`,
+			resp.GetSecret(), resp.GetQrCodeUrl())
 	}
 }
 
@@ -367,10 +367,10 @@ func (h *Handler) UsersTokens(w http.ResponseWriter, r *http.Request) {
 	client, conn, err := h.authClient(dialCtx)
 	dialCancel()
 	if err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	switch r.Method {
 	case http.MethodGet:
@@ -378,7 +378,7 @@ func (h *Handler) UsersTokens(w http.ResponseWriter, r *http.Request) {
 		resp, err := client.ListAPITokens(readCtx, &authv1.ListAPITokensRequest{UserId: userID})
 		readCancel()
 		if err != nil {
-			w.Write([]byte(`<div class="text-xs text-red-400">list tokens failed</div>`))
+			_, _ = w.Write([]byte(`<div class="text-xs text-red-400">list tokens failed</div>`))
 			return
 		}
 		content := templates.UserTokens(resp.GetTokens(), userID)
@@ -386,12 +386,12 @@ func (h *Handler) UsersTokens(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPost:
 		if err := r.ParseForm(); err != nil {
-			w.Write([]byte(`<div class="text-xs text-red-400">invalid form data</div>`))
+			_, _ = w.Write([]byte(`<div class="text-xs text-red-400">invalid form data</div>`))
 			return
 		}
 		name := r.FormValue("name")
 		if name == "" {
-			w.Write([]byte(`<div class="text-xs text-red-400">name required</div>`))
+			_, _ = w.Write([]byte(`<div class="text-xs text-red-400">name required</div>`))
 			return
 		}
 		readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
@@ -401,11 +401,11 @@ func (h *Handler) UsersTokens(w http.ResponseWriter, r *http.Request) {
 		})
 		readCancel()
 		if err != nil {
-			w.Write([]byte(`<div class="text-xs text-red-400">create token failed</div>`))
+			_, _ = w.Write([]byte(`<div class="text-xs text-red-400">create token failed</div>`))
 			return
 		}
 		if resp.Error != "" {
-			w.Write([]byte(fmt.Sprintf(`<div class="text-xs text-red-400">%s</div>`, resp.Error)))
+			_, _ = fmt.Fprintf(w, `<div class="text-xs text-red-400">%s</div>`, resp.Error)
 			return
 		}
 		if sess := SessionFromContext(r.Context()); sess != nil {
@@ -413,7 +413,7 @@ func (h *Handler) UsersTokens(w http.ResponseWriter, r *http.Request) {
 				"token_name": name,
 			})
 		}
-		w.Write([]byte(fmt.Sprintf(`<div class="text-xs space-y-1"><p class="text-green-400">Token created</p><p class="text-gray-400">Token: <code class="text-gray-200 break-all">%s</code></p><p class="text-yellow-400 text-xs">Store this — it will not be shown again.</p></div>`, resp.GetToken())))
+		_, _ = fmt.Fprintf(w, `<div class="text-xs space-y-1"><p class="text-green-400">Token created</p><p class="text-gray-400">Token: <code class="text-gray-200 break-all">%s</code></p><p class="text-yellow-400 text-xs">Store this — it will not be shown again.</p></div>`, resp.GetToken())
 
 	case http.MethodDelete:
 		tokenID := r.PathValue("tokenId")
@@ -421,7 +421,7 @@ func (h *Handler) UsersTokens(w http.ResponseWriter, r *http.Request) {
 		_, err := client.DeleteAPIToken(readCtx, &authv1.DeleteAPITokenRequest{TokenId: tokenID})
 		readCancel()
 		if err != nil {
-			w.Write([]byte(`<div class="text-xs text-red-400">delete token failed</div>`))
+			_, _ = w.Write([]byte(`<div class="text-xs text-red-400">delete token failed</div>`))
 			return
 		}
 		if sess := SessionFromContext(r.Context()); sess != nil {

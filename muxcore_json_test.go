@@ -12,13 +12,13 @@ func TestMuxcoreJSONPresent(t *testing.T) {
 		t.Fatalf("muxcore.json required for spool: %v", err)
 	}
 	var meta struct {
-		Name            string   `json:"name"`
-		Description     string   `json:"description"`
-		Version         string   `json:"version"`
-		Author          string   `json:"author"`
-		Roles           []string `json:"roles"`
-		Capabilities    []string `json:"capabilities"`
-		MinCoreVersion  string   `json:"minCoreVersion"`
+		Name           string   `json:"name"`
+		Description    string   `json:"description"`
+		Version        string   `json:"version"`
+		Author         string   `json:"author"`
+		Roles          []string `json:"roles"`
+		Capabilities   []string `json:"capabilities"`
+		MinCoreVersion string   `json:"minCoreVersion"`
 	}
 	if err := json.Unmarshal(raw, &meta); err != nil {
 		t.Fatalf("muxcore.json: %v", err)

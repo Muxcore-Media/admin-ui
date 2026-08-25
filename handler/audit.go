@@ -11,9 +11,9 @@ import (
 )
 
 const (
-	auditDialTimeout  = 3 * time.Second
-	auditReadTimeout  = 5 * time.Second
-	auditPageTimeout  = auditDialTimeout + auditReadTimeout + time.Second
+	auditDialTimeout = 3 * time.Second
+	auditReadTimeout = 5 * time.Second
+	auditPageTimeout = auditDialTimeout + auditReadTimeout + time.Second
 )
 
 func (h *Handler) AuditPage(w http.ResponseWriter, r *http.Request) {

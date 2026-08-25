@@ -82,7 +82,7 @@ func startMediaFixture(t *testing.T, items []*mediaadminv1.MediaItem) (mediaAddr
 	}
 	srv := grpc.NewServer()
 	mediaadminv1.RegisterMediaAdminServiceServer(srv, fixtureMediaAdmin{items: items})
-	go srv.Serve(lis)
+	go func() { _ = srv.Serve(lis) }()
 
 	discLis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -92,7 +92,7 @@ func startMediaFixture(t *testing.T, items []*mediaadminv1.MediaItem) (mediaAddr
 	}
 	discSrv := grpc.NewServer()
 	discoveryv1.RegisterDiscoveryServiceServer(discSrv, mediaResolveDiscovery{addr: lis.Addr().String()})
-	go discSrv.Serve(discLis)
+	go func() { _ = discSrv.Serve(discLis) }()
 
 	core, err = client.Dial(discLis.Addr().String(), client.WithInsecure())
 	if err != nil {

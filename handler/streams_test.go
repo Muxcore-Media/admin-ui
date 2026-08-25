@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	monitorv1 "github.com/Muxcore-Media/playback-monitor/proto/monitorv1"
 	"github.com/Muxcore-Media/admin-ui/session"
+	monitorv1 "github.com/Muxcore-Media/playback-monitor/proto/monitorv1"
 )
 
 func TestStreamsPageSoftEmptyWithoutCore(t *testing.T) {

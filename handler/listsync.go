@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	capMediaListSync     = "media.listsync"
-	listSyncDialTimeout  = 3 * time.Second
-	listSyncReadTimeout  = 5 * time.Second
+	capMediaListSync    = "media.listsync"
+	listSyncDialTimeout = 3 * time.Second
+	listSyncReadTimeout = 5 * time.Second
 )
 
 func (h *Handler) listSyncModuleAddr(ctx context.Context) (string, error) {
@@ -56,18 +56,18 @@ func (h *Handler) withListSyncClient(ctx context.Context) (listsyncv1.ListSyncSe
 
 func sourceRowFromProto(s *listsyncv1.ListSource) templates.ListSyncSourceRow {
 	return templates.ListSyncSourceRow{
-		ID:               s.GetId(),
-		Name:             s.GetName(),
-		Type:             s.GetType(),
-		Enabled:          s.GetEnabled(),
-		Username:         s.GetUsername(),
-		ClientID:         s.GetClientId(),
-		ListURL:          s.GetListUrl(),
-		IntervalMin:      int(s.GetSyncIntervalMinutes()),
-		LastSynced:       s.GetLastSynced(),
-		BaseURL:          s.GetBaseUrl(),
-		QualityProfileID: s.GetQualityProfileId(),
-		RootFolderPath:   s.GetRootFolderPath(),
+		ID:                  s.GetId(),
+		Name:                s.GetName(),
+		Type:                s.GetType(),
+		Enabled:             s.GetEnabled(),
+		Username:            s.GetUsername(),
+		ClientID:            s.GetClientId(),
+		ListURL:             s.GetListUrl(),
+		IntervalMin:         int(s.GetSyncIntervalMinutes()),
+		LastSynced:          s.GetLastSynced(),
+		BaseURL:             s.GetBaseUrl(),
+		QualityProfileID:    s.GetQualityProfileId(),
+		RootFolderPath:      s.GetRootFolderPath(),
 		CleanLibraryLevel:   s.GetCleanLibraryLevel(),
 		TagIDs:              s.GetTagIds(),
 		MonitorMode:         s.GetMonitorMode(),
@@ -282,15 +282,15 @@ func (h *Handler) ListSyncHistoryPage(w http.ResponseWriter, r *http.Request) {
 	data.Total = int(resp.GetTotal())
 	for _, e := range resp.GetEntries() {
 		data.Entries = append(data.Entries, templates.ListSyncHistoryRow{
-			ID:          e.GetId(),
-			SourceName:  e.GetSourceName(),
-			Status:      e.GetStatus(),
-			ItemsFound:  int(e.GetItemsFound()),
-			ItemsNew:    int(e.GetItemsNew()),
+			ID:           e.GetId(),
+			SourceName:   e.GetSourceName(),
+			Status:       e.GetStatus(),
+			ItemsFound:   int(e.GetItemsFound()),
+			ItemsNew:     int(e.GetItemsNew()),
 			ItemsRemoved: int(e.GetItemsRemoved()),
-			Error:       e.GetError(),
-			StartedAt:   e.GetStartedAt(),
-			CompletedAt: e.GetCompletedAt(),
+			Error:        e.GetError(),
+			StartedAt:    e.GetStartedAt(),
+			CompletedAt:  e.GetCompletedAt(),
 		})
 	}
 	h.renderListSyncHistory(w, r, data)

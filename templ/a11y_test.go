@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
 	authv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/auth/v1"
 	formatsv1 "github.com/Muxcore-Media/media-custom-formats/proto/formatsv1"
-	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
 	renamev1 "github.com/Muxcore-Media/media-rename/proto/renamev1"
 	rootsv1 "github.com/Muxcore-Media/media-root-folders/proto/rootsv1"
 	"github.com/a-h/templ"

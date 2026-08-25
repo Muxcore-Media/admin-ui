@@ -74,7 +74,7 @@ func (h *Handler) ClusterNodes(w http.ResponseWriter, r *http.Request) {
 	dialCancel()
 	if err != nil {
 		slog.Warn("cluster nodes: Members call failed", "error", err)
-		w.Write([]byte(`<div class="col-span-full text-sm text-red-400">Failed to load nodes</div>`))
+		_, _ = w.Write([]byte(`<div class="col-span-full text-sm text-red-400">Failed to load nodes</div>`))
 		return
 	}
 
@@ -127,7 +127,7 @@ func (h *Handler) ClusterSSE(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send an immediate event to trigger the initial render
-	fmt.Fprintf(w, "event: cluster-update\ndata:\n\n")
+	_, _ = fmt.Fprintf(w, "event: cluster-update\ndata:\n\n")
 	flusher.Flush()
 
 	for {
@@ -144,7 +144,7 @@ func (h *Handler) ClusterSSE(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fmt.Fprintf(w, "event: cluster-update\ndata:\n\n")
+		_, _ = fmt.Fprintf(w, "event: cluster-update\ndata:\n\n")
 		flusher.Flush()
 	}
 }

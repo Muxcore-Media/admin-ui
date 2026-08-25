@@ -61,7 +61,7 @@ func (h *Handler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 			EventType: eventType,
 		})
 		readCancel()
-		conn.Close()
+		_ = conn.Close()
 		if err != nil {
 			slog.Warn("activity: ListHistory failed", "module", mod.ID, "error", err)
 			continue

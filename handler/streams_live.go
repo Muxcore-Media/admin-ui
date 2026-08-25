@@ -47,11 +47,10 @@ func (h *Handler) StreamsLiveEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	proxy := httputil.NewSingleHostReverseProxy(target)
-	origDirector := proxy.Director
-	proxy.Director = func(req *http.Request) {
-		origDirector(req)
-		req.URL.Path = "/events/streams"
-		req.URL.RawQuery = ""
+	proxy.Rewrite = func(r *httputil.ProxyRequest) {
+		r.SetURL(target)
+		r.Out.URL.Path = "/events/streams"
+		r.Out.URL.RawQuery = ""
 	}
 	proxy.ServeHTTP(w, r)
 }

@@ -10,8 +10,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	monitorv1 "github.com/Muxcore-Media/playback-monitor/proto/monitorv1"
 	guardv1 "github.com/Muxcore-Media/playback-guard/proto/guardv1"
+	monitorv1 "github.com/Muxcore-Media/playback-monitor/proto/monitorv1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
@@ -19,9 +19,9 @@ import (
 const capPlaybackGuard = "playback.guard"
 
 const (
-	playbackGuardDialTimeout  = 3 * time.Second
-	playbackGuardReadTimeout  = 5 * time.Second
-	playbackGuardPageTimeout  = playbackGuardDialTimeout + 3*playbackGuardReadTimeout + playbackMonitorDialTimeout + playbackMonitorReadTimeout + time.Second
+	playbackGuardDialTimeout   = 3 * time.Second
+	playbackGuardReadTimeout   = 5 * time.Second
+	playbackGuardPageTimeout   = playbackGuardDialTimeout + 3*playbackGuardReadTimeout + playbackMonitorDialTimeout + playbackMonitorReadTimeout + time.Second
 	playbackGuardActionTimeout = playbackGuardDialTimeout + playbackGuardReadTimeout + time.Second
 )
 

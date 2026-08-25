@@ -25,10 +25,10 @@ func (h *Handler) UnifiedQueuePage(w http.ResponseWriter, r *http.Request) {
 	filter := r.URL.Query().Get("filter")
 
 	data := templates.UnifiedQueueData{
-		Filter:      filter,
-		Page:        page,
-		Flash:       r.URL.Query().Get("status"),
-		Error:       r.URL.Query().Get("error"),
+		Filter: filter,
+		Page:   page,
+		Flash:  r.URL.Query().Get("status"),
+		Error:  r.URL.Query().Get("error"),
 	}
 
 	dialCtx, dialCancel := context.WithTimeout(pageCtx, automationDialTimeout)

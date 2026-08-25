@@ -44,23 +44,23 @@ func (h *Handler) authClient(ctx context.Context) (authv1.AuthServiceClient, *gr
 func (h *Handler) PasskeyList(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
 	if userID == "" {
-		w.Write([]byte(`<div class="text-xs text-red-400">user_id required</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">user_id required</div>`))
 		return
 	}
 
 	client, conn, err := h.authClient(r.Context())
 	if err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	resp, err := client.ListWebAuthnCredentials(r.Context(), &authv1.ListWebAuthnCredentialsRequest{
 		UserId: userID,
 	})
 	if err != nil {
 		slog.Warn("passkey: list failed", "error", err)
-		w.Write([]byte(`<div class="text-xs text-red-400">list failed</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">list failed</div>`))
 		return
 	}
 
@@ -72,16 +72,16 @@ func (h *Handler) PasskeyDelete(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
 	credID := r.PathValue("credId")
 	if userID == "" || credID == "" {
-		w.Write([]byte(`<div class="text-xs text-red-400">missing params</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">missing params</div>`))
 		return
 	}
 
 	client, conn, err := h.authClient(r.Context())
 	if err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	_, err = client.DeleteWebAuthnCredential(r.Context(), &authv1.DeleteWebAuthnCredentialRequest{
 		UserId:       userID,
@@ -89,7 +89,7 @@ func (h *Handler) PasskeyDelete(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		slog.Warn("passkey: delete failed", "error", err)
-		w.Write([]byte(`<div class="text-xs text-red-400">delete failed</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">delete failed</div>`))
 		return
 	}
 
@@ -106,23 +106,23 @@ func (h *Handler) PasskeyDelete(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) PasskeyBeginRegister(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
 	if userID == "" {
-		w.Write([]byte(`<div class="text-xs text-red-400">user_id required</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">user_id required</div>`))
 		return
 	}
 
 	client, conn, err := h.authClient(r.Context())
 	if err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	resp, err := client.BeginAdminRegistration(r.Context(), &authv1.BeginAdminRegistrationRequest{
 		UserId: userID,
 	})
 	if err != nil {
 		slog.Warn("passkey: begin register failed", "error", err)
-		w.Write([]byte(`<div class="text-xs text-red-400">begin registration failed</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">begin registration failed</div>`))
 		return
 	}
 
@@ -140,10 +140,10 @@ func (h *Handler) PasskeyCompleteRegister(w http.ResponseWriter, r *http.Request
 
 	client, conn, err := h.authClient(r.Context())
 	if err != nil {
-		w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
+		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">auth unavailable</div>`))
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	bodyBytes := jsonFromBody(r)
 
@@ -157,7 +157,7 @@ func (h *Handler) PasskeyCompleteRegister(w http.ResponseWriter, r *http.Request
 		if resp != nil && resp.Error != "" {
 			errMsg = resp.Error
 		}
-		w.Write([]byte(fmt.Sprintf(`<div class="text-xs text-red-400">%s</div>`, errMsg)))
+		_, _ = fmt.Fprintf(w, `<div class="text-xs text-red-400">%s</div>`, errMsg)
 		return
 	}
 
@@ -165,7 +165,7 @@ func (h *Handler) PasskeyCompleteRegister(w http.ResponseWriter, r *http.Request
 		h.auditLog(r.Context(), sess.UserID, "admin.user.passkey_register", "user", userID, nil)
 	}
 
-	w.Write([]byte(`<div class="text-xs text-green-400">Passkey registered</div>`))
+	_, _ = w.Write([]byte(`<div class="text-xs text-green-400">Passkey registered</div>`))
 }
 
 func jsonFromBody(r *http.Request) []byte {

@@ -11,10 +11,10 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Muxcore-Media/admin-ui/session"
+	automationv1 "github.com/Muxcore-Media/contracts-automation/muxcore/automation/v1"
 	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
 	discoveryv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/discovery/v1"
 	"github.com/Muxcore-Media/core/sdk/go/client"
-	automationv1 "github.com/Muxcore-Media/contracts-automation/muxcore/automation/v1"
 )
 
 type dashDiscovery struct {
@@ -74,7 +74,7 @@ func startDashboardFixture(t *testing.T) (core *client.Client, cleanup func()) {
 	}
 	autoSrv := grpc.NewServer()
 	automationv1.RegisterAutomationServiceServer(autoSrv, fixtureAutomationQueue{})
-	go autoSrv.Serve(autoLis)
+	go func() { _ = autoSrv.Serve(autoLis) }()
 
 	tvLis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -87,7 +87,7 @@ func startDashboardFixture(t *testing.T) (core *client.Client, cleanup func()) {
 			Id: "ep1", ParentId: "show1", Title: "Pilot", Date: "2026-08-25",
 		}},
 	})
-	go tvSrv.Serve(tvLis)
+	go func() { _ = tvSrv.Serve(tvLis) }()
 
 	discLis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -100,7 +100,7 @@ func startDashboardFixture(t *testing.T) (core *client.Client, cleanup func()) {
 		autoAddr: autoLis.Addr().String(),
 		tvAddr:   tvLis.Addr().String(),
 	})
-	go discSrv.Serve(discLis)
+	go func() { _ = discSrv.Serve(discLis) }()
 
 	core, err = client.Dial(discLis.Addr().String(), client.WithInsecure())
 	if err != nil {

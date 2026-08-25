@@ -20,13 +20,6 @@ func newMetrics() *metrics {
 	return &metrics{startTime: time.Now()}
 }
 
-func (m *metrics) handler(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		m.requests.Add(1)
-		next.ServeHTTP(w, r)
-	})
-}
-
 func (m *metrics) IncSuccess() {
 	m.loginSuccess.Add(1)
 }
@@ -42,7 +35,7 @@ func (m *metrics) serve(w http.ResponseWriter, r *http.Request) {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
-	fmt.Fprintf(w, `# HELP admin_ui_requests_total Total HTTP requests processed
+	_, _ = fmt.Fprintf(w, `# HELP admin_ui_requests_total Total HTTP requests processed
 # TYPE admin_ui_requests_total counter
 admin_ui_requests_total %d
 
@@ -78,14 +71,4 @@ admin_ui_go_goroutines %d
 		memStats.Alloc,
 		runtime.NumGoroutine(),
 	)
-}
-
-type metricsResponseWriter struct {
-	http.ResponseWriter
-	statusCode int
-}
-
-func (w *metricsResponseWriter) WriteHeader(code int) {
-	w.statusCode = code
-	w.ResponseWriter.WriteHeader(code)
 }

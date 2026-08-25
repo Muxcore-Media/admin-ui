@@ -39,7 +39,7 @@ func (h *Handler) loadMovieFiles(ctx context.Context, moduleID, itemID, displayN
 	if err != nil {
 		return nil
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	resp, err := client.ListFiles(ctx, &mgmntv1.ListFilesRequest{MovieId: itemID})
 	if err != nil {
 		slog.Debug("media: ListFiles failed", "module", moduleID, "id", itemID, "error", err)
@@ -76,7 +76,7 @@ func (h *Handler) MediaFileDelete(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	if _, err := client.RemoveFile(ctx, &mgmntv1.RemoveFileRequest{FileId: fileID, DeleteFiles: deleteFiles}); err != nil {
 		http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
@@ -104,13 +104,13 @@ func seasonViewsFromTV(series *tvmgmtv1.TVSeries) []templates.SeasonView {
 		eps := make([]templates.EpisodeView, 0, len(s.GetEpisodes()))
 		for _, e := range s.GetEpisodes() {
 			eps = append(eps, templates.EpisodeView{
-				ID:       e.GetId(),
-				Number:   int(e.GetEpisodeNumber()),
-				Absolute: int(e.GetAbsoluteNumber()),
-				Name:     e.GetName(),
-				AirDate:  e.GetAirDate(),
+				ID:        e.GetId(),
+				Number:    int(e.GetEpisodeNumber()),
+				Absolute:  int(e.GetAbsoluteNumber()),
+				Name:      e.GetName(),
+				AirDate:   e.GetAirDate(),
 				Monitored: e.GetMonitored(),
-				HasFile:  e.GetHasFile(),
+				HasFile:   e.GetHasFile(),
 			})
 		}
 		out = append(out, templates.SeasonView{
@@ -137,7 +137,7 @@ func (h *Handler) loadTVSeasons(ctx context.Context, moduleID, itemID, displayNa
 		slog.Warn("media: dial TV management failed", "module", moduleID, "error", err)
 		return nil
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	resp, err := client.GetTVShow(ctx, &tvmgmtv1.GetTVShowRequest{SeriesId: itemID})
 	if err != nil {
 		slog.Warn("media: GetTVShow failed", "module", moduleID, "id", itemID, "error", err)
@@ -162,7 +162,7 @@ func (h *Handler) MediaItemRefresh(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if _, err := client.RefreshItem(ctx, &mediaadminv1.RefreshItemRequest{Id: itemID}); err != nil {
 		slog.Warn("media: RefreshItem failed", "module", moduleID, "id", itemID, "error", err)
@@ -198,7 +198,7 @@ func (h *Handler) MediaItemDelete(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/media/"+moduleID+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if _, err := client.DeleteItem(ctx, &mediaadminv1.DeleteItemRequest{
 		Id: itemID, DeleteFiles: deleteFiles,
@@ -239,7 +239,7 @@ func (h *Handler) MediaSeasonMonitor(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if _, err := client.UpdateSeasonMonitored(ctx, &tvmgmtv1.UpdateSeasonMonitoredRequest{
 		SeasonId: seasonID, Monitored: monitored,
@@ -274,7 +274,7 @@ func (h *Handler) MediaEpisodeMonitor(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if _, err := client.UpdateEpisodeMonitored(ctx, &tvmgmtv1.UpdateEpisodeMonitoredRequest{
 		EpisodeId: episodeID, Monitored: monitored,
@@ -309,7 +309,7 @@ func (h *Handler) MediaEpisodeFileDelete(w http.ResponseWriter, r *http.Request)
 		http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error())+"#seasons", http.StatusSeeOther)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if _, err := client.RemoveEpisodeFile(ctx, &tvmgmtv1.RemoveEpisodeFileRequest{
 		EpisodeId: episodeID, DeleteFiles: deleteFiles,
@@ -340,7 +340,7 @@ func (h *Handler) loadAlternateTitles(ctx context.Context, moduleID, itemID, dis
 		if err != nil {
 			return nil
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		resp, err := client.ListAlternateTitles(ctx, &mgmntv1.ListAlternateTitlesRequest{MovieId: itemID})
 		if err != nil {
 			return nil
@@ -355,7 +355,7 @@ func (h *Handler) loadAlternateTitles(ctx context.Context, moduleID, itemID, dis
 		if err != nil {
 			return nil
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		resp, err := client.ListAlternateTitles(ctx, &tvmgmtv1.ListAlternateTitlesRequest{SeriesId: itemID})
 		if err != nil {
 			return nil
@@ -382,7 +382,7 @@ func (h *Handler) loadTrailers(ctx context.Context, moduleID, itemID, displayNam
 	if err != nil {
 		return nil
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	resp, err := client.ListTrailers(ctx, &mgmntv1.ListTrailersRequest{MovieId: itemID})
 	if err != nil {
 		slog.Debug("media: ListTrailers failed", "module", moduleID, "id", itemID, "error", err)
@@ -416,7 +416,7 @@ func (h *Handler) MediaAlternateTitleAdd(w http.ResponseWriter, r *http.Request)
 	}
 	displayName := moduleID
 	if conn, admin, err := h.dialMediaModule(addr); err == nil {
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		if info, err := admin.GetMediaTypeInfo(ctx, &mediaadminv1.GetMediaTypeInfoRequest{}); err == nil && info != nil {
 			displayName = info.GetDisplayName()
 		}
@@ -429,7 +429,7 @@ func (h *Handler) MediaAlternateTitleAdd(w http.ResponseWriter, r *http.Request)
 			http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 			return
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		if _, err := client.AddAlternateTitle(ctx, &mgmntv1.AddAlternateTitleRequest{MovieId: itemID, Title: title}); err != nil {
 			http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 			return
@@ -440,7 +440,7 @@ func (h *Handler) MediaAlternateTitleAdd(w http.ResponseWriter, r *http.Request)
 			http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 			return
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		if _, err := client.AddAlternateTitle(ctx, &tvmgmtv1.AddAlternateTitleRequest{SeriesId: itemID, Title: title}); err != nil {
 			http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 			return
@@ -465,7 +465,7 @@ func (h *Handler) MediaAlternateTitleDelete(w http.ResponseWriter, r *http.Reque
 	}
 	displayName := moduleID
 	if conn, admin, err := h.dialMediaModule(addr); err == nil {
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		if info, err := admin.GetMediaTypeInfo(ctx, &mediaadminv1.GetMediaTypeInfoRequest{}); err == nil && info != nil {
 			displayName = info.GetDisplayName()
 		}
@@ -478,7 +478,7 @@ func (h *Handler) MediaAlternateTitleDelete(w http.ResponseWriter, r *http.Reque
 			http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 			return
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		if _, err := client.RemoveAlternateTitle(ctx, &mgmntv1.RemoveAlternateTitleRequest{MovieId: itemID, TitleId: titleID}); err != nil {
 			http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 			return
@@ -489,7 +489,7 @@ func (h *Handler) MediaAlternateTitleDelete(w http.ResponseWriter, r *http.Reque
 			http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 			return
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		if _, err := client.RemoveAlternateTitle(ctx, &tvmgmtv1.RemoveAlternateTitleRequest{SeriesId: itemID, TitleId: titleID}); err != nil {
 			http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 			return

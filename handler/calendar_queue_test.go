@@ -11,10 +11,10 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Muxcore-Media/admin-ui/session"
+	automationv1 "github.com/Muxcore-Media/contracts-automation/muxcore/automation/v1"
 	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
 	discoveryv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/discovery/v1"
 	"github.com/Muxcore-Media/core/sdk/go/client"
-	automationv1 "github.com/Muxcore-Media/contracts-automation/muxcore/automation/v1"
 )
 
 type fixtureCalendarAdmin struct {
@@ -83,7 +83,7 @@ func TestUnifiedCalendarPageFixture(t *testing.T) {
 			Metadata: map[string]string{"season_number": "1", "episode_number": "1"},
 		}},
 	})
-	go srv.Serve(lis)
+	go func() { _ = srv.Serve(lis) }()
 	t.Cleanup(func() { srv.Stop(); _ = lis.Close() })
 
 	discLis, err := net.Listen("tcp", "127.0.0.1:0")
@@ -92,7 +92,7 @@ func TestUnifiedCalendarPageFixture(t *testing.T) {
 	}
 	discSrv := grpc.NewServer()
 	discoveryv1.RegisterDiscoveryServiceServer(discSrv, calendarCapDiscovery{addr: lis.Addr().String()})
-	go discSrv.Serve(discLis)
+	go func() { _ = discSrv.Serve(discLis) }()
 	t.Cleanup(func() { discSrv.Stop(); _ = discLis.Close() })
 
 	core, err := client.Dial(discLis.Addr().String(), client.WithInsecure())
@@ -179,7 +179,7 @@ func startAutomationFixture(t *testing.T) (core *client.Client, cleanup func()) 
 	}
 	srv := grpc.NewServer()
 	automationv1.RegisterAutomationServiceServer(srv, fixtureAutomationQueue{})
-	go srv.Serve(lis)
+	go func() { _ = srv.Serve(lis) }()
 
 	discLis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -189,7 +189,7 @@ func startAutomationFixture(t *testing.T) (core *client.Client, cleanup func()) 
 	}
 	discSrv := grpc.NewServer()
 	discoveryv1.RegisterDiscoveryServiceServer(discSrv, autoCapDiscovery{addr: lis.Addr().String()})
-	go discSrv.Serve(discLis)
+	go func() { _ = discSrv.Serve(discLis) }()
 
 	core, err = client.Dial(discLis.Addr().String(), client.WithInsecure())
 	if err != nil {
@@ -267,7 +267,7 @@ func startAutomationHealthyFixture(t *testing.T) (core *client.Client, cleanup f
 	}
 	srv := grpc.NewServer()
 	automationv1.RegisterAutomationServiceServer(srv, fixtureAutomationQueueHealthy{})
-	go srv.Serve(lis)
+	go func() { _ = srv.Serve(lis) }()
 
 	discLis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -277,7 +277,7 @@ func startAutomationHealthyFixture(t *testing.T) (core *client.Client, cleanup f
 	}
 	discSrv := grpc.NewServer()
 	discoveryv1.RegisterDiscoveryServiceServer(discSrv, autoCapDiscovery{addr: lis.Addr().String()})
-	go discSrv.Serve(discLis)
+	go func() { _ = discSrv.Serve(discLis) }()
 
 	core, err = client.Dial(discLis.Addr().String(), client.WithInsecure())
 	if err != nil {
