@@ -97,7 +97,6 @@ func TestPlaybackAdminPageFailsFastOnBlockedDiscovery(t *testing.T) {
 func TestPlaybackAdminSaveFailsFastOnBlockedDiscovery(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("ADMIN_UI_PLAYBACK_FILE", dir+"/playback.json")
-	playbackPath = dir + "/playback.json"
 
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

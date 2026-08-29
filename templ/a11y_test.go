@@ -31,6 +31,7 @@ func TestLayout_HasSkipLinkAndMainLandmark(t *testing.T) {
 		`href="#main-content"`,
 		`Skip to main content`,
 		`<main id="main-content"`,
+		`hx-disinherit="hx-select"`,
 		`id="sidebar"`,
 		`aria-label="Admin navigation"`,
 		`id="loading-bar"`,
@@ -146,6 +147,8 @@ func TestUsersPage_HasHeadingTableCaptionAndAlerts(t *testing.T) {
 		`Could not load users`,
 		`aria-label="Manage user alice"`,
 		`aria-label="Delete user alice"`,
+		`type="button"`,
+		`hx-get="/users/create-form"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("users page HTML missing %q", want)

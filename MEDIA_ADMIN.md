@@ -30,7 +30,7 @@ Per library module (`media.library`):
 | `GET /media/{moduleID}/collections` | `collections` |
 | `GET /media/{moduleID}/collections/{collectionID}` | `collections` |
 | `GET /media/{moduleID}/calendar` | `calendar` |
-| `GET /media/{moduleID}/{id}` | item detail (releases, history, seasons for TV) |
+| `GET /media/{moduleID}/item/{id}` | item detail (releases, history, seasons for TV) |
 | `POST /media/{moduleID}/{id}/metadata` | update metadata (incl. monitored, series_type, profile, root) |
 | `POST /media/{moduleID}/{id}/refresh` | metadata refresh |
 | `POST /media/{moduleID}/{id}/delete` | delete item (optional delete_files) |

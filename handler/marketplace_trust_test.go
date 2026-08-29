@@ -18,7 +18,6 @@ import (
 
 func TestMarketplaceTrust_AddListRevoke(t *testing.T) {
 	dir := t.TempDir()
-	spoolTrustRoot = dir
 	t.Setenv("ADMIN_UI_SPOOL_TRUST_DIR", dir)
 	t.Setenv("MUXCORE_SPOOL_REQUIRE_SIGNATURE", "1")
 

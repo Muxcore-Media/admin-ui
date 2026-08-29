@@ -5,6 +5,26 @@ All notable changes to the MuxCore Admin UI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.13] — 2026-08-29
+
+### Added
+
+- Durable JSON state under `ADMIN_UI_DATA_DIR` (branding, networking, parental, livetv, playback, password-reset, sessions) with per-file overrides
+- File-backed session store (`ADMIN_UI_SESSION_FILE`) so restarts keep operator sessions
+- Parental controls sync to userdata-local `prefs.parental` for consumer playback enforcement
+- Forgejo CI `golangci-lint` job; optional `ADMIN_UI_METRICS_TOKEN` gate on `/metrics`
+
+### Changed
+
+- `NetworkingSave` applies `public_url` and `trusted_proxies` to the running handler without restart
+- CSRF tokens are per-browser cookie (random, 24h) instead of daily UTC hash
+- SSE routes (`/cluster/sse`, `/streams/events`) clear write deadlines so streams survive the 15s server timeout
+- README / `.env.example` document auth-internal, public URL, health monitor, data-dir, and file paths; CI badge points at Forgejo
+
+### Fixed
+
+- `MEDIA_ADMIN.md` item detail route documents `GET /media/{moduleID}/item/{id}`
+
 ## [0.1.12] — 2026-08-20
 
 ### Added

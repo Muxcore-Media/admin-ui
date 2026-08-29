@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/rand"
-	"crypto/sha256"
 	"embed"
 	"encoding/hex"
 	"errors"
@@ -45,6 +44,7 @@ type Config struct {
 	PublicURL        string
 	TrustedProxies   string
 	HealthMonitorURL string
+	MetricsToken     string
 }
 
 func loadConfig() Config {
@@ -64,6 +64,7 @@ func loadConfig() Config {
 		PublicURL:        env("ADMIN_UI_PUBLIC_URL", ""),
 		TrustedProxies:   env("ADMIN_UI_TRUSTED_PROXIES", ""),
 		HealthMonitorURL: env("ADMIN_UI_HEALTH_MONITOR_URL", "http://127.0.0.1:9203"),
+		MetricsToken:     env("ADMIN_UI_METRICS_TOKEN", ""),
 	}
 }
 
@@ -145,16 +146,18 @@ func main() {
 		slog.Info("connected to core", "addr", cfg.CoreAddr)
 	}
 
-	ss := session.NewStore(cfg.SessionTTL)
+	ss := session.NewFileStore(handler.SessionFilePath(), cfg.SessionTTL)
 	loginRL := newRateLimiter()
 	met := newMetrics()
-	csrfKey := generateCSRFKey()
 	trustedProxies := parseTrustedProxiesCSV(cfg.TrustedProxies)
 
 	h := handler.New(coreClient, ss, cfg.TLSCert != "" || !cfg.Insecure, version, met, coreConnected, cfg.AuthAddr, loginRL.Reset, trustedProxies)
 	h.AuthInternalAddr = cfg.AuthInternalAddr
 	h.PublicURL = cfg.PublicURL
 	h.HealthMonitorURL = cfg.HealthMonitorURL
+	h.UserdataURL = strings.TrimRight(strings.TrimSpace(env("ADMIN_UI_USERDATA_URL", "")), "/")
+	h.HydrateNetworkingFromFile()
+	trustedProxies = h.TrustedProxies
 
 	mux := http.NewServeMux()
 
@@ -201,7 +204,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:         cfg.Addr,
-		Handler:      withMiddleware(mux, csrfKey, loginRL, trustedProxies),
+		Handler:      withMiddleware(mux, loginRL, trustedProxies, cfg.MetricsToken),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -239,18 +242,39 @@ func main() {
 	}
 }
 
-func generateCSRFKey() string {
-	b := make([]byte, 32)
+func newCSRFCookieValue() string {
+	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
-		slog.Error("csrf key generation failed", "error", err)
-		os.Exit(1)
+		return hex.EncodeToString([]byte("fallback-csrf-token"))
 	}
 	return hex.EncodeToString(b)
 }
 
-func csrfToken(key string) string {
-	h := sha256.Sum256([]byte(key + ":" + time.Now().Format("20060102")))
-	return hex.EncodeToString(h[:16])
+func ensureCSRFCookie(w http.ResponseWriter, r *http.Request) string {
+	if c, err := r.Cookie("csrf-token"); err == nil && c.Value != "" {
+		return c.Value
+	}
+	token := newCSRFCookieValue()
+	http.SetCookie(w, &http.Cookie{
+		Name:     "csrf-token",
+		Value:    token,
+		Path:     "/",
+		MaxAge:   86400,
+		HttpOnly: false,
+		Secure:   r.TLS != nil,
+		SameSite: http.SameSiteLaxMode,
+	})
+	return token
+}
+
+func sseWriteDeadlineMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/cluster/sse" || r.URL.Path == "/streams/events" {
+			rc := http.NewResponseController(w)
+			_ = rc.SetWriteDeadline(time.Time{})
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func recoveryMiddleware(next http.Handler) http.Handler {
@@ -306,14 +330,25 @@ func (w *loggingResponseWriter) Unwrap() http.ResponseWriter {
 	return w.ResponseWriter
 }
 
-func withMiddleware(next http.Handler, csrfKey string, loginRL *rateLimiter, trustedProxies []net.IPNet) http.Handler {
-	inner := next
+func withMiddleware(next http.Handler, loginRL *rateLimiter, trustedProxies []net.IPNet, metricsToken string) http.Handler {
+	inner := sseWriteDeadlineMiddleware(next)
 
 	inner = recoveryMiddleware(inner)
 	inner = requestLoggingMiddleware(inner)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/metrics" || r.URL.Path == "/health" {
+		if r.URL.Path == "/health" {
+			inner.ServeHTTP(w, r)
+			return
+		}
+		if r.URL.Path == "/metrics" {
+			if metricsToken != "" {
+				auth := r.Header.Get("Authorization")
+				if auth != "Bearer "+metricsToken {
+					http.Error(w, "Unauthorized", http.StatusUnauthorized)
+					return
+				}
+			}
 			inner.ServeHTTP(w, r)
 			return
 		}
@@ -325,17 +360,8 @@ func withMiddleware(next http.Handler, csrfKey string, loginRL *rateLimiter, tru
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 
-		// CSRF token cookie on all responses
 		if r.Method == http.MethodGet || r.Method == http.MethodHead {
-			token := csrfToken(csrfKey)
-			http.SetCookie(w, &http.Cookie{
-				Name:     "csrf-token",
-				Value:    token,
-				Path:     "/",
-				HttpOnly: false,
-				Secure:   r.TLS != nil,
-				SameSite: http.SameSiteLaxMode,
-			})
+			ensureCSRFCookie(w, r)
 		}
 
 		// CSRF double-submit check on mutating requests

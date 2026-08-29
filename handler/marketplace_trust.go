@@ -19,10 +19,7 @@ import (
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
-var (
-	spoolTrustMu   sync.Mutex
-	spoolTrustRoot = envOr("ADMIN_UI_SPOOL_TRUST_DIR", filepath.Join(os.TempDir(), "muxcore-spool-trust"))
-)
+var spoolTrustMu sync.Mutex
 
 type spoolTrustFile struct {
 	RequireSignature  bool                `json:"require_signature"`
@@ -36,10 +33,6 @@ type spoolTrustKeyMeta struct {
 	Fingerprint string `json:"fingerprint"`
 	Filename    string `json:"filename"`
 	AddedAt     string `json:"added_at"`
-}
-
-func spoolTrustDir() string {
-	return spoolTrustRoot
 }
 
 func spoolTrustKeysDir() string {

@@ -11,17 +11,7 @@ import (
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
-var (
-	brandingMu   sync.Mutex
-	brandingPath = envOr("ADMIN_UI_BRANDING_FILE", filepath.Join(os.TempDir(), "muxcore-admin-branding.json"))
-)
-
-func envOr(k, def string) string {
-	if v := os.Getenv(k); v != "" {
-		return v
-	}
-	return def
-}
+var brandingMu sync.Mutex
 
 func (h *Handler) DevicesPage(w http.ResponseWriter, r *http.Request) {
 	var sessions []session.SessionInfo
@@ -54,7 +44,7 @@ type brandingFile struct {
 func loadBranding() brandingFile {
 	brandingMu.Lock()
 	defer brandingMu.Unlock()
-	raw, err := os.ReadFile(brandingPath)
+	raw, err := os.ReadFile(brandingFilePath())
 	if err != nil {
 		return brandingFile{ServerName: "MuxCore"}
 	}
@@ -71,16 +61,17 @@ func loadBranding() brandingFile {
 func saveBranding(b brandingFile) error {
 	brandingMu.Lock()
 	defer brandingMu.Unlock()
-	_ = os.MkdirAll(filepath.Dir(brandingPath), 0o700)
+	path := brandingFilePath()
+	_ = os.MkdirAll(filepath.Dir(path), 0o700)
 	raw, err := json.MarshalIndent(b, "", "  ")
 	if err != nil {
 		return err
 	}
-	tmp := brandingPath + ".tmp"
+	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, raw, 0o600); err != nil {
 		return err
 	}
-	return os.Rename(tmp, brandingPath)
+	return os.Rename(tmp, path)
 }
 
 func (h *Handler) BrandingPage(w http.ResponseWriter, r *http.Request) {

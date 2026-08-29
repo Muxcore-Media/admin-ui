@@ -31,7 +31,6 @@ func TestPlaybackAdminPageSoftEmptyWithoutCore(t *testing.T) {
 func TestPlaybackAdminSaveWithoutTranscoder(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("ADMIN_UI_PLAYBACK_FILE", dir+"/playback.json")
-	playbackPath = dir + "/playback.json"
 
 	ss := session.NewStore(0)
 	h := New(nil, ss, false, "test", nil, false, "", nil, nil)

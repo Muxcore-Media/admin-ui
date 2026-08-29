@@ -44,12 +44,9 @@ func schedulerHTTPDo(_ context.Context, req *http.Request) (*http.Response, erro
 }
 
 var (
-	networkingMu   sync.Mutex
-	networkingPath = envOr("ADMIN_UI_NETWORKING_FILE", filepath.Join(os.TempDir(), "muxcore-admin-networking.json"))
-	parentalMu     sync.Mutex
-	parentalPath   = envOr("ADMIN_UI_PARENTAL_FILE", filepath.Join(os.TempDir(), "muxcore-admin-parental.json"))
-	livetvMu       sync.Mutex
-	livetvPath     = envOr("ADMIN_UI_LIVETV_FILE", filepath.Join(os.TempDir(), "muxcore-admin-livetv.json"))
+	networkingMu sync.Mutex
+	parentalMu   sync.Mutex
+	livetvMu     sync.Mutex
 )
 
 // --- API Keys catalog ---
@@ -410,7 +407,7 @@ type networkingFile struct {
 func loadNetworking() networkingFile {
 	networkingMu.Lock()
 	defer networkingMu.Unlock()
-	raw, err := os.ReadFile(networkingPath)
+	raw, err := os.ReadFile(networkingFilePath())
 	if err != nil {
 		return networkingFile{HTTPPort: "80", HTTPSPort: "443"}
 	}
@@ -424,16 +421,17 @@ func loadNetworking() networkingFile {
 func saveNetworking(n networkingFile) error {
 	networkingMu.Lock()
 	defer networkingMu.Unlock()
-	_ = os.MkdirAll(filepath.Dir(networkingPath), 0o700)
+	path := networkingFilePath()
+	_ = os.MkdirAll(filepath.Dir(path), 0o700)
 	raw, err := json.MarshalIndent(n, "", "  ")
 	if err != nil {
 		return err
 	}
-	tmp := networkingPath + ".tmp"
+	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, raw, 0o600); err != nil {
 		return err
 	}
-	return os.Rename(tmp, networkingPath)
+	return os.Rename(tmp, path)
 }
 
 func (h *Handler) NetworkingPage(w http.ResponseWriter, r *http.Request) {
@@ -476,6 +474,7 @@ func (h *Handler) NetworkingSave(w http.ResponseWriter, r *http.Request) {
 		h.render(w, r, templates.Layout("Networking", nav, content))
 		return
 	}
+	h.ApplyNetworkingRuntime(n.PublicURL, n.TrustedProxies)
 	http.Redirect(w, r, "/networking?saved=1", http.StatusSeeOther)
 }
 
@@ -491,7 +490,7 @@ type parentalSettings struct {
 func loadParentalMap() map[string]parentalSettings {
 	parentalMu.Lock()
 	defer parentalMu.Unlock()
-	raw, err := os.ReadFile(parentalPath)
+	raw, err := os.ReadFile(parentalFilePath())
 	if err != nil {
 		return map[string]parentalSettings{}
 	}
@@ -505,16 +504,17 @@ func loadParentalMap() map[string]parentalSettings {
 func saveParentalMap(m map[string]parentalSettings) error {
 	parentalMu.Lock()
 	defer parentalMu.Unlock()
-	_ = os.MkdirAll(filepath.Dir(parentalPath), 0o700)
+	path := parentalFilePath()
+	_ = os.MkdirAll(filepath.Dir(path), 0o700)
 	raw, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
 		return err
 	}
-	tmp := parentalPath + ".tmp"
+	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, raw, 0o600); err != nil {
 		return err
 	}
-	return os.Rename(tmp, parentalPath)
+	return os.Rename(tmp, path)
 }
 
 func (h *Handler) UsersParental(w http.ResponseWriter, r *http.Request) {
@@ -536,6 +536,9 @@ func (h *Handler) UsersParental(w http.ResponseWriter, r *http.Request) {
 				AllowedTags: p.AllowedTags, AllowUnrated: p.AllowUnrated, Error: err.Error(),
 			}).Render(r.Context(), w)
 			return
+		}
+		if err := h.syncParentalToUserdata(r.Context(), userID, p); err != nil {
+			slog.Warn("parental: userdata sync failed", "user_id", userID, "error", err)
 		}
 		_ = templates.UserParentalForm(templates.ParentalData{
 			UserID: userID, MaxParentalRating: p.MaxParentalRating, BlockedTags: p.BlockedTags,
@@ -600,7 +603,7 @@ func defaultLiveTVFile() liveTVFile {
 func loadLiveTV() liveTVFile {
 	livetvMu.Lock()
 	defer livetvMu.Unlock()
-	raw, err := os.ReadFile(livetvPath)
+	raw, err := os.ReadFile(livetvFilePath())
 	if err != nil {
 		return defaultLiveTVFile()
 	}
@@ -614,16 +617,17 @@ func loadLiveTV() liveTVFile {
 func saveLiveTV(f liveTVFile) error {
 	livetvMu.Lock()
 	defer livetvMu.Unlock()
-	_ = os.MkdirAll(filepath.Dir(livetvPath), 0o700)
+	path := livetvFilePath()
+	_ = os.MkdirAll(filepath.Dir(path), 0o700)
 	raw, err := json.MarshalIndent(f, "", "  ")
 	if err != nil {
 		return err
 	}
-	tmp := livetvPath + ".tmp"
+	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, raw, 0o600); err != nil {
 		return err
 	}
-	return os.Rename(tmp, livetvPath)
+	return os.Rename(tmp, path)
 }
 
 func (h *Handler) LiveTVAdminPage(w http.ResponseWriter, r *http.Request) {
@@ -657,16 +661,13 @@ func (h *Handler) LiveTVAdminSave(w http.ResponseWriter, r *http.Request) {
 		h.render(w, r, templates.Layout("Live TV", nav, content))
 		return
 	}
-	slog.Info("livetv channels saved", "count", len(f.Channels), "path", livetvPath)
+	slog.Info("livetv channels saved", "count", len(f.Channels), "path", livetvFilePath())
 	http.Redirect(w, r, "/livetv?saved=1", http.StatusSeeOther)
 }
 
 // --- Libraries / Playback / Plugins (live) ---
 
-var (
-	playbackMu   sync.Mutex
-	playbackPath = envOr("ADMIN_UI_PLAYBACK_FILE", filepath.Join(os.TempDir(), "muxcore-admin-playback.json"))
-)
+var playbackMu sync.Mutex
 
 type playbackFile struct {
 	EnableResume     bool   `json:"enable_resume"`
@@ -680,7 +681,7 @@ type playbackFile struct {
 func loadPlayback() playbackFile {
 	playbackMu.Lock()
 	defer playbackMu.Unlock()
-	raw, err := os.ReadFile(playbackPath)
+	raw, err := os.ReadFile(playbackFilePath())
 	if err != nil {
 		return playbackFile{EnableResume: true, PreferDirectPlay: true, MaxBitrateMbps: "80", FFmpegBin: "ffmpeg"}
 	}
@@ -697,16 +698,17 @@ func loadPlayback() playbackFile {
 func savePlayback(p playbackFile) error {
 	playbackMu.Lock()
 	defer playbackMu.Unlock()
-	_ = os.MkdirAll(filepath.Dir(playbackPath), 0o700)
+	path := playbackFilePath()
+	_ = os.MkdirAll(filepath.Dir(path), 0o700)
 	raw, err := json.MarshalIndent(p, "", "  ")
 	if err != nil {
 		return err
 	}
-	tmp := playbackPath + ".tmp"
+	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, raw, 0o600); err != nil {
 		return err
 	}
-	return os.Rename(tmp, playbackPath)
+	return os.Rename(tmp, path)
 }
 
 const (
