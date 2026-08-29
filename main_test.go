@@ -69,37 +69,51 @@ func TestLoadConfigEnv(t *testing.T) {
 	}
 }
 
-func TestCSRFTokenGeneration(t *testing.T) {
-	key := generateCSRFKey()
-	if key == "" {
-		t.Fatal("expected non-empty CSRF key")
-	}
-
-	token := csrfToken(key)
-	if token == "" {
+func TestCSRFCookieStableAcrossRequests(t *testing.T) {
+	w1 := httptest.NewRecorder()
+	r1 := mustRequest("GET", "/")
+	token1 := ensureCSRFCookie(w1, r1)
+	if token1 == "" {
 		t.Fatal("expected non-empty CSRF token")
 	}
 
-	// Same key + same day produces same token
-	token2 := csrfToken(key)
-	if token != token2 {
-		t.Fatal("expected same token for same key and day")
+	w2 := httptest.NewRecorder()
+	r2 := mustRequest("GET", "/")
+	r2.AddCookie(&http.Cookie{Name: "csrf-token", Value: token1})
+	token2 := ensureCSRFCookie(w2, r2)
+	if token1 != token2 {
+		t.Fatal("expected same token when cookie already set")
 	}
 }
 
-func TestCSRFKeyUniqueness(t *testing.T) {
-	key1 := generateCSRFKey()
-	key2 := generateCSRFKey()
+func TestCSRFCookieRegeneratedWhenMissing(t *testing.T) {
+	w := httptest.NewRecorder()
+	r := mustRequest("GET", "/")
+	a := ensureCSRFCookie(w, r)
+	b := ensureCSRFCookie(w, r)
+	if a == "" || b == "" {
+		t.Fatal("expected tokens")
+	}
+}
 
-	if key1 == key2 {
-		t.Fatal("expected different keys from generateCSRFKey")
+func TestMetricsEndpointRequiresTokenWhenConfigured(t *testing.T) {
+	met := newMetrics()
+	r := mustRequest("GET", "/metrics")
+	w := httptest.NewRecorder()
+	mux := http.NewServeMux()
+	mux.Handle("GET /metrics", http.HandlerFunc(met.serve))
+	handler := withMiddleware(mux, newRateLimiter(), parseTrustedProxies(nil), "secret")
+	handler.ServeHTTP(w, r)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", w.Code)
 	}
 
-	token1 := csrfToken(key1)
-	token2 := csrfToken(key2)
-
-	if token1 == token2 {
-		t.Fatal("expected different tokens from different keys")
+	r2 := mustRequest("GET", "/metrics")
+	r2.Header.Set("Authorization", "Bearer secret")
+	w2 := httptest.NewRecorder()
+	handler.ServeHTTP(w2, r2)
+	if w2.Code != http.StatusOK {
+		t.Fatalf("expected 200 with token, got %d", w2.Code)
 	}
 }
 

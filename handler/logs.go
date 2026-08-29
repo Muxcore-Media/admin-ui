@@ -14,7 +14,7 @@ import (
 )
 
 func logDir() string {
-	return envOr("ADMIN_UI_LOG_DIR", envOr("MVP_RUN", filepath.Join(os.TempDir(), "muxcore-logs")))
+	return logDirPath()
 }
 
 func (h *Handler) LogsPage(w http.ResponseWriter, r *http.Request) {

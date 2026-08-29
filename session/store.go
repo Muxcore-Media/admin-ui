@@ -24,6 +24,7 @@ type Store struct {
 	mu       sync.RWMutex
 	sessions map[string]*Session
 	ttl      time.Duration
+	filePath string
 }
 
 func NewStore(ttl time.Duration) *Store {
@@ -60,6 +61,7 @@ func (s *Store) CreateWithTenant(userID, username, tenantID string, roles, permi
 	s.mu.Lock()
 	s.sessions[token] = sess
 	s.mu.Unlock()
+	_ = s.persist()
 
 	return token, nil
 }
@@ -89,16 +91,18 @@ func (s *Store) BindAuthLocalToken(adminSessionToken, authLocalToken string) {
 		return
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if sess, ok := s.sessions[adminSessionToken]; ok {
 		sess.AuthLocalToken = authLocalToken
 	}
+	s.mu.Unlock()
+	_ = s.persist()
 }
 
 func (s *Store) Revoke(token string) {
 	s.mu.Lock()
 	delete(s.sessions, token)
 	s.mu.Unlock()
+	_ = s.persist()
 }
 
 func (s *Store) GetFromRequest(r *http.Request) (*Session, bool) {
@@ -159,5 +163,6 @@ func (s *Store) cleanupLoop() {
 			}
 		}
 		s.mu.Unlock()
+		_ = s.persist()
 	}
 }

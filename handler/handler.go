@@ -50,6 +50,8 @@ type Handler struct {
 	// HealthMonitorURL is the health-monitor HTTP base (e.g. http://127.0.0.1:9203).
 	// Empty disables the dashboard monitor panel.
 	HealthMonitorURL string
+	// UserdataURL is optional HTTP base for userdata-local (parental sync).
+	UserdataURL string
 	// RequestMediaURL is optional HTTP base for request-media (empty = mesh only).
 	RequestMediaURL string
 	// APIRestURL is optional api-rest base for SpoolService HTTP proxy fallback.
@@ -178,6 +180,14 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /migrate", h.requireAuth(h.MigratePage))
 	mux.HandleFunc("POST /migrate", h.requireAuth(h.MigratePost))
+
+	mux.HandleFunc("GET /music", h.requireAuth(h.MusicListPage))
+	mux.HandleFunc("GET /music/{id}", h.requireAuth(h.MusicDetailPage))
+
+	mux.HandleFunc("GET /tagging", h.requireAuth(h.TaggingPage))
+	mux.HandleFunc("POST /tagging/tags", h.requireAuth(h.TaggingCreateTag))
+	mux.HandleFunc("POST /tagging/rules", h.requireAuth(h.TaggingCreateRule))
+	mux.HandleFunc("POST /tagging/rules/{id}/delete", h.requireAuth(h.TaggingDeleteRule))
 
 	mux.HandleFunc("GET /list-sync", h.requireAuth(h.ListSyncPage))
 	mux.HandleFunc("GET /list-sync/history", h.requireAuth(h.ListSyncHistoryPage))

@@ -36,6 +36,7 @@ templ UsersPage(users []*authv1.UserInfo, errorMsg string, resets []PasswordRese
 				<p class="text-gray-400 text-sm mt-1">Manage users, roles, and authentication</p>
 			</div>
 			<button
+				type="button"
 				hx-get="/users/create-form"
 				hx-target="#create-form"
 				hx-swap="innerHTML"
@@ -96,6 +97,7 @@ templ UsersPage(users []*authv1.UserInfo, errorMsg string, resets []PasswordRese
 								</td>
 								<td class="px-4 py-3 text-right">
 									<button
+										type="button"
 										hx-get={ templ.SafeURL(fmt.Sprintf("/users/%s/detail", u.GetId())) }
 										hx-target="#user-detail"
 										hx-swap="innerHTML"
@@ -104,6 +106,7 @@ templ UsersPage(users []*authv1.UserInfo, errorMsg string, resets []PasswordRese
 										class="text-xs text-indigo-400 hover:text-indigo-300 mr-3"
 									>Manage</button>
 									<button
+										type="button"
 										hx-delete={ templ.SafeURL(fmt.Sprintf("/users/%s", u.GetId())) }
 										hx-confirm={ fmt.Sprintf("Delete user %q?", u.GetUsername()) }
 										hx-target="body"

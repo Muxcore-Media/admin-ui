@@ -1,6 +1,6 @@
 # MuxCore Admin UI
 
-[![CI](https://git.zem.systems/muxcore/admin-ui/actions/workflows/ci.yml/badge.svg)](https://github.com/Muxcore-Media/admin-ui/actions)
+[![CI](https://git.zem.systems/muxcore/admin-ui/actions/workflows/ci.yml/badge.svg)](https://git.zem.systems/muxcore/admin-ui/actions)
 [![Go Version](https://img.shields.io/badge/Go-1.26-blue)](https://go.dev/)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 
@@ -53,6 +53,13 @@ All configuration is via environment variables:
 | `ADMIN_UI_LOG_LEVEL` | `info` | Log level (debug, info, warn, error) |
 | `ADMIN_UI_LOG_FORMAT` | `text` | Log format: `text` or `json` |
 | `ADMIN_UI_TRUSTED_PROXIES` | loopback | Comma-separated CIDRs whose `X-Forwarded-For` is trusted (empty → `127.0.0.0/8`, `::1/128`) |
+| `ADMIN_UI_AUTH_INTERNAL_ADDR` | same as `ADMIN_UI_AUTH_ADDR` | Server-side auth base for OAuth code exchange (use LAN URL when browser uses public auth) |
+| `ADMIN_UI_PUBLIC_URL` | — | Public origin override for OAuth callbacks (e.g. `https://admin.zem.systems`) |
+| `ADMIN_UI_HEALTH_MONITOR_URL` | `http://127.0.0.1:9203` | Health-monitor HTTP base for dashboard panel |
+| `ADMIN_UI_DATA_DIR` | `$TMP/muxcore-admin-ui` or `MEDIA_UI_USERDATA_DIR` | Root for durable JSON state (branding, networking, sessions, …) |
+| `ADMIN_UI_*_FILE` | under data dir | Per-artifact overrides: `BRANDING`, `NETWORKING`, `PARENTAL`, `LIVETV`, `PLAYBACK`, `PASSWORD_RESET`, `SESSION` |
+| `ADMIN_UI_USERDATA_URL` | mesh `userdata.local` | HTTP base for parental prefs sync to userdata-local |
+| `ADMIN_UI_METRICS_TOKEN` | — | When set, `/metrics` requires `Authorization: Bearer <token>` |
 
 ---
 

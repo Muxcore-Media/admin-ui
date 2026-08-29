@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"time"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
@@ -20,7 +19,7 @@ type passwordResetFile struct {
 }
 
 func passwordResetPath() string {
-	return envOr("ADMIN_UI_PASSWORD_RESET_FILE", filepath.Join(os.TempDir(), "muxcore-password-resets.json"))
+	return passwordResetFilePath()
 }
 
 func loadPasswordResetRequests() []templates.PasswordResetRow {
