@@ -94,6 +94,27 @@ func (h *Handler) MaintainerPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	readCtx, readCancel = context.WithTimeout(pageCtx, maintainerReadTimeout)
+	cols, err := client.ListCollections(readCtx, &maintainv1.ListCollectionsRequest{})
+	readCancel()
+	if err == nil {
+		for _, col := range cols.GetCollections() {
+			label := col.GetLeavingSoonLabel()
+			if !col.GetLeavingSoonEnabled() {
+				label = "—"
+			}
+			data.Collections = append(data.Collections, templates.MaintainerCollectionRow{
+				ID:           col.GetId(),
+				Name:         col.GetName(),
+				Enabled:      col.GetEnabled(),
+				GraceDays:    int(col.GetGraceDays()),
+				Action:       strings.TrimPrefix(col.GetArrAction().String(), "ARR_ACTION_"),
+				LeavingSoon:  col.GetLeavingSoonEnabled(),
+				LeavingLabel: label,
+			})
+		}
+	}
+
+	readCtx, readCancel = context.WithTimeout(pageCtx, maintainerReadTimeout)
 	cands, err := client.ListCandidates(readCtx, &maintainv1.ListCandidatesRequest{Page: 1, PageSize: 50})
 	readCancel()
 	if err == nil {
@@ -105,6 +126,22 @@ func (h *Handler) MaintainerPage(w http.ResponseWriter, r *http.Request) {
 				Status:   strings.TrimPrefix(c.GetStatus().String(), "CANDIDATE_STATUS_"),
 				Action:   strings.TrimPrefix(c.GetArrAction().String(), "ARR_ACTION_"),
 				ActAfter: c.GetActAfter(),
+			})
+		}
+	}
+
+	readCtx, readCancel = context.WithTimeout(pageCtx, maintainerReadTimeout)
+	prots, err := client.ListProtections(readCtx, &maintainv1.ListProtectionsRequest{})
+	readCancel()
+	if err == nil {
+		for _, p := range prots.GetProtections() {
+			data.Protections = append(data.Protections, templates.MaintainerProtectionRow{
+				ID:        p.GetId(),
+				Scope:     strings.TrimPrefix(p.GetScope().String(), "MEDIA_SCOPE_"),
+				ItemID:    p.GetItemId(),
+				Title:     p.GetTitle(),
+				Reason:    p.GetReason(),
+				ExpiresAt: p.GetExpiresAt(),
 			})
 		}
 	}
@@ -418,6 +455,136 @@ func (h *Handler) MaintainerCancelCandidate(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	http.Redirect(w, r, "/maintainer?ok="+url.QueryEscape("Candidate cancelled"), http.StatusSeeOther)
+}
+
+func (h *Handler) MaintainerPostponeCandidate(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape("invalid form"), http.StatusSeeOther)
+		return
+	}
+	days, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("days")))
+	if days <= 0 {
+		days = 7
+	}
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), maintainerActionTimeout)
+	defer pageCancel()
+	client, closer, err := h.withMaintainerClient(pageCtx)
+	if err != nil {
+		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	defer closer()
+	readCtx, readCancel := context.WithTimeout(pageCtx, maintainerReadTimeout)
+	_, err = client.PostponeCandidate(readCtx, &maintainv1.PostponeCandidateRequest{Id: id, Days: int32(days)})
+	readCancel()
+	if err != nil {
+		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/maintainer?ok="+url.QueryEscape(fmt.Sprintf("Candidate postponed %d days", days)), http.StatusSeeOther)
+}
+
+func (h *Handler) MaintainerAddCollection(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape("invalid form"), http.StatusSeeOther)
+		return
+	}
+	grace, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("grace_days")))
+	action := maintainv1.ArrAction(maintainv1.ArrAction_value[strings.TrimSpace(r.FormValue("arr_action"))])
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), maintainerActionTimeout)
+	defer pageCancel()
+	client, closer, err := h.withMaintainerClient(pageCtx)
+	if err != nil {
+		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	defer closer()
+	readCtx, readCancel := context.WithTimeout(pageCtx, maintainerReadTimeout)
+	_, err = client.UpsertCollection(readCtx, &maintainv1.UpsertCollectionRequest{Collection: &maintainv1.Collection{
+		Name:               strings.TrimSpace(r.FormValue("name")),
+		Enabled:            true,
+		GraceDays:          int32(grace),
+		ArrAction:          action,
+		LeavingSoonEnabled: r.FormValue("leaving_soon_enabled") == "1",
+		LeavingSoonLabel:   strings.TrimSpace(r.FormValue("leaving_soon_label")),
+	}})
+	readCancel()
+	if err != nil {
+		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/maintainer?ok="+url.QueryEscape("Collection added"), http.StatusSeeOther)
+}
+
+func (h *Handler) MaintainerDeleteCollection(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), maintainerActionTimeout)
+	defer pageCancel()
+	client, closer, err := h.withMaintainerClient(pageCtx)
+	if err != nil {
+		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	defer closer()
+	readCtx, readCancel := context.WithTimeout(pageCtx, maintainerReadTimeout)
+	_, err = client.DeleteCollection(readCtx, &maintainv1.DeleteCollectionRequest{Id: id})
+	readCancel()
+	if err != nil {
+		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/maintainer?ok="+url.QueryEscape("Collection deleted"), http.StatusSeeOther)
+}
+
+func (h *Handler) MaintainerAddProtection(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape("invalid form"), http.StatusSeeOther)
+		return
+	}
+	scope := maintainv1.MediaScope(maintainv1.MediaScope_value[strings.TrimSpace(r.FormValue("scope"))])
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), maintainerActionTimeout)
+	defer pageCancel()
+	client, closer, err := h.withMaintainerClient(pageCtx)
+	if err != nil {
+		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	defer closer()
+	readCtx, readCancel := context.WithTimeout(pageCtx, maintainerReadTimeout)
+	_, err = client.UpsertProtection(readCtx, &maintainv1.UpsertProtectionRequest{Protection: &maintainv1.Protection{
+		Scope:     scope,
+		ItemId:    strings.TrimSpace(r.FormValue("item_id")),
+		Title:     strings.TrimSpace(r.FormValue("title")),
+		Reason:    strings.TrimSpace(r.FormValue("reason")),
+		ExpiresAt: strings.TrimSpace(r.FormValue("expires_at")),
+	}})
+	readCancel()
+	if err != nil {
+		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/maintainer?ok="+url.QueryEscape("Protection added"), http.StatusSeeOther)
+}
+
+func (h *Handler) MaintainerDeleteProtection(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), maintainerActionTimeout)
+	defer pageCancel()
+	client, closer, err := h.withMaintainerClient(pageCtx)
+	if err != nil {
+		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	defer closer()
+	readCtx, readCancel := context.WithTimeout(pageCtx, maintainerReadTimeout)
+	_, err = client.DeleteProtection(readCtx, &maintainv1.DeleteProtectionRequest{Id: id})
+	readCancel()
+	if err != nil {
+		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/maintainer?ok="+url.QueryEscape("Protection deleted"), http.StatusSeeOther)
 }
 
 func (h *Handler) MaintainerAddExclusion(w http.ResponseWriter, r *http.Request) {

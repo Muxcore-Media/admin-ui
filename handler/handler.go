@@ -213,7 +213,12 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /maintainer/rules/import", h.requireAuth(h.MaintainerImportRules))
 	mux.HandleFunc("POST /maintainer/rules/{id}/delete", h.requireAuth(h.MaintainerDeleteRule))
 	mux.HandleFunc("POST /maintainer/candidates/{id}/approve", h.requireAuth(h.MaintainerApproveCandidate))
+	mux.HandleFunc("POST /maintainer/candidates/{id}/postpone", h.requireAuth(h.MaintainerPostponeCandidate))
 	mux.HandleFunc("POST /maintainer/candidates/{id}/cancel", h.requireAuth(h.MaintainerCancelCandidate))
+	mux.HandleFunc("POST /maintainer/collections", h.requireAuth(h.MaintainerAddCollection))
+	mux.HandleFunc("POST /maintainer/collections/{id}/delete", h.requireAuth(h.MaintainerDeleteCollection))
+	mux.HandleFunc("POST /maintainer/protections", h.requireAuth(h.MaintainerAddProtection))
+	mux.HandleFunc("POST /maintainer/protections/{id}/delete", h.requireAuth(h.MaintainerDeleteProtection))
 
 	mux.HandleFunc("GET /config", h.requireAuth(h.ConfigPage))
 

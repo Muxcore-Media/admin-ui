@@ -21,6 +21,25 @@ type MaintainerCandidateRow struct {
 	ActAfter string
 }
 
+type MaintainerCollectionRow struct {
+	ID           string
+	Name         string
+	Enabled      bool
+	GraceDays    int
+	Action       string
+	LeavingSoon  bool
+	LeavingLabel string
+}
+
+type MaintainerProtectionRow struct {
+	ID        string
+	Scope     string
+	ItemID    string
+	Title     string
+	Reason    string
+	ExpiresAt string
+}
+
 type MaintainerRunRow struct {
 	ID          string
 	Kind        string
@@ -54,7 +73,9 @@ type MaintainerStorageRow struct {
 
 type MaintainerPageData struct {
 	Rules         []MaintainerRuleRow
+	Collections   []MaintainerCollectionRow
 	Candidates    []MaintainerCandidateRow
+	Protections   []MaintainerProtectionRow
 	Runs          []MaintainerRunRow
 	Exclusions    []MaintainerExclusionRow
 	Storage       []MaintainerStorageRow
@@ -147,6 +168,146 @@ templ MaintainerPage(data MaintainerPageData) {
 					}
 				</datalist>
 			}
+		</div>
+		<div>
+			<h2 class="text-lg font-semibold mb-3">Collections</h2>
+			<p class="text-gray-500 text-sm mb-2">Grace-period buckets with optional leaving-soon staging.</p>
+			if len(data.Collections) == 0 {
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">No collections configured.</div>
+			} else {
+				<div class="overflow-x-auto rounded-xl border border-gray-800 mb-4">
+					<table class="min-w-full divide-y divide-gray-800 text-sm">
+						<thead class="bg-gray-900/50">
+							<tr>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Name</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Grace (days)</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Action</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Leaving soon</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Enabled</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500"></th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, col := range data.Collections {
+								<tr>
+									<td class="px-4 py-2 text-white">{ col.Name }</td>
+									<td class="px-4 py-2 text-gray-400">{ fmt.Sprintf("%d", col.GraceDays) }</td>
+									<td class="px-4 py-2 text-gray-400">{ col.Action }</td>
+									<td class="px-4 py-2 text-gray-400">{ col.LeavingLabel }</td>
+									<td class="px-4 py-2 text-gray-400">
+										if col.Enabled {
+											<span>yes</span>
+										} else {
+											<span>no</span>
+										}
+									</td>
+									<td class="px-4 py-2 text-right">
+										<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/maintainer/collections/%s/delete", col.ID)) }>
+											<button type="submit" class="text-xs text-red-400 hover:text-red-300">Delete</button>
+										</form>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+			<form method="POST" action="/maintainer/collections" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-3xl rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Name</label>
+					<input type="text" name="name" required class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Grace days</label>
+					<input type="number" name="grace_days" value="7" min="0" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Action</label>
+					<select name="arr_action" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+						<option value="ARR_ACTION_DELETE">delete</option>
+						<option value="ARR_ACTION_UNMONITOR_ONLY">unmonitor_only</option>
+						<option value="ARR_ACTION_UNMONITOR">unmonitor</option>
+					</select>
+				</div>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Leaving-soon label</label>
+					<input type="text" name="leaving_soon_label" value="Leaving Soon" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<label class="flex items-center gap-2 text-sm text-gray-400 sm:col-span-2">
+					<input type="checkbox" name="leaving_soon_enabled" value="1" checked/>
+					Leaving-soon overlays enabled
+				</label>
+				<div>
+					<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Add collection</button>
+				</div>
+			</form>
+		</div>
+		<div>
+			<h2 class="text-lg font-semibold mb-3">Protections</h2>
+			if len(data.Protections) == 0 {
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500">No manual protections.</div>
+			} else {
+				<div class="overflow-x-auto rounded-xl border border-gray-800 mb-4">
+					<table class="min-w-full divide-y divide-gray-800 text-sm">
+						<thead class="bg-gray-900/50">
+							<tr>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Title</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Scope</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Item ID</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Reason</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Expires</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500"></th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, p := range data.Protections {
+								<tr>
+									<td class="px-4 py-2 text-white">{ p.Title }</td>
+									<td class="px-4 py-2 text-gray-400">{ p.Scope }</td>
+									<td class="px-4 py-2 text-gray-400 font-mono text-xs">{ p.ItemID }</td>
+									<td class="px-4 py-2 text-gray-400">{ p.Reason }</td>
+									<td class="px-4 py-2 text-gray-400">{ p.ExpiresAt }</td>
+									<td class="px-4 py-2 text-right">
+										<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/maintainer/protections/%s/delete", p.ID)) }>
+											<button type="submit" class="text-xs text-red-400 hover:text-red-300">Delete</button>
+										</form>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+			<form method="POST" action="/maintainer/protections" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-3xl rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Title</label>
+					<input type="text" name="title" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Scope</label>
+					<select name="scope" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+						<option value="MEDIA_SCOPE_MOVIE">movie</option>
+						<option value="MEDIA_SCOPE_SERIES">series</option>
+						<option value="MEDIA_SCOPE_EPISODE">episode</option>
+						<option value="MEDIA_SCOPE_SEASON">season</option>
+					</select>
+				</div>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Item ID</label>
+					<input type="text" name="item_id" required class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Expires at (RFC3339, optional)</label>
+					<input type="text" name="expires_at" placeholder="2026-12-31T00:00:00Z" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<div class="sm:col-span-2">
+					<label class="block text-xs text-gray-500 mb-1">Reason</label>
+					<input type="text" name="reason" placeholder="manual" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
+				</div>
+				<div>
+					<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Add protection</button>
+				</div>
+			</form>
 		</div>
 		<div>
 			<h2 class="text-lg font-semibold mb-3">Rules</h2>
@@ -350,6 +511,10 @@ templ MaintainerPage(data MaintainerPageData) {
 									<td class="px-4 py-2 text-right space-x-2">
 										<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/maintainer/candidates/%s/approve", c.ID)) } class="inline">
 											<button type="submit" class="text-xs text-green-400 hover:text-green-300">Approve</button>
+										</form>
+										<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/maintainer/candidates/%s/postpone", c.ID)) } class="inline flex items-center gap-1">
+											<input type="number" name="days" value="7" min="1" max="365" class="w-12 rounded border border-gray-700 bg-gray-800 px-1 py-0.5 text-xs"/>
+											<button type="submit" class="text-xs text-yellow-400 hover:text-yellow-300">Postpone</button>
 										</form>
 										<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/maintainer/candidates/%s/cancel", c.ID)) } class="inline">
 											<button type="submit" class="text-xs text-red-400 hover:text-red-300">Cancel</button>
