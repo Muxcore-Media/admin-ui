@@ -69,13 +69,14 @@ func (h *Handler) ReleaseProfileUpsert(w http.ResponseWriter, r *http.Request) {
 	}
 	defer closer()
 	score, _ := strconv.Atoi(r.FormValue("preferred_score"))
+	enabled := r.FormValue("enabled") == "1"
 	_, err = client.UpsertReleaseProfile(ctx, &formatsv1.UpsertReleaseProfileRequest{
 		Id: r.FormValue("id"), Name: r.FormValue("name"),
 		Preferred:      splitCSV(r.FormValue("preferred")),
 		MustContain:    splitCSV(r.FormValue("must_contain")),
 		MustNotContain: splitCSV(r.FormValue("must_not_contain")),
 		PreferredScore: int32(score),
-		Enabled:        r.FormValue("enabled") == "1",
+		Enabled:        &enabled,
 	})
 	if err != nil {
 		http.Redirect(w, r, "/formats/release-profiles?error="+err.Error(), http.StatusSeeOther)
