@@ -55,6 +55,9 @@ func (h *Handler) InvitesPage(w http.ResponseWriter, r *http.Request) {
 		h.renderInvites(w, r, data)
 		return
 	}
+	if sess := SessionFromContext(r.Context()); sess != nil && sess.AuthLocalToken != "" {
+		req.Header.Set("Authorization", "Bearer "+sess.AuthLocalToken)
+	}
 	resp, err := invitesHTTPDo(ctx, req)
 	if err != nil {
 		data.SoftEmpty = true
@@ -135,6 +138,9 @@ func (h *Handler) InvitesCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if sess := SessionFromContext(r.Context()); sess != nil && sess.AuthLocalToken != "" {
+		req.Header.Set("Authorization", "Bearer "+sess.AuthLocalToken)
+	}
 	if tenantID != "" {
 		req.Header.Set("X-Tenant-ID", tenantID)
 		req.Header.Set("X-Auth-Claims-Tenant", tenantID)
@@ -154,7 +160,7 @@ func (h *Handler) InvitesCreate(w http.ResponseWriter, r *http.Request) {
 		Token string `json:"token"`
 	}
 	_ = json.Unmarshal(body, &inv)
-	link := base + "/invite?token=" + url.QueryEscape(inv.Token)
+	link := h.publicOrigin(r) + "/invite/redeem?token=" + url.QueryEscape(inv.Token)
 	http.Redirect(w, r, "/invites?created="+url.QueryEscape(link), http.StatusSeeOther)
 }
 
@@ -171,6 +177,9 @@ func (h *Handler) InvitesRevoke(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Redirect(w, r, "/invites", http.StatusSeeOther)
 		return
+	}
+	if sess := SessionFromContext(r.Context()); sess != nil && sess.AuthLocalToken != "" {
+		req.Header.Set("Authorization", "Bearer "+sess.AuthLocalToken)
 	}
 	resp, err := invitesHTTPDo(ctx, req)
 	if err != nil {
