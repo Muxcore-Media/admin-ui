@@ -47,6 +47,60 @@ func TestAuthExchangeTimeoutBound(t *testing.T) {
 	}
 }
 
+func TestPublicOriginUntrustedForwardedHeadersIgnored(t *testing.T) {
+	ss := session.NewStore(0)
+	h := New(nil, ss, false, "test", nil, false, "https://auth.gringotts", nil, parseTrustedProxies(nil))
+	h.PublicURL = ""
+
+	r := mustRequest("GET", "/login")
+	r.RemoteAddr = "203.0.113.50:12345"
+	r.Host = "admin.example.com"
+	r.Header.Set("X-Forwarded-Proto", "https")
+	r.Header.Set("X-Forwarded-Host", "evil.example")
+
+	if origin := h.publicOrigin(r); origin != "http://admin.example.com" {
+		t.Fatalf("expected untrusted forwarded headers to be ignored, got %q", origin)
+	}
+}
+
+func TestPublicOriginTrustedForwardedHeadersHonored(t *testing.T) {
+	ss := session.NewStore(0)
+	h := New(nil, ss, false, "test", nil, false, "https://auth.gringotts", nil, parseTrustedProxies(nil))
+	h.PublicURL = ""
+
+	r := mustRequest("GET", "/login")
+	r.RemoteAddr = "127.0.0.1:8080"
+	r.Host = "127.0.0.1:8080"
+	r.Header.Set("X-Forwarded-Proto", "https")
+	r.Header.Set("X-Forwarded-Host", "admin.gringotts")
+
+	if origin := h.publicOrigin(r); origin != "https://admin.gringotts" {
+		t.Fatalf("expected trusted forwarded headers to be honored, got %q", origin)
+	}
+}
+
+func TestLoginPageIgnoresUntrustedForwardedHeaders(t *testing.T) {
+	ss := session.NewStore(0)
+	h := New(nil, ss, false, "test", nil, false, "https://auth.gringotts", nil, parseTrustedProxies(nil))
+	h.PublicURL = ""
+
+	r := mustRequest("GET", "/login")
+	r.RemoteAddr = "203.0.113.50:12345"
+	r.Host = "admin.example.com"
+	r.Header.Set("X-Forwarded-Proto", "https")
+	r.Header.Set("X-Forwarded-Host", "evil.example")
+	w := httptest.NewRecorder()
+	h.LoginPage(w, r)
+
+	loc := w.Header().Get("Location")
+	if strings.Contains(loc, "evil.example") {
+		t.Fatalf("untrusted forwarded host poisoned redirect: %s", loc)
+	}
+	if !strings.Contains(loc, "redirect=http%3A%2F%2Fadmin.example.com%2Fauth%2Fcallback") {
+		t.Fatalf("expected callback from r.Host, got %s", loc)
+	}
+}
+
 func TestAuthCallbackFailsFastOnSlowExchange(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/login/exchange" {

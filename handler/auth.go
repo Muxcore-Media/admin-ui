@@ -113,13 +113,16 @@ func (h *Handler) publicOrigin(r *http.Request) string {
 	if h.PublicURL != "" {
 		return strings.TrimRight(h.PublicURL, "/")
 	}
+	trusted := peerIsTrustedProxy(r, h.TrustedProxies)
 	scheme := "http"
-	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+	if r.TLS != nil || (trusted && r.Header.Get("X-Forwarded-Proto") == "https") {
 		scheme = "https"
 	}
-	host := r.Header.Get("X-Forwarded-Host")
-	if host == "" {
-		host = r.Host
+	host := r.Host
+	if trusted {
+		if fwd := r.Header.Get("X-Forwarded-Host"); fwd != "" {
+			host = fwd
+		}
 	}
 	return scheme + "://" + host
 }

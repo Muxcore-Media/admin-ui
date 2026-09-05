@@ -29,7 +29,7 @@ Acknowledgment within **72 hours**. Target patch: **7 days** critical, **30 days
 - **Security headers**: X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy
 - **TLS**: Optional HTTPS listener via `ADMIN_UI_TLS_CERT` / `ADMIN_UI_TLS_KEY` (cookies marked `Secure` when TLS is active)
 - **Rate limiting**: Per-IP counter on `POST /login`; after 6 attempts, 1-minute block (`Retry-After: 60`)
-- **Trusted proxies**: `X-Forwarded-For` honored only when the TCP peer is in `ADMIN_UI_TRUSTED_PROXIES` (default loopback)
+- **Trusted proxies**: `X-Forwarded-For`, `X-Forwarded-Proto`, and `X-Forwarded-Host` honored only when the TCP peer is in `ADMIN_UI_TRUSTED_PROXIES` (default loopback)
 - **Prometheus metrics**: `/metrics` endpoint exposing request counts, active sessions, login stats, Go runtime metrics
 - **Audit logging**: Admin mutations (auth, users, settings, formats, roots, rename, media library, passkeys) write fire-and-forget entries via core `AuditService.Log`; the audit browser queries via `AuditService.Query`
 
