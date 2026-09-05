@@ -92,7 +92,7 @@ func HouseholdRedeemPage(data HouseholdRedeemData) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(data.Error)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/household_redeem.templ`, Line: 55, Col: 18}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/household_redeem.templ`, Line: 54, Col: 16}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -123,7 +123,7 @@ func HouseholdRedeemPage(data HouseholdRedeemData) templ.Component {
 					var templ_7745c5c3_Var4 string
 					templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.InviteRole)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/household_redeem.templ`, Line: 66, Col: 57}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/household_redeem.templ`, Line: 66, Col: 71}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 					if templ_7745c5c3_Err != nil {
@@ -142,7 +142,7 @@ func HouseholdRedeemPage(data HouseholdRedeemData) templ.Component {
 					var templ_7745c5c3_Var5 string
 					templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.InviteExpiry)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/household_redeem.templ`, Line: 71, Col: 60}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/household_redeem.templ`, Line: 71, Col: 76}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 					if templ_7745c5c3_Err != nil {
@@ -158,20 +158,20 @@ func HouseholdRedeemPage(data HouseholdRedeemData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<form id=\"redeem-form\" method=\"post\" action=\"/invite/redeem\" class=\"space-y-4\" data-testid=\"redeem-form\" aria-label=\"Accept invite\"><input type=\"hidden\" name=\"token\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, " <form id=\"redeem-form\" method=\"post\" action=\"/invite/redeem\" class=\"space-y-4\" data-testid=\"redeem-form\" aria-label=\"Accept invite\"><input type=\"hidden\" name=\"token\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.Token)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/household_redeem.templ`, Line: 79, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/household_redeem.templ`, Line: 84, Col: 56}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\"><div><label for=\"redeem-display-name\" class=\"mb-1 block text-sm font-medium text-[var(--text-secondary)]\">Display name</label> <input id=\"redeem-display-name\" type=\"text\" name=\"display_name\" required autocomplete=\"name\" autofocus class=\"w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated-2)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition focus:border-[var(--accent-color)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]\" placeholder=\"How you&#39;ll appear to household members\"></div><div><label for=\"redeem-pin\" class=\"mb-1 block text-sm font-medium text-[var(--text-secondary)]\">PIN <span class=\"font-normal text-[var(--text-tertiary)]\">(optional)</span></label> <input id=\"redeem-pin\" type=\"password\" name=\"pin\" autocomplete=\"new-password\" inputmode=\"numeric\" maxlength=\"6\" class=\"w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated-2)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition focus:border-[var(--accent-color)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]\" placeholder=\"4\u20136 digit PIN (leave blank to skip)\"><p class=\"mt-1 text-xs text-[var(--text-tertiary)]\">A PIN restricts profile access on shared devices.</p></div><button type=\"submit\" class=\"w-full rounded-[var(--radius-md)] bg-[var(--accent-color)] px-3 py-2 text-sm font-semibold text-black transition-colors hover:bg-[var(--accent-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:ring-offset-2 focus:ring-offset-gray-900\">Accept invite</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\"><div><label for=\"redeem-username\" class=\"mb-1 block text-sm font-medium text-[var(--text-secondary)]\">Username</label> <input id=\"redeem-username\" type=\"text\" name=\"username\" required autocomplete=\"username\" autofocus class=\"w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated-2)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition focus:border-[var(--accent-color)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]\" placeholder=\"Choose a username\"></div><div><label for=\"redeem-password\" class=\"mb-1 block text-sm font-medium text-[var(--text-secondary)]\">Password</label> <input id=\"redeem-password\" type=\"password\" name=\"password\" required autocomplete=\"new-password\" class=\"w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated-2)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition focus:border-[var(--accent-color)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]\" placeholder=\"Choose a password\"></div><button type=\"submit\" class=\"w-full rounded-[var(--radius-md)] bg-[var(--accent-color)] px-3 py-2 text-sm font-semibold text-black transition-colors hover:bg-[var(--accent-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:ring-offset-2 focus:ring-offset-gray-900\">Create account</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
