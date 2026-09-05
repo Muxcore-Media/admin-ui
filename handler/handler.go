@@ -175,6 +175,9 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /invites", h.requireAuth(h.InvitesPage))
 	mux.HandleFunc("POST /invites", h.requireAuth(h.InvitesCreate))
 	mux.HandleFunc("POST /invites/{id}/revoke", h.requireAuth(h.InvitesRevoke))
+	// Household invite redemption — no auth; served to invited members before they have an account.
+	mux.HandleFunc("GET /invite/redeem", h.HouseholdRedeemPage)
+	mux.HandleFunc("POST /invite/redeem", h.HouseholdRedeemSubmit)
 	mux.HandleFunc("GET /import", h.requireAuth(h.ManualImportPage))
 	mux.HandleFunc("POST /import", h.requireAuth(h.ManualImportPost))
 
