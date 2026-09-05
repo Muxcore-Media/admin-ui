@@ -41,6 +41,7 @@ type requestMediaJSON struct {
 	Status      string `json:"status"`
 	RequestedBy string `json:"requestedBy"`
 	ApprovedBy  string `json:"approvedBy"`
+	DenyReason  string `json:"denyReason"`
 }
 
 type requestSearchHitJSON struct {
