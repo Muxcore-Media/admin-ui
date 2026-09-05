@@ -34,6 +34,14 @@ func parseRightmostXFF(xff string) string {
 	return ""
 }
 
+func peerIsTrustedProxy(r *http.Request, trustedProxies []net.IPNet) bool {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	return isTrustedProxy(host, trustedProxies)
+}
+
 func extractClientIP(r *http.Request, trustedProxies []net.IPNet) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
