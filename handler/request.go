@@ -84,7 +84,9 @@ func (h *Handler) requestGET(ctx context.Context, base, path string) ([]byte, in
 	if err != nil {
 		return nil, 0, err
 	}
-	h.applyTenantHeaders(req, SessionFromContext(ctx))
+	sess := SessionFromContext(ctx)
+	h.applyTenantHeaders(req, sess)
+	h.applyCallerHeader(req, sess)
 	resp, err := requestHTTPDo(ctx, req)
 	if err != nil {
 		return nil, 0, err
@@ -92,6 +94,21 @@ func (h *Handler) requestGET(ctx context.Context, base, path string) ([]byte, in
 	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	return body, resp.StatusCode, err
+}
+
+// applyCallerHeader sets X-Caller-Id from the authenticated session so
+// downstream modules (e.g. request-media) can enforce per-caller authz.
+func (h *Handler) applyCallerHeader(req *http.Request, sess *session.Session) {
+	if req == nil || sess == nil {
+		return
+	}
+	caller := sess.Username
+	if caller == "" {
+		caller = sess.UserID
+	}
+	if caller != "" {
+		req.Header.Set("X-Caller-Id", caller)
+	}
 }
 
 // applyTenantHeaders forwards session tenant + claim headers to downstream modules.
@@ -307,6 +324,7 @@ func (h *Handler) requestDecide(w http.ResponseWriter, r *http.Request, action s
 	}
 	req.Header.Set("Content-Type", "application/json")
 	h.applyTenantHeaders(req, sess)
+	h.applyCallerHeader(req, sess)
 	if sess != nil {
 		roles := "user"
 		for _, role := range sess.Roles {

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,14 @@ import (
 
 	"github.com/Muxcore-Media/admin-ui/session"
 )
+
+// requestWithSession injects sess into the request context so handlers that
+// call SessionFromContext see a populated session (mirrors requireAuth in prod).
+func requestWithSession(method, path string, sess *session.Session) *http.Request {
+	r := mustRequest(method, path)
+	ctx := context.WithValue(r.Context(), ctxSessionKey, sess)
+	return r.WithContext(ctx)
+}
 
 func TestRequestPageSoftEmpty(t *testing.T) {
 	ss := session.NewStore(0)
@@ -111,5 +120,125 @@ func TestRequestPageFixtureData(t *testing.T) {
 	}
 	if !strings.Contains(body, `data-testid="request-history"`) {
 		t.Fatal("expected request history section")
+	}
+}
+
+// TestRequestListSendsCallerID verifies that RequestPage forwards X-Caller-Id
+// on the list GET so request-media httpCallerCtx can authenticate the call.
+func TestRequestListSendsCallerID(t *testing.T) {
+	var gotCaller string
+	upstream := http.NewServeMux()
+	upstream.HandleFunc("/api/requests", func(w http.ResponseWriter, r *http.Request) {
+		gotCaller = r.Header.Get("X-Caller-Id")
+		if gotCaller == "" {
+			http.Error(w, "missing X-Caller-Id", http.StatusUnauthorized)
+			return
+		}
+		_ = json.NewEncoder(w).Encode([]map[string]any{})
+	})
+	srv := httptest.NewServer(upstream)
+	defer srv.Close()
+
+	ss := session.NewStore(0)
+	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
+	h.RequestMediaURL = srv.URL
+
+	sess := &session.Session{UserID: "uid-1", Username: "alice"}
+	r := requestWithSession("GET", "/request", sess)
+	w := httptest.NewRecorder()
+	h.RequestPage(w, r)
+
+	if gotCaller != "alice" {
+		t.Fatalf("X-Caller-Id: want %q, got %q", "alice", gotCaller)
+	}
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected page 200, got %d", w.Code)
+	}
+}
+
+// TestRequestListCallerIDFallsBackToUserID verifies Username="" falls back to UserID.
+func TestRequestListCallerIDFallsBackToUserID(t *testing.T) {
+	var gotCaller string
+	upstream := http.NewServeMux()
+	upstream.HandleFunc("/api/requests", func(w http.ResponseWriter, r *http.Request) {
+		gotCaller = r.Header.Get("X-Caller-Id")
+		_ = json.NewEncoder(w).Encode([]map[string]any{})
+	})
+	srv := httptest.NewServer(upstream)
+	defer srv.Close()
+
+	ss := session.NewStore(0)
+	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
+	h.RequestMediaURL = srv.URL
+
+	sess := &session.Session{UserID: "uid-42", Username: ""}
+	r := requestWithSession("GET", "/request", sess)
+	w := httptest.NewRecorder()
+	h.RequestPage(w, r)
+
+	if gotCaller != "uid-42" {
+		t.Fatalf("X-Caller-Id fallback: want %q, got %q", "uid-42", gotCaller)
+	}
+}
+
+// TestRequestApproveSendsCallerID verifies RequestApprove sends X-Caller-Id and
+// that the stub rejects the call when the header is absent.
+func TestRequestApproveSendsCallerID(t *testing.T) {
+	var gotCaller string
+	upstream := http.NewServeMux()
+	upstream.HandleFunc("POST /api/requests/{id}/approve", func(w http.ResponseWriter, r *http.Request) {
+		gotCaller = r.Header.Get("X-Caller-Id")
+		if gotCaller == "" {
+			http.Error(w, "missing X-Caller-Id", http.StatusUnauthorized)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+	srv := httptest.NewServer(upstream)
+	defer srv.Close()
+
+	ss := session.NewStore(0)
+	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
+	h.RequestMediaURL = srv.URL
+
+	sess := &session.Session{UserID: "uid-1", Username: "alice", Roles: []string{"admin"}}
+	r := requestWithSession("POST", "/request/req-99/approve", sess)
+	r.SetPathValue("id", "req-99")
+	w := httptest.NewRecorder()
+	h.RequestApprove(w, r)
+
+	if gotCaller != "alice" {
+		t.Fatalf("approve X-Caller-Id: want %q, got %q", "alice", gotCaller)
+	}
+}
+
+// TestRequestDenySendsCallerID verifies RequestDeny sends X-Caller-Id and
+// that the stub rejects the call when the header is absent.
+func TestRequestDenySendsCallerID(t *testing.T) {
+	var gotCaller string
+	upstream := http.NewServeMux()
+	upstream.HandleFunc("POST /api/requests/{id}/deny", func(w http.ResponseWriter, r *http.Request) {
+		gotCaller = r.Header.Get("X-Caller-Id")
+		if gotCaller == "" {
+			http.Error(w, "missing X-Caller-Id", http.StatusUnauthorized)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+	srv := httptest.NewServer(upstream)
+	defer srv.Close()
+
+	ss := session.NewStore(0)
+	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
+	h.RequestMediaURL = srv.URL
+
+	sess := &session.Session{UserID: "uid-1", Username: "alice", Roles: []string{"admin"}}
+	r := requestWithSession("POST", "/request/req-99/deny", sess)
+	r.SetPathValue("id", "req-99")
+	w := httptest.NewRecorder()
+	h.RequestDeny(w, r)
+
+	if gotCaller != "alice" {
+		t.Fatalf("deny X-Caller-Id: want %q, got %q", "alice", gotCaller)
 	}
 }
