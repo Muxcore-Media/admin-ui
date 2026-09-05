@@ -84,45 +84,39 @@ templ HouseholdRedeemPage(data HouseholdRedeemData) {
 				<input type="hidden" name="token" value={ data.Token }/>
 				<div>
 					<label
-						for="redeem-display-name"
+						for="redeem-username"
 						class="mb-1 block text-sm font-medium text-[var(--text-secondary)]"
-					>Display name</label>
+					>Username</label>
 					<input
-						id="redeem-display-name"
+						id="redeem-username"
 						type="text"
-						name="display_name"
+						name="username"
 						required
-						autocomplete="name"
+						autocomplete="username"
 						autofocus
 						class="w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated-2)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition focus:border-[var(--accent-color)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]"
-						placeholder="How you'll appear to household members"
+						placeholder="Choose a username"
 					/>
 				</div>
 				<div>
 					<label
-						for="redeem-pin"
+						for="redeem-password"
 						class="mb-1 block text-sm font-medium text-[var(--text-secondary)]"
-					>
-						PIN <span class="font-normal text-[var(--text-tertiary)]">(optional)</span>
-					</label>
+					>Password</label>
 					<input
-						id="redeem-pin"
+						id="redeem-password"
 						type="password"
-						name="pin"
+						name="password"
+						required
 						autocomplete="new-password"
-						inputmode="numeric"
-						maxlength="6"
 						class="w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated-2)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition focus:border-[var(--accent-color)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]"
-						placeholder="4–6 digit PIN (leave blank to skip)"
+						placeholder="Choose a password"
 					/>
-					<p class="mt-1 text-xs text-[var(--text-tertiary)]">
-						A PIN restricts profile access on shared devices.
-					</p>
 				</div>
 				<button
 					type="submit"
 					class="w-full rounded-[var(--radius-md)] bg-[var(--accent-color)] px-3 py-2 text-sm font-semibold text-black transition-colors hover:bg-[var(--accent-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:ring-offset-2 focus:ring-offset-gray-900"
-				>Accept invite</button>
+				>Create account</button>
 			</form>
 		}
 	</div>

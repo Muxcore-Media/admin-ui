@@ -47,11 +47,7 @@ func (h *Handler) HouseholdRedeemPage(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), redeemPageTimeout)
 	defer cancel()
 
-	// TODO: wire to auth-local GET /api/invites/validate?token={token}
-	//       See Muxcore-Media/umbrella#48 for the auth-local implementation.
-	//       Expected 200 response: { "role": "user", "expires_at": "...", "created_by": "..." }
-	//       Expected errors: 404 (unknown token), 410 (expired or fully used)
-	validateURL := base + "/api/invites/validate?token=" + url.QueryEscape(token)
+	validateURL := base + "/api/invite/peek?token=" + url.QueryEscape(token)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, validateURL, nil)
 	if err != nil {
 		data.Error = "Could not build validation request."
@@ -98,8 +94,8 @@ func (h *Handler) HouseholdRedeemSubmit(w http.ResponseWriter, r *http.Request) 
 	}
 
 	token := strings.TrimSpace(r.FormValue("token"))
-	displayName := strings.TrimSpace(r.FormValue("display_name"))
-	pin := strings.TrimSpace(r.FormValue("pin"))
+	username := strings.TrimSpace(r.FormValue("username"))
+	password := r.FormValue("password")
 
 	data := templates.HouseholdRedeemData{Token: token, ShowForm: true}
 
@@ -108,8 +104,8 @@ func (h *Handler) HouseholdRedeemSubmit(w http.ResponseWriter, r *http.Request) 
 		h.renderHouseholdRedeem(w, r, data)
 		return
 	}
-	if displayName == "" {
-		data.Error = "Display name is required."
+	if username == "" || password == "" {
+		data.Error = "Username and password are required."
 		h.renderHouseholdRedeem(w, r, data)
 		return
 	}
@@ -124,17 +120,12 @@ func (h *Handler) HouseholdRedeemSubmit(w http.ResponseWriter, r *http.Request) 
 	ctx, cancel := context.WithTimeout(r.Context(), redeemPageTimeout)
 	defer cancel()
 
-	// TODO: wire to auth-local POST /api/invites/redeem
-	//       See Muxcore-Media/umbrella#48 for the auth-local implementation.
-	//       Request body:  { "token": "...", "display_name": "...", "pin": "..." }
-	//       Success (200): { "user_id": "...", "username": "..." } — account created, user can log in
-	//       Errors:        400 (invalid name), 404 (unknown token), 410 (expired or fully used)
-	payload, _ := json.Marshal(map[string]any{
-		"token":        token,
-		"display_name": displayName,
-		"pin":          pin,
+	payload, _ := json.Marshal(map[string]string{
+		"token":    token,
+		"username": username,
+		"password": password,
 	})
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/invites/redeem", bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/invite/redeem", bytes.NewReader(payload))
 	if err != nil {
 		data.Error = "Could not build redeem request."
 		h.renderHouseholdRedeem(w, r, data)
