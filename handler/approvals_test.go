@@ -239,3 +239,65 @@ func TestApprovalsNoPendingShowsEmpty(t *testing.T) {
 		t.Fatalf("expected pending-empty note, got: %s", truncate(body, 500))
 	}
 }
+
+// TestApprovalsApproveSendsCallerID verifies ApprovalsApprove sends X-Caller-Id and
+// that the stub rejects the call when the header is absent.
+func TestApprovalsApproveSendsCallerID(t *testing.T) {
+	var gotCaller string
+	upstream := http.NewServeMux()
+	upstream.HandleFunc("POST /api/requests/{id}/approve", func(w http.ResponseWriter, r *http.Request) {
+		gotCaller = r.Header.Get("X-Caller-Id")
+		if gotCaller == "" {
+			http.Error(w, "missing X-Caller-Id", http.StatusUnauthorized)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+	srv := httptest.NewServer(upstream)
+	defer srv.Close()
+
+	ss := session.NewStore(0)
+	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
+	h.RequestMediaURL = srv.URL
+
+	sess := &session.Session{UserID: "uid-1", Username: "alice", Roles: []string{"admin"}}
+	r := requestWithSession("POST", "/approvals/req-99/approve", sess)
+	r.SetPathValue("id", "req-99")
+	w := httptest.NewRecorder()
+	h.ApprovalsApprove(w, r)
+
+	if gotCaller != "alice" {
+		t.Fatalf("approve X-Caller-Id: want %q, got %q", "alice", gotCaller)
+	}
+}
+
+// TestApprovalsDenySendsCallerID verifies ApprovalsDeny sends X-Caller-Id and
+// that the stub rejects the call when the header is absent.
+func TestApprovalsDenySendsCallerID(t *testing.T) {
+	var gotCaller string
+	upstream := http.NewServeMux()
+	upstream.HandleFunc("POST /api/requests/{id}/deny", func(w http.ResponseWriter, r *http.Request) {
+		gotCaller = r.Header.Get("X-Caller-Id")
+		if gotCaller == "" {
+			http.Error(w, "missing X-Caller-Id", http.StatusUnauthorized)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+	srv := httptest.NewServer(upstream)
+	defer srv.Close()
+
+	ss := session.NewStore(0)
+	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
+	h.RequestMediaURL = srv.URL
+
+	sess := &session.Session{UserID: "uid-1", Username: "alice", Roles: []string{"admin"}}
+	r := requestWithSession("POST", "/approvals/req-99/deny", sess)
+	r.SetPathValue("id", "req-99")
+	w := httptest.NewRecorder()
+	h.ApprovalsDeny(w, r)
+
+	if gotCaller != "alice" {
+		t.Fatalf("deny X-Caller-Id: want %q, got %q", "alice", gotCaller)
+	}
+}

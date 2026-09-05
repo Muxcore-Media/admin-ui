@@ -27,6 +27,7 @@ func (h *Handler) approvalsHTTPPost(ctx context.Context, base, path string, payl
 	}
 	req.Header.Set("Content-Type", "application/json")
 	h.applyTenantHeaders(req, sess)
+	h.applyCallerHeader(req, sess)
 	if sess != nil {
 		by := sess.Username
 		if by == "" {
