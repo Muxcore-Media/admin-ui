@@ -65,8 +65,9 @@ func (h *Handler) HouseholdRedeemPage(w http.ResponseWriter, r *http.Request) {
 	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 
-	switch resp.StatusCode {
-	case http.StatusOK:
+	if invalidInvitePeek(resp.StatusCode, body) {
+		data.Error = "This invite link is invalid or has already been used."
+	} else if resp.StatusCode == http.StatusOK {
 		var info struct {
 			Role      string `json:"role"`
 			ExpiresAt string `json:"expires_at"`
@@ -77,9 +78,7 @@ func (h *Handler) HouseholdRedeemPage(w http.ResponseWriter, r *http.Request) {
 			data.InviteExpiry = info.ExpiresAt
 		}
 		data.ShowForm = true
-	case http.StatusNotFound, http.StatusGone:
-		data.Error = "This invite link is invalid or has already been used."
-	default:
+	} else {
 		data.Error = fmt.Sprintf("Invite validation failed (HTTP %d).", resp.StatusCode)
 	}
 
@@ -162,4 +161,19 @@ func (h *Handler) HouseholdRedeemSubmit(w http.ResponseWriter, r *http.Request) 
 
 func (h *Handler) renderHouseholdRedeem(w http.ResponseWriter, r *http.Request, data templates.HouseholdRedeemData) {
 	h.render(w, r, templates.HouseholdRedeemStandalonePage(data))
+}
+
+func invalidInvitePeek(status int, body []byte) bool {
+	switch status {
+	case http.StatusNotFound, http.StatusGone:
+		return true
+	case http.StatusBadRequest:
+		var peek struct {
+			Valid bool `json:"valid"`
+		}
+		if err := json.Unmarshal(body, &peek); err == nil && !peek.Valid {
+			return true
+		}
+	}
+	return false
 }
