@@ -10,7 +10,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout (Forgejo mirror + GitHub fallback)
-        uses: ./.github/actions/checkout-mirror
+        uses: Muxcore-Media/mvp/.github/actions/checkout-mirror@main
         with:
           token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/setup-go@v7
@@ -22,7 +22,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout (Forgejo mirror + GitHub fallback)
-        uses: ./.github/actions/checkout-mirror
+        uses: Muxcore-Media/mvp/.github/actions/checkout-mirror@main
         with:
           token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/setup-go@v7
@@ -34,7 +34,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout (Forgejo mirror + GitHub fallback)
-        uses: ./.github/actions/checkout-mirror
+        uses: Muxcore-Media/mvp/.github/actions/checkout-mirror@main
         with:
           token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - uses: actions/setup-go@v7
@@ -50,7 +50,7 @@ jobs:
     needs: [lint, test, build]
     steps:
       - name: Checkout (Forgejo mirror + GitHub fallback)
-        uses: ./.github/actions/checkout-mirror
+        uses: Muxcore-Media/mvp/.github/actions/checkout-mirror@main
         with:
           token: ${{ secrets.MUXCORE_CI_TOKEN }}
       - name: Configure private modules (HTTPS)
