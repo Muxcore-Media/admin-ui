@@ -97,3 +97,33 @@ the metadata map.
 6. Root Folders: add path via browser; confirm free-space badge; bind root on item detail
 7. Naming Templates: create alternate movie/TV pattern; assign on a root
 8. Subnav hides unsupported tabs (no Calendar on movies, no Collections on TV)
+
+## Approval Queue (`/approvals`)
+
+The `/approvals` page is the household operator's admin queue for requests submitted via `/request`.
+
+### What it does
+
+| Section | Description |
+|---------|-------------|
+| **Pending** | Requests awaiting a decision. Each row has an **Approve** button and a **Deny** button with an optional reason field. |
+| **Recent** | Non-pending requests (approved, denied, added, watchlisted) for at-a-glance history. |
+
+### Wiring to request-media
+
+| Action | HTTP call |
+|--------|-----------|
+| Pending queue | `GET /api/requests?status=pending` |
+| Recent history | `GET /api/requests` (client-side filter: non-pending) |
+| Approve | `POST /api/requests/{id}/approve` — body `{"by":"<username>"}` |
+| Deny | `POST /api/requests/{id}/deny` — body `{"by":"<username>","reason":"<text>"}` |
+
+Identity is forwarded via `X-MuxCore-User`, `X-MuxCore-Roles`, and (when `TENANT_MODE=1`) `X-Tenant-ID` / `X-Auth-Claims-Tenant`. No change to request-media is needed.
+
+### Configuration
+
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `ADMIN_UI_REQUEST_MEDIA_URL` | _(empty)_ | Direct HTTP base (e.g. `http://127.0.0.1:9410`). When empty, admin-ui discovers the module by the `media.request` capability via MuxCore mesh. |
+
+If neither resolves, the page renders a soft-empty notice (HTTP 200) and does not break the rest of the admin shell.

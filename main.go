@@ -156,6 +156,7 @@ func main() {
 	h.PublicURL = cfg.PublicURL
 	h.HealthMonitorURL = cfg.HealthMonitorURL
 	h.UserdataURL = strings.TrimRight(strings.TrimSpace(env("ADMIN_UI_USERDATA_URL", "")), "/")
+	h.RequestMediaURL = strings.TrimRight(strings.TrimSpace(env("ADMIN_UI_REQUEST_MEDIA_URL", "")), "/")
 	h.HydrateNetworkingFromFile()
 	trustedProxies = h.TrustedProxies
 
