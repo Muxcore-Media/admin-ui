@@ -6,50 +6,14 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"time"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	scannerv1 "github.com/Muxcore-Media/contracts-scanner/muxcore/scanner/v1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
-const capMediaScanner = "media.scanner"
-
-func (h *Handler) scannerModuleAddr(ctx context.Context) (string, error) {
-	if h.Core == nil {
-		return "", fmt.Errorf("core unavailable")
-	}
-	mods, err := h.Core.Discovery.FindByCapability(ctx, capMediaScanner)
-	if err != nil {
-		return "", err
-	}
-	if len(mods) == 0 {
-		return "", fmt.Errorf("no module with capability %s", capMediaScanner)
-	}
-	addr := normalizeDialAddr(mods[0].GetId(), mods[0].GetHttpAddr())
-	if addr == "" {
-		return "", fmt.Errorf("scanner module has no dial address")
-	}
-	return addr, nil
-}
-
-func (h *Handler) withScannerClient(ctx context.Context) (scannerv1.ScannerServiceClient, func(), error) {
-	addr, err := h.scannerModuleAddr(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, nil, fmt.Errorf("dial %s: %w", addr, err)
-	}
-	return scannerv1.NewScannerServiceClient(conn), func() { _ = conn.Close() }, nil
-}
-
 func (h *Handler) ManualImportPage(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), scannerPageTimeout)
 	defer cancel()
 	data := templates.ManualImportPageData{
 		Flash: r.URL.Query().Get("status"),
@@ -76,7 +40,7 @@ func (h *Handler) ManualImportPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ManualImportPost(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), scannerActionTimeout)
 	defer cancel()
 	if err := r.ParseForm(); err != nil {
 		http.Redirect(w, r, "/import", http.StatusSeeOther)
