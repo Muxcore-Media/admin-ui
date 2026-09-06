@@ -5,7 +5,7 @@ go 1.26.5
 require (
 	github.com/Muxcore-Media/backup-local v0.1.2
 	github.com/Muxcore-Media/contracts-automation v0.1.1-0.20260824174909-b7b0cb83d8b3
-	github.com/Muxcore-Media/contracts-media-admin v0.1.0
+	github.com/Muxcore-Media/contracts-media-admin v0.1.1-0.20260905225357-350de7622545
 	github.com/Muxcore-Media/contracts-playback v0.1.0
 	github.com/Muxcore-Media/contracts-scanner v0.1.0
 	github.com/Muxcore-Media/core v0.5.8
