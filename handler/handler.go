@@ -140,6 +140,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /activity/retry", h.requireAuth(h.ActivityRetry))
 	mux.HandleFunc("POST /activity/dismiss", h.requireAuth(h.ActivityDismiss))
 	mux.HandleFunc("GET /calendar", h.requireAuth(h.UnifiedCalendarPage))
+	mux.HandleFunc("GET /wanted", h.requireAuth(h.UnifiedWantedPage))
 	mux.HandleFunc("GET /queue", h.requireAuth(h.UnifiedQueuePage))
 	mux.HandleFunc("POST /queue/remove", h.requireAuth(h.UnifiedQueueRemove))
 	mux.HandleFunc("POST /queue/retry-import", h.requireAuth(h.UnifiedQueueRetryImport))

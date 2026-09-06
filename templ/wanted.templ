@@ -1,0 +1,149 @@
+package templates
+
+import "fmt"
+
+type UnifiedWantedItem struct {
+	ModuleID   string
+	ModuleName string
+	Kind       string
+	ID         string
+	ParentID   string
+	Title      string
+	Year       int
+	Season     string
+	Episode    string
+	AirDate    string
+}
+
+type UnifiedWantedSummary struct {
+	Total     int
+	Movies    int
+	Episodes  int
+	Libraries int
+}
+
+type UnifiedWantedData struct {
+	Items      []UnifiedWantedItem
+	Summary    UnifiedWantedSummary
+	KindFilter string
+	Error      string
+	Warning    string
+	SoftNote   bool
+	Empty      bool
+}
+
+templ UnifiedWantedPage(data UnifiedWantedData) {
+	<div class="space-y-6" data-testid="unified-wanted-page">
+		<div>
+			<h1 class="text-2xl font-bold">Wanted / Missing</h1>
+			<p class="text-gray-400 text-sm mt-1">Monitored movies and TV episodes without playable files across your libraries.</p>
+		</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" role="alert" data-testid="wanted-error">{ data.Error }</div>
+		}
+		if data.Warning != "" {
+			<div class="rounded-xl border border-gray-700 bg-gray-900/40 p-3 text-xs text-gray-400" role="status" data-testid="wanted-warning">{ data.Warning }</div>
+		}
+		if data.SoftNote {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3 text-sm text-gray-400" data-testid="wanted-soft-empty">
+				media.library modules not available — deploy movie and TV library modules to list monitored items missing playable files.
+			</div>
+		}
+		if !data.SoftNote {
+			<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" data-testid="wanted-cards">
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+					<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Total missing</div>
+					<div class="text-2xl font-semibold text-gray-100" data-testid="wanted-total">{ fmt.Sprintf("%d", data.Summary.Total) }</div>
+					<p class="text-xs text-gray-500 mt-2">Monitored items without files</p>
+				</div>
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+					<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Movies</div>
+					<div class="text-2xl font-semibold text-gray-100" data-testid="wanted-movies">{ fmt.Sprintf("%d", data.Summary.Movies) }</div>
+					<p class="text-xs text-gray-500 mt-2">Missing movie files</p>
+				</div>
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+					<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">TV episodes</div>
+					<div class="text-2xl font-semibold text-gray-100" data-testid="wanted-episodes">{ fmt.Sprintf("%d", data.Summary.Episodes) }</div>
+					<p class="text-xs text-gray-500 mt-2">Missing episode files</p>
+				</div>
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+					<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Libraries</div>
+					<div class="text-2xl font-semibold text-gray-100">{ fmt.Sprintf("%d", data.Summary.Libraries) }</div>
+					<p class="text-xs text-gray-500 mt-2">Registered media.library modules</p>
+				</div>
+			</div>
+			<section class="space-y-3" aria-labelledby="wanted-filter-heading">
+				<h2 id="wanted-filter-heading" class="sr-only">Content type filter</h2>
+				<form method="get" action="/wanted" class="flex flex-wrap gap-2 items-end">
+					<div>
+						<label for="wanted-kind" class="block text-xs text-gray-500 mb-1">Type</label>
+						<select id="wanted-kind" name="kind" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
+							<option value="all" selected?={ data.KindFilter == "all" }>All</option>
+							<option value="movie" selected?={ data.KindFilter == "movie" }>Movies</option>
+							<option value="tv" selected?={ data.KindFilter == "tv" }>TV</option>
+						</select>
+					</div>
+					<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Apply</button>
+					<a href="/media" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Per-library view</a>
+				</form>
+			</section>
+			if data.Empty {
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center" role="status" data-testid="wanted-empty">
+					<p class="text-gray-400">Nothing missing — all monitored items have playable files.</p>
+				</div>
+			} else {
+				<section class="rounded-xl border border-gray-800 overflow-hidden" data-testid="wanted-table" aria-labelledby="wanted-items-heading">
+					<h2 id="wanted-items-heading" class="sr-only">Missing library items</h2>
+					<table class="w-full text-sm">
+						<caption class="sr-only">Missing monitored items</caption>
+						<thead class="bg-gray-900/80 text-gray-400 text-left">
+							<tr>
+								<th scope="col" class="px-4 py-2 font-medium">Library</th>
+								<th scope="col" class="px-4 py-2 font-medium">Type</th>
+								<th scope="col" class="px-4 py-2 font-medium">Title</th>
+								<th scope="col" class="px-4 py-2 font-medium">Year</th>
+								<th scope="col" class="px-4 py-2 font-medium">Episode</th>
+								<th scope="col" class="px-4 py-2 font-medium">ID</th>
+							</tr>
+						</thead>
+						<tbody>
+							for _, it := range data.Items {
+								<tr class="border-t border-gray-800 hover:bg-gray-900/40">
+									<td class="px-4 py-2 text-gray-500 text-xs">{ it.ModuleName }</td>
+									<td class="px-4 py-2 text-gray-400 capitalize">{ it.Kind }</td>
+									<td class="px-4 py-2">
+										if it.ParentID != "" {
+											<a href={ templ.SafeURL("/media/" + it.ModuleID + "/item/" + it.ParentID) } class="text-indigo-400 hover:text-indigo-300" aria-label={ "Open " + it.Title }>{ it.Title }</a>
+										} else {
+											<span class="text-gray-200">{ it.Title }</span>
+										}
+									</td>
+									<td class="px-4 py-2 text-gray-400">
+										if it.Year > 0 {
+											{ fmt.Sprintf("%d", it.Year) }
+										}
+									</td>
+									<td class="px-4 py-2 text-gray-300">
+										if it.Season != "" || it.Episode != "" {
+											S{ it.Season }E{ it.Episode }
+											if it.AirDate != "" {
+												<span class="text-gray-500"> · { it.AirDate }</span>
+											}
+										}
+									</td>
+									<td class="px-4 py-2 text-gray-500 text-xs font-mono">
+										if it.ID != "" {
+											{ it.ID }
+										} else if it.ParentID != "" {
+											{ it.ParentID }
+										}
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</section>
+			}
+		}
+	</div>
+}
