@@ -42,7 +42,11 @@ func HouseholdRedeemStandalonePage(data HouseholdRedeemData) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" class=\"h-full bg-gray-950\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Join household - MuxCore</title><link rel=\"stylesheet\" href=\"/static/dist/styles.css\"></head><body class=\"h-full font-sans antialiased\" style=\"color:var(--text-primary)\"><a href=\"#redeem-form\" class=\"sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-1/2 focus:z-[60] focus:-translate-x-1/2 focus:rounded-[var(--radius-md)] focus:bg-[var(--accent-color)] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-black focus:outline-none focus:ring-2 focus:ring-white\">Skip to form</a><main id=\"main-content\" class=\"flex min-h-full items-center justify-center px-4 py-12\"><div class=\"w-full max-w-sm\"><div class=\"mb-8 text-center\"><div class=\"mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-[var(--radius-md)] bg-[var(--accent-color)] text-xl font-bold text-black\" aria-hidden=\"true\">M</div><h1 class=\"text-2xl font-bold\">Join household</h1><p class=\"mt-1 text-sm text-[var(--text-secondary)]\">Set up your profile to accept the invite.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" class=\"h-full bg-gray-950\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Join household - MuxCore</title><link rel=\"stylesheet\" href=\"/static/dist/styles.css\"></head><body class=\"h-full font-sans antialiased\" style=\"color:var(--text-primary)\"><a href=\"#redeem-form\" class=\"sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-1/2 focus:z-[60] focus:-translate-x-1/2 focus:rounded-[var(--radius-md)] focus:bg-[var(--accent-color)] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-black focus:outline-none focus:ring-2 focus:ring-white\">Skip to form</a><main id=\"main-content\" class=\"flex min-h-full items-center justify-center px-4 py-12\"><div class=\"w-full max-w-sm\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = StandaloneBrandHeader("Join household", "Set up your profile to accept the invite.").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -92,7 +96,7 @@ func HouseholdRedeemPage(data HouseholdRedeemData) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(data.Error)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/household_redeem.templ`, Line: 54, Col: 16}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/household_redeem.templ`, Line: 50, Col: 16}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -123,7 +127,7 @@ func HouseholdRedeemPage(data HouseholdRedeemData) templ.Component {
 					var templ_7745c5c3_Var4 string
 					templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.InviteRole)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/household_redeem.templ`, Line: 66, Col: 71}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/household_redeem.templ`, Line: 62, Col: 71}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 					if templ_7745c5c3_Err != nil {
@@ -142,7 +146,7 @@ func HouseholdRedeemPage(data HouseholdRedeemData) templ.Component {
 					var templ_7745c5c3_Var5 string
 					templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.InviteExpiry)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/household_redeem.templ`, Line: 71, Col: 76}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/household_redeem.templ`, Line: 67, Col: 76}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 					if templ_7745c5c3_Err != nil {
@@ -165,7 +169,7 @@ func HouseholdRedeemPage(data HouseholdRedeemData) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.Token)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/household_redeem.templ`, Line: 84, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/household_redeem.templ`, Line: 80, Col: 56}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 			if templ_7745c5c3_Err != nil {

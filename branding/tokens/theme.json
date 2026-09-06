@@ -1,0 +1,40 @@
+{
+  "colors": {
+    "primary": "#3B82F6",
+    "primaryHover": "#2563EB",
+    "background": "#0F172A",
+    "surface": "#1E293B",
+    "text": "#F8FAFC",
+    "textMuted": "#94A3B8",
+    "accent": "#38BDF8",
+    "border": "#334155",
+    "success": "#22C55E",
+    "warning": "#EAB308",
+    "error": "#EF4444"
+  },
+  "typography": {
+    "fontFamilySans": "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+    "fontFamilyMono": "ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace",
+    "fontSizeBase": "16px",
+    "fontSizeSm": "14px",
+    "fontSizeLg": "18px"
+  },
+  "cssVariables": {
+    "--muxcore-color-primary": "#3B82F6",
+    "--muxcore-color-primary-hover": "#2563EB",
+    "--muxcore-color-background": "#0F172A",
+    "--muxcore-color-surface": "#1E293B",
+    "--muxcore-color-text": "#F8FAFC",
+    "--muxcore-color-text-muted": "#94A3B8",
+    "--muxcore-color-accent": "#38BDF8",
+    "--muxcore-color-border": "#334155",
+    "--muxcore-color-success": "#22C55E",
+    "--muxcore-color-warning": "#EAB308",
+    "--muxcore-color-error": "#EF4444",
+    "--muxcore-font-family-sans": "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+    "--muxcore-font-family-mono": "ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace",
+    "--muxcore-font-size-base": "16px",
+    "--muxcore-font-size-sm": "14px",
+    "--muxcore-font-size-lg": "18px"
+  }
+}
