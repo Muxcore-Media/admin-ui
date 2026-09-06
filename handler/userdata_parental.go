@@ -16,6 +16,8 @@ const (
 	capUserdataLocal    = "userdata.local"
 	userdataDialTimeout = 3 * time.Second
 	userdataReadTimeout = 5 * time.Second
+	userdataHTTPPath    = "/api/userdata"
+	muxcoreUserIDHeader = "X-MuxCore-User-Id"
 )
 
 type userdataBlob struct {
@@ -61,14 +63,13 @@ func (h *Handler) syncParentalToUserdata(ctx context.Context, userID string, p p
 	readCtx, cancel := context.WithTimeout(ctx, userdataReadTimeout)
 	defer cancel()
 
-	getReq, err := http.NewRequestWithContext(readCtx, http.MethodGet, base+"/userdata", nil)
+	getReq, err := http.NewRequestWithContext(readCtx, http.MethodGet, base+userdataHTTPPath, nil)
 	if err != nil {
 		return err
 	}
-	q := getReq.URL.Query()
-	q.Set("user_id", userID)
-	getReq.URL.RawQuery = q.Encode()
-	getReq.Header.Set("X-User-ID", userID)
+	if err := applyUserdataRequestAuth(getReq, ctx, userID); err != nil {
+		return err
+	}
 
 	resp, err := (&http.Client{Timeout: userdataReadTimeout}).Do(getReq)
 	if err != nil {
@@ -110,13 +111,14 @@ func (h *Handler) syncParentalToUserdata(ctx context.Context, userID string, p p
 	if err != nil {
 		return err
 	}
-	putReq, err := http.NewRequestWithContext(putCtx, http.MethodPut, base+"/userdata", bytes.NewReader(body))
+	putReq, err := http.NewRequestWithContext(putCtx, http.MethodPut, base+userdataHTTPPath, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
-	putReq.URL.RawQuery = q.Encode()
 	putReq.Header.Set("Content-Type", "application/json")
-	putReq.Header.Set("X-User-ID", userID)
+	if err := applyUserdataRequestAuth(putReq, ctx, userID); err != nil {
+		return err
+	}
 
 	putResp, err := (&http.Client{Timeout: userdataReadTimeout}).Do(putReq)
 	if err != nil {
@@ -127,5 +129,15 @@ func (h *Handler) syncParentalToUserdata(ctx context.Context, userID string, p p
 		b, _ := io.ReadAll(io.LimitReader(putResp.Body, 512))
 		return fmt.Errorf("userdata PUT: %s (%s)", putResp.Status, strings.TrimSpace(string(b)))
 	}
+	return nil
+}
+
+func applyUserdataRequestAuth(req *http.Request, ctx context.Context, targetUserID string) error {
+	req.Header.Set(muxcoreUserIDHeader, targetUserID)
+	sess := SessionFromContext(ctx)
+	if sess == nil || strings.TrimSpace(sess.AuthLocalToken) == "" {
+		return fmt.Errorf("missing auth-local session token")
+	}
+	req.Header.Set("Authorization", "Bearer "+sess.AuthLocalToken)
 	return nil
 }
