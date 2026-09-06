@@ -13,12 +13,55 @@ import (
 
 // --- helpers ---
 
+func testAdminSession() *session.Session {
+	return &session.Session{
+		UserID:         "admin1",
+		Username:       "admin",
+		Roles:          []string{"admin"},
+		AuthLocalToken: "test-auth-local-token",
+	}
+}
+
+func mockUserdataServer(t *testing.T) string {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != userdataHTTPPath {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Header.Get(muxcoreUserIDHeader) == "" {
+			http.Error(w, "missing user header", http.StatusUnauthorized)
+			return
+		}
+		if !strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") {
+			http.Error(w, "missing bearer", http.StatusUnauthorized)
+			return
+		}
+		switch r.Method {
+		case http.MethodGet:
+			_ = json.NewEncoder(w).Encode(userdataBlob{
+				Progress:  map[string]json.RawMessage{},
+				Favorites: map[string]json.RawMessage{},
+			})
+		case http.MethodPut:
+			var blob userdataBlob
+			_ = json.NewDecoder(r.Body).Decode(&blob)
+			_ = json.NewEncoder(w).Encode(blob)
+		default:
+			http.Error(w, "method", http.StatusMethodNotAllowed)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return srv.URL
+}
+
 func setupParentalHandler(t *testing.T) *Handler {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("ADMIN_UI_DATA_DIR", dir)
 	ss := session.NewStore(0)
-	return New(nil, ss, false, "test", nil, false, "", nil, nil)
+	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
+	h.UserdataURL = mockUserdataServer(t)
+	return h
 }
 
 func postParental(t *testing.T, h *Handler, userID, body string) *httptest.ResponseRecorder {
@@ -26,6 +69,7 @@ func postParental(t *testing.T, h *Handler, userID, body string) *httptest.Respo
 	r := httptest.NewRequest(http.MethodPost, "/users/"+userID+"/parental", strings.NewReader(body))
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	r.SetPathValue("id", userID)
+	r = r.WithContext(context.WithValue(r.Context(), ctxSessionKey, testAdminSession()))
 	w := httptest.NewRecorder()
 	h.UsersParental(w, r)
 	return w
@@ -223,25 +267,27 @@ func TestUsersParentalGETRendersForm(t *testing.T) {
 	}
 }
 
-// --- Userdata unavailable (soft-fail) ---
+// --- Userdata unavailable (hard-fail) ---
 
 func TestUsersParentalUserdataUnavailable(t *testing.T) {
 	h := setupParentalHandler(t)
-	// UserdataURL points to nowhere — syncParentalToUserdata must soft-fail.
+	// UserdataURL points to nowhere — sync must fail visibly.
 	h.UserdataURL = "http://127.0.0.1:1" // refused port
 
 	w := postParental(t, h, "ud1", "max_rating=PG-13&kids_mode=1")
 	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200 even when userdata unavailable, got %d", w.Code)
+		t.Fatalf("expected 200 with error banner, got %d", w.Code)
 	}
 	// The settings must still be saved locally.
 	if loadParentalMap()["ud1"].MaxParentalRating != "PG-13" {
 		t.Fatal("settings must be saved locally even when userdata sync fails")
 	}
-	// Response must not expose the userdata error to the admin UI as a hard failure.
 	body := w.Body.String()
-	if strings.Contains(body, "userdata") && strings.Contains(body, "error") {
-		// soft-fail: warn only — the saved=true banner must still appear
+	if !strings.Contains(body, "userdata sync failed") {
+		t.Fatalf("expected userdata sync error in response, got: %s", body)
+	}
+	if strings.Contains(body, "Parental settings saved") {
+		t.Fatal("must not show saved banner when userdata sync fails")
 	}
 	if !strings.Contains(body, "parental-form") {
 		t.Fatalf("expected parental-form in response, got: %s", body)
@@ -325,8 +371,14 @@ func TestValidateParentalPIN(t *testing.T) {
 
 func TestSyncParentalToUserdataWithKidsMode(t *testing.T) {
 	var gotPut bool
+	var gotPath string
+	var gotUserHeader string
+	var gotAuth string
 	var gotSettings parentalSettings
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotUserHeader = r.Header.Get(muxcoreUserIDHeader)
+		gotAuth = r.Header.Get("Authorization")
 		switch r.Method {
 		case http.MethodGet:
 			_ = json.NewEncoder(w).Encode(userdataBlob{
@@ -356,9 +408,19 @@ func TestSyncParentalToUserdataWithKidsMode(t *testing.T) {
 		KidsMode:          true,
 		PINHash:           hashParentalPIN("kid2", "0000"),
 	}
-	err := h.syncParentalToUserdata(context.Background(), "kid2", settings)
+	ctx := context.WithValue(context.Background(), ctxSessionKey, testAdminSession())
+	err := h.syncParentalToUserdata(ctx, "kid2", settings)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if gotPath != userdataHTTPPath {
+		t.Fatalf("expected path %q, got %q", userdataHTTPPath, gotPath)
+	}
+	if gotUserHeader != "kid2" {
+		t.Fatalf("expected X-MuxCore-User-Id kid2, got %q", gotUserHeader)
+	}
+	if gotAuth != "Bearer test-auth-local-token" {
+		t.Fatalf("expected bearer token, got %q", gotAuth)
 	}
 	if !gotPut {
 		t.Fatal("expected userdata PUT")

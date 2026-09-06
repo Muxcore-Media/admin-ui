@@ -195,7 +195,17 @@ func TestBrandingSavePersistsFile(t *testing.T) {
 
 func TestSyncParentalToUserdata(t *testing.T) {
 	var gotPut bool
+	var gotPath string
+	var gotUserHeader string
+	var gotAuth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotUserHeader = r.Header.Get(muxcoreUserIDHeader)
+		gotAuth = r.Header.Get("Authorization")
+		if r.URL.Path != userdataHTTPPath {
+			http.NotFound(w, r)
+			return
+		}
 		switch r.Method {
 		case http.MethodGet:
 			_ = json.NewEncoder(w).Encode(userdataBlob{Progress: map[string]json.RawMessage{}, Favorites: map[string]json.RawMessage{}})
@@ -221,9 +231,19 @@ func TestSyncParentalToUserdata(t *testing.T) {
 	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
 	h.UserdataURL = srv.URL
 
-	err := h.syncParentalToUserdata(context.Background(), "kid1", parentalSettings{BlockedTags: "horror"})
+	ctx := context.WithValue(context.Background(), ctxSessionKey, testAdminSession())
+	err := h.syncParentalToUserdata(ctx, "kid1", parentalSettings{BlockedTags: "horror"})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if gotPath != userdataHTTPPath {
+		t.Fatalf("expected path %q, got %q", userdataHTTPPath, gotPath)
+	}
+	if gotUserHeader != "kid1" {
+		t.Fatalf("expected X-MuxCore-User-Id kid1, got %q", gotUserHeader)
+	}
+	if gotAuth != "Bearer test-auth-local-token" {
+		t.Fatalf("expected bearer token, got %q", gotAuth)
 	}
 	if !gotPut {
 		t.Fatal("expected userdata PUT")

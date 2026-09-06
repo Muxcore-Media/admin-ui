@@ -841,7 +841,8 @@ func (h *Handler) UsersParental(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.syncParentalToUserdata(r.Context(), userID, p); err != nil {
-		slog.Warn("parental: userdata sync failed (soft-fail)", "user_id", userID, "error", err)
+		renderForm(false, "userdata sync failed: "+err.Error())
+		return
 	}
 
 	if sess := SessionFromContext(r.Context()); sess != nil {
