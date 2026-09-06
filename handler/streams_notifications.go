@@ -18,7 +18,9 @@ func (h *Handler) StreamsNotificationsPage(w http.ResponseWriter, r *http.Reques
 	pageCtx, cancel := context.WithTimeout(r.Context(), playbackMonitorDialTimeout+2*playbackMonitorReadTimeout+time.Second)
 	defer cancel()
 
-	data := templates.StreamsNotificationsPageData{}
+	data := templates.StreamsNotificationsPageData{
+		ReadyEventType: notificationEventRequestReady,
+	}
 	if msg := strings.TrimSpace(r.URL.Query().Get("success")); msg != "" {
 		data.Success = msg
 	}
@@ -70,19 +72,11 @@ func (h *Handler) StreamsNotificationsCreate(w http.ResponseWriter, r *http.Requ
 		http.Redirect(w, r, "/streams/notifications?error=invalid+form", http.StatusSeeOther)
 		return
 	}
-	enabled := r.FormValue("enabled") == "1" || strings.EqualFold(r.FormValue("enabled"), "true")
-	body, _ := json.Marshal(map[string]any{
-		"name":             strings.TrimSpace(r.FormValue("name")),
-		"event_type":       strings.TrimSpace(r.FormValue("event_type")),
-		"title_template":   strings.TrimSpace(r.FormValue("title_template")),
-		"message_template": strings.TrimSpace(r.FormValue("message_template")),
-		"severity":         strings.TrimSpace(r.FormValue("severity")),
-		"enabled":          enabled,
-		"destination_ids":  r.Form["destination_ids"],
-		"filters": map[string]any{
-			"transcode_only": r.FormValue("transcode_only") == "1",
-		},
-	})
+	body, err := notificationRuleCreateBody(r)
+	if err != nil {
+		http.Redirect(w, r, "/streams/notifications?error=invalid+form", http.StatusSeeOther)
+		return
+	}
 	if _, code, err := h.monitorHTTPRequest(ctx, http.MethodPost, "/notification/rules", body); err != nil || code >= 300 {
 		msg := "create+failed"
 		if err != nil {
@@ -126,22 +120,11 @@ func (h *Handler) StreamsNotificationsDestinationCreate(w http.ResponseWriter, r
 		http.Redirect(w, r, "/streams/notifications?error=invalid+form", http.StatusSeeOther)
 		return
 	}
-	destType := strings.TrimSpace(r.FormValue("type"))
-	config := map[string]string{}
-	switch destType {
-	case "apprise":
-		config["urls"] = strings.TrimSpace(r.FormValue("apprise_urls"))
-	default:
-		config["webhook_url"] = strings.TrimSpace(r.FormValue("webhook_url"))
+	body, err := notificationDestinationCreateBody(r)
+	if err != nil {
+		http.Redirect(w, r, "/streams/notifications?error=invalid+form", http.StatusSeeOther)
+		return
 	}
-	enabled := r.FormValue("enabled") == "1" || strings.EqualFold(r.FormValue("enabled"), "true")
-	body, _ := json.Marshal(map[string]any{
-		"name":    strings.TrimSpace(r.FormValue("name")),
-		"type":    destType,
-		"enabled": enabled,
-		"config":  config,
-		"events":  r.Form["events"],
-	})
 	if _, code, err := h.monitorHTTPRequest(ctx, http.MethodPost, "/notification/destinations", body); err != nil || code >= 300 {
 		msg := "destination+create+failed"
 		if err != nil {
