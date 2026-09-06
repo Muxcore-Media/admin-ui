@@ -380,6 +380,8 @@ type ParentalData struct {
 	BlockedTags       string
 	AllowedTags       string
 	AllowUnrated      bool
+	KidsMode          bool
+	PINSet            bool
 	Saved             bool
 	Error             string
 }
@@ -388,28 +390,37 @@ templ UserParentalForm(data ParentalData) {
 	<div class="space-y-3" data-testid="parental-form">
 		<h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider">Parental controls</h4>
 		if data.Saved {
-			<p class="text-xs text-emerald-400">Parental settings saved.</p>
+			<p class="text-xs text-emerald-400" role="status">Parental settings saved.</p>
 		}
 		if data.Error != "" {
-			<p class="text-xs text-red-400">{ data.Error }</p>
+			<p class="text-xs text-red-400" role="alert">{ data.Error }</p>
 		}
 		<form
 			hx-post={ templ.SafeURL(fmt.Sprintf("/users/%s/parental", data.UserID)) }
 			hx-target="closest [data-testid=parental-form]"
 			hx-swap="outerHTML"
-			class="space-y-2"
+			class="space-y-3"
+			aria-label="Parental controls form"
 		>
+			<label class="flex items-center gap-2 text-xs text-gray-300">
+				if data.KidsMode {
+					<input type="checkbox" name="kids_mode" value="1" checked class="rounded border-gray-600"/>
+				} else {
+					<input type="checkbox" name="kids_mode" value="1" class="rounded border-gray-600"/>
+				}
+				<span>Kids mode (restrict to age-appropriate content only)</span>
+			</label>
 			<label class="block space-y-1 text-xs text-gray-400">
-				<span>Max parental rating (e.g. PG-13, TV-14)</span>
-				<input name="max_rating" value={ data.MaxParentalRating } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white"/>
+				<span>Max parental rating (e.g. PG-13, TV-14 — leave empty for no restriction)</span>
+				<input name="max_rating" value={ data.MaxParentalRating } autocomplete="off" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white"/>
 			</label>
 			<label class="block space-y-1 text-xs text-gray-400">
 				<span>Blocked tags (comma-separated)</span>
-				<input name="blocked_tags" value={ data.BlockedTags } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white"/>
+				<input name="blocked_tags" value={ data.BlockedTags } autocomplete="off" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white"/>
 			</label>
 			<label class="block space-y-1 text-xs text-gray-400">
 				<span>Allowed tags (empty = all except blocked)</span>
-				<input name="allowed_tags" value={ data.AllowedTags } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white"/>
+				<input name="allowed_tags" value={ data.AllowedTags } autocomplete="off" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white"/>
 			</label>
 			<label class="flex items-center gap-2 text-xs text-gray-300">
 				if data.AllowUnrated {
@@ -419,7 +430,38 @@ templ UserParentalForm(data ParentalData) {
 				}
 				<span>Allow unrated content</span>
 			</label>
-			<button type="submit" class="rounded-lg bg-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-600">Save parental</button>
+			<fieldset class="space-y-1 rounded-lg border border-gray-700 p-3">
+				<legend class="text-xs font-medium text-gray-400 px-1">PIN lock</legend>
+				if data.PINSet {
+					<p class="text-xs text-gray-400">A PIN is currently set.</p>
+					<label class="flex items-center gap-2 text-xs text-gray-300">
+						<input type="checkbox" name="clear_pin" value="1" class="rounded border-gray-600"/>
+						<span>Clear PIN (removes lock)</span>
+					</label>
+				} else {
+					<p class="text-xs text-gray-500">No PIN set.</p>
+				}
+				<label class="block space-y-1 text-xs text-gray-400">
+					<span>
+						if data.PINSet {
+							Set new PIN (4–6 digits; leave empty to keep current)
+						} else {
+							Set PIN (4–6 digits)
+						}
+					</span>
+					<input
+						type="password"
+						name="pin"
+						inputmode="numeric"
+						pattern="[0-9]{4,6}"
+						maxlength="6"
+						autocomplete="new-password"
+						placeholder="····"
+						class="w-24 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white font-mono tracking-widest"
+					/>
+				</label>
+			</fieldset>
+			<button type="submit" class="rounded-lg bg-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-600">Save parental settings</button>
 		</form>
 	</div>
 }
