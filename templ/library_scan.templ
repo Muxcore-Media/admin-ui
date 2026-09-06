@@ -1,0 +1,97 @@
+package templates
+
+import "fmt"
+
+type LibraryScanPageData struct {
+	Flash         string
+	Error         string
+	SoftNote      bool
+	Status        string
+	LastScanAt    string
+	WatchDirs     int
+	TotalImported int
+	LastFound     int
+	LastImported  int
+	LastSkipped   int
+	LastError     string
+}
+
+templ LibraryScanPage(data LibraryScanPageData) {
+	<div class="space-y-6" data-testid="library-scan-page">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Library Scan</h1>
+				<p class="text-gray-400 text-sm mt-1">Trigger a media-scanner run and review the latest status without SSH.</p>
+			</div>
+			if !data.SoftNote {
+				<div class="flex flex-wrap gap-2">
+					<form method="POST" action="/library-scan/scan">
+						<input type="hidden" name="scan_type" value="watch"/>
+						<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Scan watch folders</button>
+					</form>
+					<form method="POST" action="/library-scan/scan">
+						<input type="hidden" name="scan_type" value="library_roots"/>
+						<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Scan library roots</button>
+					</form>
+				</div>
+			}
+		</div>
+		if data.Flash != "" {
+			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300" data-testid="library-scan-flash">{ data.Flash }</div>
+		}
+		if data.Error != "" {
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" data-testid="library-scan-error">{ data.Error }</div>
+		}
+		if data.SoftNote {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3 text-sm text-gray-400" data-testid="library-scan-soft-empty">
+				media-scanner not registered — deploy the module to trigger library scans and view last-run status.
+			</div>
+		}
+		if !data.SoftNote {
+			<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" data-testid="library-scan-cards">
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+					<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Status</div>
+					if data.Status == "running" {
+						<div class="flex items-center gap-2">
+							<span class="inline-flex h-2.5 w-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+							<span class="text-lg font-semibold text-amber-300 capitalize" data-testid="library-scan-status">running</span>
+						</div>
+					} else if data.Status == "failed" {
+						<div class="flex items-center gap-2">
+							<span class="inline-flex h-2.5 w-2.5 rounded-full bg-red-400"></span>
+							<span class="text-lg font-semibold text-red-300 capitalize" data-testid="library-scan-status">failed</span>
+						</div>
+					} else {
+						<div class="flex items-center gap-2">
+							<span class="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
+							<span class="text-lg font-semibold text-emerald-300 capitalize" data-testid="library-scan-status">idle</span>
+						</div>
+					}
+					<p class="text-xs text-gray-500 mt-2">Last started: { data.LastScanAt }</p>
+				</div>
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+					<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Watch folders</div>
+					<div class="text-2xl font-semibold text-gray-100">{ fmt.Sprintf("%d", data.WatchDirs) }</div>
+					<p class="text-xs text-gray-500 mt-2">Enabled directories monitored by media-scanner</p>
+				</div>
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+					<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Imported files</div>
+					<div class="text-2xl font-semibold text-gray-100">{ fmt.Sprintf("%d", data.TotalImported) }</div>
+					<p class="text-xs text-gray-500 mt-2">Total files recorded as imported</p>
+				</div>
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+					<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Last result</div>
+					<div class="text-sm text-gray-200">
+						found { fmt.Sprintf("%d", data.LastFound) } · imported { fmt.Sprintf("%d", data.LastImported) } · skipped { fmt.Sprintf("%d", data.LastSkipped) }
+					</div>
+					<p class="text-xs text-gray-500 mt-2">Counts from the most recent scan when reported</p>
+				</div>
+			</div>
+			if data.LastError != "" {
+				<div class="rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300" data-testid="library-scan-last-error">
+					Last error: { data.LastError }
+				</div>
+			}
+		}
+	</div>
+}

@@ -188,6 +188,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /invite/redeem", h.HouseholdRedeemSubmit)
 	mux.HandleFunc("GET /import", h.requireAuth(h.ManualImportPage))
 	mux.HandleFunc("POST /import", h.requireAuth(h.ManualImportPost))
+	mux.HandleFunc("GET /library-scan", h.requireAuth(h.LibraryScanPage))
+	mux.HandleFunc("POST /library-scan/scan", h.requireAuth(h.LibraryScanPost))
 
 	mux.HandleFunc("GET /migrate", h.requireAuth(h.MigratePage))
 	mux.HandleFunc("POST /migrate", h.requireAuth(h.MigratePost))
