@@ -111,6 +111,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /", h.requireAuth(h.Dashboard))
 	mux.HandleFunc("GET /dashboard/health", h.requireAuth(h.HealthGrid))
 	mux.HandleFunc("GET /dashboard/monitor", h.requireAuth(h.MonitorSummary))
+	mux.HandleFunc("GET /dashboard/now-playing", h.requireAuth(h.NowPlayingDashboard))
 
 	mux.HandleFunc("GET /modules", h.requireAuth(h.ModuleList))
 	mux.HandleFunc("GET /modules/{id}", h.requireAuth(h.ModuleDetail))
@@ -335,6 +336,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /playback", h.requireAuth(h.PlaybackAdminPage))
 	mux.HandleFunc("POST /playback", h.requireAuth(h.PlaybackAdminSave))
 	mux.HandleFunc("GET /watchstats", h.requireAuth(h.WatchStatsPage))
+	mux.HandleFunc("GET /now-playing", h.requireAuth(h.NowPlayingPage))
 	mux.HandleFunc("GET /streams", h.requireAuth(h.StreamsPage))
 	mux.HandleFunc("GET /streams/events", h.requireAuth(h.StreamsLiveEvents))
 	mux.HandleFunc("GET /streams/active.json", h.requireAuth(h.StreamsActiveJSON))

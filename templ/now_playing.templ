@@ -1,0 +1,125 @@
+package templates
+
+import "fmt"
+
+type NowPlayingPageData struct {
+	Error    string
+	SoftNote bool
+	Active   []StreamSessionRow
+}
+
+type NowPlayingDashboardData struct {
+	SoftNote bool
+	Error    string
+	Active   []StreamSessionRow
+	Count    int
+}
+
+templ NowPlayingPage(data NowPlayingPageData) {
+	<div class="space-y-6" data-testid="now-playing-page">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Now Playing</h1>
+				<p class="text-gray-400 text-sm mt-1">Who is watching what right now across your household.</p>
+			</div>
+			<div class="flex flex-wrap gap-2">
+				<a href="/streams/map" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Stream map</a>
+				<a href="/streams/guard" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Guard</a>
+				<a href="/streams" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">All streams</a>
+				<a href="/watchstats" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Watch stats</a>
+			</div>
+		</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300" data-testid="now-playing-error">{ data.Error }</div>
+		}
+		if data.SoftNote {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3 text-sm text-gray-400" data-testid="now-playing-soft-empty">
+				playback-monitor not registered — deploy the module to see live playback sessions.
+			</div>
+		}
+		<div id="streams-live-root">
+			<div class="flex items-center justify-between gap-3 mb-3">
+				<h2 class="text-lg font-semibold">Active streams</h2>
+				if !data.SoftNote {
+					<span id="streams-live-badge" class="text-xs text-emerald-400">Live</span>
+				}
+			</div>
+			if data.SoftNote {
+				<p class="text-gray-500 text-sm" data-testid="now-playing-empty">No active streams.</p>
+			} else {
+				<div id="streams-active-panel">
+					if len(data.Active) == 0 {
+						<p class="text-gray-500 text-sm" data-testid="now-playing-empty">No active streams.</p>
+					} else {
+						@ActiveStreamsTable(data.Active)
+					}
+				</div>
+				<script src="/static/streams-live.js"></script>
+			}
+		</div>
+	</div>
+}
+
+templ ActiveStreamsTable(rows []StreamSessionRow) {
+	<div class="overflow-x-auto rounded-xl border border-gray-800" data-testid="now-playing-table">
+		<table class="min-w-full text-sm">
+			<thead class="bg-gray-900/80 text-gray-400 text-left">
+				<tr>
+					<th class="px-3 py-2">User</th>
+					<th class="px-3 py-2">Title</th>
+					<th class="px-3 py-2">State</th>
+					<th class="px-3 py-2">Progress</th>
+					<th class="px-3 py-2">Device</th>
+					<th class="px-3 py-2">IP</th>
+				</tr>
+			</thead>
+			<tbody class="divide-y divide-gray-800" id="streams-active-body">
+				for _, row := range rows {
+					<tr class="hover:bg-gray-900/40">
+						<td class="px-3 py-2">{ row.User }</td>
+						<td class="px-3 py-2">{ row.Title }</td>
+						<td class="px-3 py-2">
+							if row.State != "" {
+								<span class="rounded-full bg-gray-800 px-2 py-0.5 text-xs text-gray-300 capitalize">{ row.State }</span>
+							}
+						</td>
+						<td class="px-3 py-2 font-mono text-xs">{ row.Position }</td>
+						<td class="px-3 py-2 text-gray-400">{ row.Platform } / { row.Player }</td>
+						<td class="px-3 py-2 font-mono text-xs text-gray-400">{ row.IP }</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	</div>
+}
+
+templ NowPlayingDashboardPanel(data NowPlayingDashboardData) {
+	<section class="rounded-[var(--radius-lg)] border border-gray-800 bg-gray-900/50 p-4 space-y-3" data-testid="dashboard-now-playing" aria-labelledby="dashboard-now-playing-heading">
+		<div class="flex items-center justify-between gap-2">
+			<h2 id="dashboard-now-playing-heading" class="text-sm font-semibold text-gray-300">Now playing</h2>
+			<a href="/now-playing" class="text-xs text-[var(--accent-color)] hover:underline">View all</a>
+		</div>
+		if data.SoftNote {
+			<p class="text-sm text-gray-500" data-testid="now-playing-soft-empty">playback-monitor not registered.</p>
+		} else if data.Error != "" {
+			<p class="text-sm text-red-400" data-testid="now-playing-error">{ data.Error }</p>
+		} else if len(data.Active) == 0 {
+			<p class="text-sm text-gray-500" data-testid="now-playing-empty">No one is watching right now.</p>
+		} else {
+			<p class="text-xs text-emerald-400 mb-1">{ fmt.Sprintf("%d active stream(s)", data.Count) }</p>
+			<ul class="space-y-2">
+				for _, row := range data.Active {
+					<li class="flex items-start justify-between gap-3 text-sm">
+						<div class="min-w-0">
+							<div class="truncate text-gray-200">{ row.Title }</div>
+							<div class="text-xs text-gray-500 truncate">{ row.User } · { row.Platform }</div>
+						</div>
+						if row.State != "" {
+							<span class="shrink-0 rounded-full bg-gray-800 px-2 py-0.5 text-xs text-gray-300 capitalize">{ row.State }</span>
+						}
+					</li>
+				}
+			</ul>
+		}
+	</section>
+}
