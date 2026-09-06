@@ -36,6 +36,7 @@ func TestLayout_HasSkipLinkAndMainLandmark(t *testing.T) {
 		`aria-label="Admin navigation"`,
 		`id="loading-bar"`,
 		`aria-live="polite"`,
+		`src="/static/branding/logo-mark.svg"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("layout HTML missing %q", want)
@@ -53,6 +54,8 @@ func TestLoginPage_HasAccessibleFormAndAlert(t *testing.T) {
 		`aria-label="Sign in"`,
 		`role="alert"`,
 		`Invalid credentials`,
+		`data-testid="login-brand"`,
+		`src="/static/branding/logo-mark.svg"`,
 		`<h1 class="text-2xl font-bold">MuxCore Admin</h1>`,
 	} {
 		if !strings.Contains(html, want) {
