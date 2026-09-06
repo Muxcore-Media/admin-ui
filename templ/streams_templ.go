@@ -2832,11 +2832,12 @@ type NotificationRuleRow struct {
 }
 
 type StreamsNotificationsPageData struct {
-	Error        string
-	Success      string
-	SoftNote     bool
-	Destinations []NotificationDestinationRow
-	Rules        []NotificationRuleRow
+	Error          string
+	Success        string
+	SoftNote       bool
+	ReadyEventType string
+	Destinations   []NotificationDestinationRow
+	Rules          []NotificationRuleRow
 }
 
 func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component {
@@ -2860,7 +2861,7 @@ func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component
 			templ_7745c5c3_Var121 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 298, "<div class=\"space-y-6\" data-testid=\"streams-notifications-page\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h1 class=\"text-2xl font-bold\">Notification rules</h1><p class=\"text-gray-400 text-sm mt-1\">Alert rules and delivery destinations for playback and guard events.</p></div><a href=\"/streams\" class=\"rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800\">Back to streams</a></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 298, "<div class=\"space-y-6\" data-testid=\"streams-notifications-page\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h1 class=\"text-2xl font-bold\">Notification rules</h1><p class=\"text-gray-400 text-sm mt-1\">Alert rules and delivery destinations for playback, guard, and library-ready (playable) request events.</p></div><a href=\"/streams\" class=\"rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800\">Back to streams</a></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2872,7 +2873,7 @@ func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component
 			var templ_7745c5c3_Var122 string
 			templ_7745c5c3_Var122, templ_7745c5c3_Err = templ.JoinStringErrs(data.Error)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1096, Col: 109}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1097, Col: 109}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var122))
 			if templ_7745c5c3_Err != nil {
@@ -2891,7 +2892,7 @@ func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component
 			var templ_7745c5c3_Var123 string
 			templ_7745c5c3_Var123, templ_7745c5c3_Err = templ.JoinStringErrs(data.Success)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1099, Col: 123}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1100, Col: 123}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var123))
 			if templ_7745c5c3_Err != nil {
@@ -2930,7 +2931,7 @@ func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component
 				var templ_7745c5c3_Var124 string
 				templ_7745c5c3_Var124, templ_7745c5c3_Err = templ.JoinStringErrs(dest.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1125, Col: 54}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1126, Col: 54}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var124))
 				if templ_7745c5c3_Err != nil {
@@ -2943,7 +2944,7 @@ func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component
 				var templ_7745c5c3_Var125 string
 				templ_7745c5c3_Var125, templ_7745c5c3_Err = templ.JoinStringErrs(dest.Type)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1126, Col: 56}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1127, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var125))
 				if templ_7745c5c3_Err != nil {
@@ -2956,7 +2957,7 @@ func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component
 				var templ_7745c5c3_Var126 string
 				templ_7745c5c3_Var126, templ_7745c5c3_Err = templ.JoinStringErrs(dest.EventsLabel)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1127, Col: 71}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1128, Col: 71}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var126))
 				if templ_7745c5c3_Err != nil {
@@ -2969,7 +2970,7 @@ func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component
 				var templ_7745c5c3_Var127 string
 				templ_7745c5c3_Var127, templ_7745c5c3_Err = templ.JoinStringErrs(dest.EnabledLabel)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1128, Col: 64}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1129, Col: 64}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var127))
 				if templ_7745c5c3_Err != nil {
@@ -2982,7 +2983,7 @@ func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component
 				var templ_7745c5c3_Var128 string
 				templ_7745c5c3_Var128, templ_7745c5c3_Err = templ.ResolveAttributeValue(dest.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1132, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1133, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var128)
 				if templ_7745c5c3_Err != nil {
@@ -2995,7 +2996,7 @@ func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component
 				var templ_7745c5c3_Var129 string
 				templ_7745c5c3_Var129, templ_7745c5c3_Err = templ.ResolveAttributeValue(dest.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1136, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1137, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var129)
 				if templ_7745c5c3_Err != nil {
@@ -3016,14 +3017,14 @@ func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component
 			return templ_7745c5c3_Err
 		}
 		if !data.SoftNote {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 316, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-4\"><h2 class=\"text-lg font-semibold mb-3\">Add destination</h2><form method=\"POST\" action=\"/streams/notifications/destinations/create\" class=\"grid gap-3 md:grid-cols-2\"><label class=\"block text-sm\"><span class=\"text-gray-400\">Name</span> <input name=\"name\" required class=\"mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2\" placeholder=\"Discord #playback\"></label> <label class=\"block text-sm\"><span class=\"text-gray-400\">Type</span> <select name=\"type\" required class=\"mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2\"><option value=\"discord\">discord</option> <option value=\"slack\">slack</option> <option value=\"webhook\">webhook</option> <option value=\"apprise\">apprise</option></select></label> <label class=\"block text-sm md:col-span-2\"><span class=\"text-gray-400\">Webhook URL (discord / slack / webhook)</span> <input name=\"webhook_url\" class=\"mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-xs\" placeholder=\"https://discord.com/api/webhooks/...\"></label> <label class=\"block text-sm md:col-span-2\"><span class=\"text-gray-400\">Apprise URLs (apprise type; semicolon-separated)</span> <input name=\"apprise_urls\" class=\"mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-xs\" placeholder=\"discord://...;mailto://...\"></label><fieldset class=\"md:col-span-2 text-sm\"><legend class=\"text-gray-400 mb-2\">Events</legend><div class=\"flex flex-wrap gap-4\"><label class=\"flex items-center gap-2\"><input type=\"checkbox\" name=\"events\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 316, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-4\"><h2 class=\"text-lg font-semibold mb-3\">Add destination</h2><p class=\"text-xs text-gray-500 mb-3\">Use discord or webhook type for Discord or generic HTTPS outbound. Skip creating a destination to keep alerts quiet.</p><form method=\"POST\" action=\"/streams/notifications/destinations/create\" class=\"grid gap-3 md:grid-cols-2\"><label class=\"block text-sm\"><span class=\"text-gray-400\">Name</span> <input name=\"name\" required class=\"mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2\" placeholder=\"Discord #requests-ready\"></label> <label class=\"block text-sm\"><span class=\"text-gray-400\">Type</span> <select name=\"type\" required class=\"mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2\"><option value=\"discord\">discord</option> <option value=\"slack\">slack</option> <option value=\"webhook\">webhook</option> <option value=\"apprise\">apprise</option></select></label> <label class=\"block text-sm md:col-span-2\"><span class=\"text-gray-400\">Webhook URL (discord / slack / webhook)</span> <input name=\"webhook_url\" class=\"mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-xs\" placeholder=\"https://discord.com/api/webhooks/...\"></label> <label class=\"block text-sm md:col-span-2\"><span class=\"text-gray-400\">Apprise URLs (apprise type; semicolon-separated)</span> <input name=\"apprise_urls\" class=\"mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-xs\" placeholder=\"discord://...;mailto://...\"></label><fieldset class=\"md:col-span-2 text-sm\"><legend class=\"text-gray-400 mb-2\">Events</legend><div class=\"flex flex-wrap gap-4\"><label class=\"flex items-center gap-2\"><input type=\"checkbox\" name=\"events\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var130 string
 			templ_7745c5c3_Var130, templ_7745c5c3_Err = templ.ResolveAttributeValue(playbackevents.EventPlaybackStarted)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1176, Col: 126}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1178, Col: 126}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var130)
 			if templ_7745c5c3_Err != nil {
@@ -3036,7 +3037,7 @@ func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component
 			var templ_7745c5c3_Var131 string
 			templ_7745c5c3_Var131, templ_7745c5c3_Err = templ.JoinStringErrs(playbackevents.EventPlaybackStarted)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1176, Col: 235}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1178, Col: 235}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var131))
 			if templ_7745c5c3_Err != nil {
@@ -3049,7 +3050,7 @@ func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component
 			var templ_7745c5c3_Var132 string
 			templ_7745c5c3_Var132, templ_7745c5c3_Err = templ.ResolveAttributeValue(playbackevents.EventPlaybackStopped)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1177, Col: 126}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1179, Col: 126}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var132)
 			if templ_7745c5c3_Err != nil {
@@ -3062,159 +3063,159 @@ func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component
 			var templ_7745c5c3_Var133 string
 			templ_7745c5c3_Var133, templ_7745c5c3_Err = templ.JoinStringErrs(playbackevents.EventPlaybackStopped)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1177, Col: 235}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1179, Col: 235}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var133))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 320, "</span></label> <label class=\"flex items-center gap-2\"><input type=\"checkbox\" name=\"events\" value=\"guard.violation\" class=\"rounded border-gray-700\"><span class=\"text-gray-300\">guard.violation</span></label></div></fieldset><label class=\"flex items-center gap-2 text-sm\"><input type=\"checkbox\" name=\"enabled\" value=\"1\" checked class=\"rounded border-gray-700\"> <span class=\"text-gray-300\">Enabled</span></label><div class=\"md:col-span-2\"><button type=\"submit\" class=\"rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-500\">Create destination</button></div></form></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 320, "</span></label> <label class=\"flex items-center gap-2\"><input type=\"checkbox\" name=\"events\" value=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var134 string
+			templ_7745c5c3_Var134, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.ReadyEventType)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1180, Col: 110}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var134)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 321, "\" class=\"rounded border-gray-700\"><span class=\"text-gray-300\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var135 string
+			templ_7745c5c3_Var135, templ_7745c5c3_Err = templ.JoinStringErrs(data.ReadyEventType)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1180, Col: 195}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var135))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 322, " <span class=\"text-gray-500\">(library ready / playable)</span></span></label> <label class=\"flex items-center gap-2\"><input type=\"checkbox\" name=\"events\" value=\"guard.violation\" class=\"rounded border-gray-700\"><span class=\"text-gray-300\">guard.violation</span></label></div></fieldset><label class=\"flex items-center gap-2 text-sm\"><input type=\"checkbox\" name=\"enabled\" value=\"1\" checked class=\"rounded border-gray-700\"> <span class=\"text-gray-300\">Enabled</span></label><div class=\"md:col-span-2\"><button type=\"submit\" class=\"rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-500\">Create destination</button></div></form></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 321, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-4\"><h2 class=\"text-lg font-semibold mb-3\">Rules</h2>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 323, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-4\"><h2 class=\"text-lg font-semibold mb-3\">Rules</h2>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(data.Rules) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 322, "<p class=\"text-gray-500 text-sm\">No notification rules yet. Legacy env toggles seed defaults on first monitor start.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 324, "<p class=\"text-gray-500 text-sm\">No notification rules yet. Legacy env toggles seed defaults on first monitor start.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 323, "<div class=\"overflow-x-auto rounded-xl border border-gray-800\"><table class=\"min-w-full text-sm\"><thead class=\"bg-gray-900/80 text-gray-400 text-left\"><tr><th class=\"px-3 py-2\">Name</th><th class=\"px-3 py-2\">Event</th><th class=\"px-3 py-2\">Severity</th><th class=\"px-3 py-2\">Status</th><th class=\"px-3 py-2 w-24\"></th></tr></thead> <tbody class=\"divide-y divide-gray-800\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 325, "<div class=\"overflow-x-auto rounded-xl border border-gray-800\"><table class=\"min-w-full text-sm\"><thead class=\"bg-gray-900/80 text-gray-400 text-left\"><tr><th class=\"px-3 py-2\">Name</th><th class=\"px-3 py-2\">Event</th><th class=\"px-3 py-2\">Severity</th><th class=\"px-3 py-2\">Status</th><th class=\"px-3 py-2 w-24\"></th></tr></thead> <tbody class=\"divide-y divide-gray-800\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, rule := range data.Rules {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 324, "<tr class=\"hover:bg-gray-900/40 align-top\"><td class=\"px-3 py-2\"><div class=\"font-medium\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var134 string
-				templ_7745c5c3_Var134, templ_7745c5c3_Err = templ.JoinStringErrs(rule.Name)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1211, Col: 46}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var134))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 325, "</div><div class=\"text-xs text-gray-500 mt-1\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var135 string
-				templ_7745c5c3_Var135, templ_7745c5c3_Err = templ.JoinStringErrs(rule.TitleTemplate)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1212, Col: 70}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var135))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 326, "</div></td><td class=\"px-3 py-2 text-gray-300\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 326, "<tr class=\"hover:bg-gray-900/40 align-top\"><td class=\"px-3 py-2\"><div class=\"font-medium\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var136 string
-				templ_7745c5c3_Var136, templ_7745c5c3_Err = templ.JoinStringErrs(rule.EventType)
+				templ_7745c5c3_Var136, templ_7745c5c3_Err = templ.JoinStringErrs(rule.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1214, Col: 61}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1214, Col: 46}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var136))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 327, "</td><td class=\"px-3 py-2 text-gray-300\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 327, "</div><div class=\"text-xs text-gray-500 mt-1\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var137 string
-				templ_7745c5c3_Var137, templ_7745c5c3_Err = templ.JoinStringErrs(rule.Severity)
+				templ_7745c5c3_Var137, templ_7745c5c3_Err = templ.JoinStringErrs(rule.TitleTemplate)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1215, Col: 60}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1215, Col: 70}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var137))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 328, "</td><td class=\"px-3 py-2 text-gray-400\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 328, "</div></td><td class=\"px-3 py-2 text-gray-300\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var138 string
-				templ_7745c5c3_Var138, templ_7745c5c3_Err = templ.JoinStringErrs(rule.EnabledLabel)
+				templ_7745c5c3_Var138, templ_7745c5c3_Err = templ.JoinStringErrs(rule.EventType)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1216, Col: 64}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1217, Col: 61}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var138))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 329, "</td><td class=\"px-3 py-2\"><form method=\"POST\" action=\"/streams/notifications/delete\"><input type=\"hidden\" name=\"id\" value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 329, "</td><td class=\"px-3 py-2 text-gray-300\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var139 string
-				templ_7745c5c3_Var139, templ_7745c5c3_Err = templ.ResolveAttributeValue(rule.ID)
+				templ_7745c5c3_Var139, templ_7745c5c3_Err = templ.JoinStringErrs(rule.Severity)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1219, Col: 57}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1218, Col: 60}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var139)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var139))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 330, "\"> <button type=\"submit\" class=\"text-red-400 hover:text-red-300\">Delete</button></form></td></tr>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 330, "</td><td class=\"px-3 py-2 text-gray-400\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var140 string
+				templ_7745c5c3_Var140, templ_7745c5c3_Err = templ.JoinStringErrs(rule.EnabledLabel)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1219, Col: 64}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var140))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 331, "</td><td class=\"px-3 py-2\"><form method=\"POST\" action=\"/streams/notifications/delete\"><input type=\"hidden\" name=\"id\" value=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var141 string
+				templ_7745c5c3_Var141, templ_7745c5c3_Err = templ.ResolveAttributeValue(rule.ID)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1222, Col: 57}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var141)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 332, "\"> <button type=\"submit\" class=\"text-red-400 hover:text-red-300\">Delete</button></form></td></tr>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 331, "</tbody></table></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 333, "</tbody></table></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 332, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 334, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if !data.SoftNote {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 333, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-4\"><h2 class=\"text-lg font-semibold mb-3\">Add rule</h2><form method=\"POST\" action=\"/streams/notifications/create\" class=\"grid gap-3 md:grid-cols-2\"><label class=\"block text-sm\"><span class=\"text-gray-400\">Name</span> <input name=\"name\" required class=\"mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2\" placeholder=\"Playback started\"></label> <label class=\"block text-sm\"><span class=\"text-gray-400\">Event type</span> <select name=\"event_type\" required class=\"mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2\"><option value=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var140 string
-			templ_7745c5c3_Var140, templ_7745c5c3_Err = templ.ResolveAttributeValue(playbackevents.EventPlaybackStarted)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1241, Col: 58}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var140)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 334, "\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var141 string
-			templ_7745c5c3_Var141, templ_7745c5c3_Err = templ.JoinStringErrs(playbackevents.EventPlaybackStarted)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1241, Col: 98}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var141))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 335, "</option> <option value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 335, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-4\"><h2 class=\"text-lg font-semibold mb-3\">Add rule</h2><form method=\"POST\" action=\"/streams/notifications/create\" class=\"grid gap-3 md:grid-cols-2\"><label class=\"block text-sm\"><span class=\"text-gray-400\">Name</span> <input name=\"name\" required class=\"mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2\" placeholder=\"Request ready\"></label> <label class=\"block text-sm\"><span class=\"text-gray-400\">Event type</span> <select name=\"event_type\" required class=\"mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2\"><option value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var142 string
-			templ_7745c5c3_Var142, templ_7745c5c3_Err = templ.ResolveAttributeValue(playbackevents.EventPlaybackStopped)
+			templ_7745c5c3_Var142, templ_7745c5c3_Err = templ.ResolveAttributeValue(playbackevents.EventPlaybackStarted)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1242, Col: 58}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1244, Col: 58}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var142)
 			if templ_7745c5c3_Err != nil {
@@ -3225,159 +3226,159 @@ func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var143 string
-			templ_7745c5c3_Var143, templ_7745c5c3_Err = templ.JoinStringErrs(playbackevents.EventPlaybackStopped)
+			templ_7745c5c3_Var143, templ_7745c5c3_Err = templ.JoinStringErrs(playbackevents.EventPlaybackStarted)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1242, Col: 98}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1244, Col: 98}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var143))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 337, "</option> <option value=\"guard.violation\">guard.violation</option></select></label> <label class=\"block text-sm\"><span class=\"text-gray-400\">Severity</span> <select name=\"severity\" class=\"mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2\"><option value=\"info\">info</option> <option value=\"warning\">warning</option> <option value=\"error\">error</option></select></label> <label class=\"flex items-center gap-2 text-sm mt-6\"><input type=\"checkbox\" name=\"enabled\" value=\"1\" checked class=\"rounded border-gray-700\"> <span class=\"text-gray-300\">Enabled</span></label> <label class=\"block text-sm md:col-span-2\"><span class=\"text-gray-400\">Title template</span> <input name=\"title_template\" required class=\"mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-xs\" placeholder=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 337, "</option> <option value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var144 string
-			templ_7745c5c3_Var144, templ_7745c5c3_Err = templ.ResolveAttributeValue(`{{user}} started {{title}}`)
+			templ_7745c5c3_Var144, templ_7745c5c3_Err = templ.ResolveAttributeValue(playbackevents.EventPlaybackStopped)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1260, Col: 180}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1245, Col: 58}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var144)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 338, "\"></label> <label class=\"block text-sm md:col-span-2\"><span class=\"text-gray-400\">Message template</span> <textarea name=\"message_template\" rows=\"3\" required class=\"mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-xs\" placeholder=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 338, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var145 string
-			templ_7745c5c3_Var145, templ_7745c5c3_Err = templ.ResolveAttributeValue(`{{platform}} · {{player}} · {{ip}}`)
+			templ_7745c5c3_Var145, templ_7745c5c3_Err = templ.JoinStringErrs(playbackevents.EventPlaybackStopped)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1264, Col: 204}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1245, Col: 98}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var145)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 339, "\"></textarea></label> <label class=\"flex items-center gap-2 text-sm md:col-span-2\"><input type=\"checkbox\" name=\"transcode_only\" value=\"1\" class=\"rounded border-gray-700\"> <span class=\"text-gray-300\">Transcode sessions only</span></label> ")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var145))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if len(data.Destinations) > 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 340, "<fieldset class=\"md:col-span-2 text-sm\"><legend class=\"text-gray-400 mb-2\">Destinations (optional — empty uses notification-apprise)</legend><div class=\"flex flex-wrap gap-4\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				for _, dest := range data.Destinations {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 341, "<label class=\"flex items-center gap-2\"><input type=\"checkbox\" name=\"destination_ids\" value=\"")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					var templ_7745c5c3_Var146 string
-					templ_7745c5c3_Var146, templ_7745c5c3_Err = templ.ResolveAttributeValue(dest.ID)
-					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1276, Col: 71}
-					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var146)
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 342, "\" class=\"rounded border-gray-700\"> <span class=\"text-gray-300\">")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					var templ_7745c5c3_Var147 string
-					templ_7745c5c3_Var147, templ_7745c5c3_Err = templ.JoinStringErrs(dest.Name)
-					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1277, Col: 49}
-					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var147))
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 343, " <span class=\"text-gray-500\">(")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					var templ_7745c5c3_Var148 string
-					templ_7745c5c3_Var148, templ_7745c5c3_Err = templ.JoinStringErrs(dest.Type)
-					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1277, Col: 92}
-					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var148))
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 344, ")</span></span></label>")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 345, "</div></fieldset>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 339, "</option> <option value=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 346, "<div class=\"md:col-span-2\"><button type=\"submit\" class=\"rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-500\">Create rule</button></div></form><p class=\"text-xs text-gray-500 mt-3\">Templates support ")
+			var templ_7745c5c3_Var146 string
+			templ_7745c5c3_Var146, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.ReadyEventType)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1246, Col: 42}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var146)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 340, "\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var147 string
+			templ_7745c5c3_Var147, templ_7745c5c3_Err = templ.JoinStringErrs(data.ReadyEventType)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1246, Col: 66}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var147))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 341, "</option> <option value=\"guard.violation\">guard.violation</option></select></label> <label class=\"block text-sm\"><span class=\"text-gray-400\">Severity</span> <select name=\"severity\" class=\"mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2\"><option value=\"info\">info</option> <option value=\"warning\">warning</option> <option value=\"error\">error</option></select></label> <label class=\"flex items-center gap-2 text-sm mt-6\"><input type=\"checkbox\" name=\"enabled\" value=\"1\" checked class=\"rounded border-gray-700\"> <span class=\"text-gray-300\">Enabled</span></label> <label class=\"block text-sm md:col-span-2\"><span class=\"text-gray-400\">Title template</span> <input name=\"title_template\" required class=\"mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-xs\" placeholder=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var148 string
+			templ_7745c5c3_Var148, templ_7745c5c3_Err = templ.ResolveAttributeValue(`{{user}} started {{title}}`)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1264, Col: 180}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var148)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 342, "\"></label> <label class=\"block text-sm md:col-span-2\"><span class=\"text-gray-400\">Message template</span> <textarea name=\"message_template\" rows=\"3\" required class=\"mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-xs\" placeholder=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var149 string
-			templ_7745c5c3_Var149, templ_7745c5c3_Err = templ.JoinStringErrs(`{{user}}`)
+			templ_7745c5c3_Var149, templ_7745c5c3_Err = templ.ResolveAttributeValue(`{{platform}} · {{player}} · {{ip}}`)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1287, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1268, Col: 204}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var149))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 347, ", ")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var149)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var150 string
-			templ_7745c5c3_Var150, templ_7745c5c3_Err = templ.JoinStringErrs(`{{title}}`)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1287, Col: 89}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var150))
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 343, "\"></textarea></label> <label class=\"flex items-center gap-2 text-sm md:col-span-2\"><input type=\"checkbox\" name=\"transcode_only\" value=\"1\" class=\"rounded border-gray-700\"> <span class=\"text-gray-300\">Transcode sessions only</span></label> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 348, ", ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
+			if len(data.Destinations) > 0 {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 344, "<fieldset class=\"md:col-span-2 text-sm\"><legend class=\"text-gray-400 mb-2\">Destinations (optional — empty uses notification-apprise)</legend><div class=\"flex flex-wrap gap-4\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				for _, dest := range data.Destinations {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 345, "<label class=\"flex items-center gap-2\"><input type=\"checkbox\" name=\"destination_ids\" value=\"")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var150 string
+					templ_7745c5c3_Var150, templ_7745c5c3_Err = templ.ResolveAttributeValue(dest.ID)
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1280, Col: 71}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var150)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 346, "\" class=\"rounded border-gray-700\"> <span class=\"text-gray-300\">")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var151 string
+					templ_7745c5c3_Var151, templ_7745c5c3_Err = templ.JoinStringErrs(dest.Name)
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1281, Col: 49}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var151))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 347, " <span class=\"text-gray-500\">(")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var152 string
+					templ_7745c5c3_Var152, templ_7745c5c3_Err = templ.JoinStringErrs(dest.Type)
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1281, Col: 92}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var152))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 348, ")</span></span></label>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 349, "</div></fieldset>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 			}
-			var templ_7745c5c3_Var151 string
-			templ_7745c5c3_Var151, templ_7745c5c3_Err = templ.JoinStringErrs(`{{platform}}`)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1287, Col: 109}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var151))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 349, ", ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var152 string
-			templ_7745c5c3_Var152, templ_7745c5c3_Err = templ.JoinStringErrs(`{{player}}`)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1287, Col: 127}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var152))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 350, ", ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 350, "<div class=\"md:col-span-2\"><button type=\"submit\" class=\"rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-500\">Create rule</button></div></form><p class=\"text-xs text-gray-500 mt-3\">Playback templates: ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var153 string
-			templ_7745c5c3_Var153, templ_7745c5c3_Err = templ.JoinStringErrs(`{{ip}}`)
+			templ_7745c5c3_Var153, templ_7745c5c3_Err = templ.JoinStringErrs(`{{user}}`)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1287, Col: 141}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1291, Col: 74}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var153))
 			if templ_7745c5c3_Err != nil {
@@ -3388,9 +3389,9 @@ func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var154 string
-			templ_7745c5c3_Var154, templ_7745c5c3_Err = templ.JoinStringErrs(`{{state}}`)
+			templ_7745c5c3_Var154, templ_7745c5c3_Err = templ.JoinStringErrs(`{{title}}`)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1287, Col: 158}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1291, Col: 91}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var154))
 			if templ_7745c5c3_Err != nil {
@@ -3401,9 +3402,9 @@ func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var155 string
-			templ_7745c5c3_Var155, templ_7745c5c3_Err = templ.JoinStringErrs(`{{duration}}`)
+			templ_7745c5c3_Var155, templ_7745c5c3_Err = templ.JoinStringErrs(`{{platform}}`)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1287, Col: 178}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1291, Col: 111}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var155))
 			if templ_7745c5c3_Err != nil {
@@ -3414,9 +3415,9 @@ func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var156 string
-			templ_7745c5c3_Var156, templ_7745c5c3_Err = templ.JoinStringErrs(`{{rule}}`)
+			templ_7745c5c3_Var156, templ_7745c5c3_Err = templ.JoinStringErrs(`{{player}}`)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1287, Col: 194}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1291, Col: 129}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var156))
 			if templ_7745c5c3_Err != nil {
@@ -3427,20 +3428,176 @@ func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var157 string
-			templ_7745c5c3_Var157, templ_7745c5c3_Err = templ.JoinStringErrs(`{{severity}}`)
+			templ_7745c5c3_Var157, templ_7745c5c3_Err = templ.JoinStringErrs(`{{ip}}`)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1287, Col: 214}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1291, Col: 143}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var157))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 355, ".</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 355, ", ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var158 string
+			templ_7745c5c3_Var158, templ_7745c5c3_Err = templ.JoinStringErrs(`{{state}}`)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1291, Col: 160}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var158))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 356, ", ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var159 string
+			templ_7745c5c3_Var159, templ_7745c5c3_Err = templ.JoinStringErrs(`{{duration}}`)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1291, Col: 180}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var159))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 357, ", ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var160 string
+			templ_7745c5c3_Var160, templ_7745c5c3_Err = templ.JoinStringErrs(`{{rule}}`)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1291, Col: 196}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var160))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 358, ", ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var161 string
+			templ_7745c5c3_Var161, templ_7745c5c3_Err = templ.JoinStringErrs(`{{severity}}`)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1291, Col: 216}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var161))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 359, ". Request-ready templates: ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var162 string
+			templ_7745c5c3_Var162, templ_7745c5c3_Err = templ.JoinStringErrs(`{{request_id}}`)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1291, Col: 263}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var162))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 360, ", ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var163 string
+			templ_7745c5c3_Var163, templ_7745c5c3_Err = templ.JoinStringErrs(`{{requested_by}}`)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1291, Col: 287}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var163))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 361, ", ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var164 string
+			templ_7745c5c3_Var164, templ_7745c5c3_Err = templ.JoinStringErrs(`{{title}}`)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1291, Col: 304}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var164))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 362, ", ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var165 string
+			templ_7745c5c3_Var165, templ_7745c5c3_Err = templ.JoinStringErrs(`{{year}}`)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1291, Col: 320}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var165))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 363, ", ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var166 string
+			templ_7745c5c3_Var166, templ_7745c5c3_Err = templ.JoinStringErrs(`{{item_type}}`)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1291, Col: 341}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var166))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 364, ", ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var167 string
+			templ_7745c5c3_Var167, templ_7745c5c3_Err = templ.JoinStringErrs(`{{tmdb_id}}`)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1291, Col: 360}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var167))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 365, ", ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var168 string
+			templ_7745c5c3_Var168, templ_7745c5c3_Err = templ.JoinStringErrs(`{{item_id}}`)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1291, Col: 379}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var168))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 366, ".</p><p class=\"text-xs text-gray-500 mt-1\">Event ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var169 string
+			templ_7745c5c3_Var169, templ_7745c5c3_Err = templ.JoinStringErrs(data.ReadyEventType)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/streams.templ`, Line: 1292, Col: 69}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var169))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 367, " fires when a requested title becomes playable (has_file), not on status=available. playback-monitor should dedupe by request_id when emitting.</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 356, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 368, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
