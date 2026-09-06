@@ -299,11 +299,20 @@ func TestCalendarPage_HasHeadingFilterLabelsAndTableCaption(t *testing.T) {
 }
 
 func TestBackupsPage_HasAlertsSectionsAndFormLabels(t *testing.T) {
+	sched := BackupScheduleData{
+		CronExpr:       "0 2 * * *",
+		RetentionCount: 7,
+		RetentionDays:  30,
+		Enabled:        true,
+		NextRun:        "01 Jan 26 02:00 UTC",
+		LastRun:        "31 Dec 25 02:00 UTC",
+		LastRunStatus:  "ok",
+	}
 	html := renderComponent(t, BackupsLivePage([]BackupRow{{
 		ID:        "bak-1",
 		Timestamp: "2026-01-01",
 		Size:      "10 MB",
-	}}, "backup module unavailable", "Backup created"))
+	}}, "backup module unavailable", "Backup created", sched))
 
 	for _, want := range []string{
 		`<h1 class="text-2xl font-bold">Backups</h1>`,
@@ -320,6 +329,71 @@ func TestBackupsPage_HasAlertsSectionsAndFormLabels(t *testing.T) {
 		if !strings.Contains(html, want) {
 			t.Fatalf("backups page HTML missing %q", want)
 		}
+	}
+}
+
+func TestBackupsScheduleSection_EnabledState(t *testing.T) {
+	sched := BackupScheduleData{
+		CronExpr:       "0 2 * * *",
+		RetentionCount: 7,
+		RetentionDays:  30,
+		Enabled:        true,
+		NextRun:        "01 Jan 26 02:00 UTC",
+		LastRun:        "31 Dec 25 02:00 UTC",
+		LastRunStatus:  "ok",
+	}
+	html := renderComponent(t, BackupsLivePage(nil, "", "", sched))
+
+	for _, want := range []string{
+		`aria-labelledby="backup-schedule-heading"`,
+		`id="backup-schedule-heading"`,
+		`data-testid="schedule-status-enabled"`,
+		`data-testid="schedule-form"`,
+		`aria-label="Backup schedule configuration"`,
+		`name="cron_expr"`,
+		`name="retention_count"`,
+		`name="retention_days"`,
+		`name="enabled"`,
+		`action="/backups/schedule"`,
+		`data-testid="schedule-save-btn"`,
+		`01 Jan 26 02:00 UTC`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("schedule section HTML missing %q", want)
+		}
+	}
+}
+
+func TestBackupsScheduleSection_SoftEmpty(t *testing.T) {
+	sched := BackupScheduleData{SoftEmpty: true}
+	html := renderComponent(t, BackupsLivePage(nil, "", "", sched))
+
+	for _, want := range []string{
+		`data-testid="backup-schedule-section"`,
+		`data-testid="schedule-soft-empty"`,
+		`backup-local is not registered`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("schedule soft-empty HTML missing %q", want)
+		}
+	}
+	if strings.Contains(html, `data-testid="schedule-form"`) {
+		t.Fatal("schedule form must not render when soft-empty")
+	}
+}
+
+func TestBackupsScheduleSection_DisabledState(t *testing.T) {
+	sched := BackupScheduleData{
+		CronExpr: "0 3 * * 0",
+		Enabled:  false,
+	}
+	html := renderComponent(t, BackupsLivePage(nil, "", "", sched))
+
+	if !strings.Contains(html, `data-testid="schedule-status-disabled"`) {
+		t.Fatal("schedule section must show disabled badge when not enabled")
+	}
+	if strings.Contains(html, `data-testid="schedule-status-enabled"`) {
+		t.Fatal("schedule section must not show enabled badge when disabled")
 	}
 }
 
