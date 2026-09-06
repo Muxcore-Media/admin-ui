@@ -44,6 +44,7 @@ var staticNavLinks = []templates.NavLink{
 
 	// Library — paths, naming, and quality setup
 	{Label: "Root Folders", Path: "/roots", Icon: "folder", Group: "Library"},
+	{Label: "Library Scan", Path: "/library-scan", Icon: "repeat", Group: "Library"},
 	{Label: "Naming", Path: "/rename/templates", Icon: "pencil", Group: "Library"},
 	{Label: "Metadata", Path: "/metadata", Icon: "tag", Group: "Library"},
 	{Label: "Formats", Path: "/formats", Icon: "sliders", Group: "Library"},
