@@ -11,23 +11,82 @@ type APIKeyRow struct {
 	Scopes   string
 }
 
-templ APIKeysLivePage(rows []APIKeyRow, errMsg string) {
+type APIKeyUserOption struct {
+	ID       string
+	Username string
+}
+
+// APIKeyCopyOnce renders the copy-once secret reveal panel after a token is created or rotated.
+// secret is the full plaintext token — it will not be shown again after navigation.
+templ APIKeyCopyOnce(username, name, secret string) {
+	<div class="rounded-xl border border-emerald-800/50 bg-emerald-950/20 p-4 space-y-3" role="alert" data-testid="copy-once-panel">
+		<div class="flex items-center justify-between gap-2">
+			<div>
+				<p class="text-sm font-semibold text-emerald-300">Token created — copy it now</p>
+				<p class="text-xs text-gray-400 mt-0.5">{ username } / { name }</p>
+			</div>
+			<a href="/keys" class="text-xs text-gray-500 hover:text-gray-300">Dismiss</a>
+		</div>
+		<div class="flex gap-2 items-center">
+			<code
+				id="copy-once-secret"
+				class="flex-1 min-w-0 break-all rounded-lg border border-emerald-800/40 bg-gray-950 px-3 py-2 text-sm text-emerald-200 font-mono"
+				data-testid="copy-once-secret"
+			>{ secret }</code>
+			<button
+				type="button"
+				onclick="navigator.clipboard.writeText(document.getElementById('copy-once-secret').textContent).then(()=>this.textContent='Copied!').catch(()=>{})"
+				class="shrink-0 rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-300 hover:bg-gray-800"
+				aria-label="Copy token to clipboard"
+			>Copy</button>
+		</div>
+		<p class="text-xs text-yellow-400" role="status">
+			This token will <strong>not</strong> be shown again. Store it in a password manager or secrets vault before dismissing.
+		</p>
+	</div>
+}
+
+templ APIKeysLivePage(rows []APIKeyRow, users []APIKeyUserOption, errMsg string) {
 	<div class="space-y-6 max-w-4xl" data-testid="keys-page">
 		<div>
 			<h1 class="text-2xl font-bold">API Keys</h1>
 			<p class="text-gray-400 text-sm mt-1">
-				All API tokens across users. Create per-user tokens from Users → Manage.
+				All API tokens across household users. Create and rotate tokens here or under Users.
 			</p>
 		</div>
 		if errMsg != "" {
-			<div class="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-2 text-sm text-amber-200">{ errMsg }</div>
+			<div class="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-2 text-sm text-amber-200" role="alert" data-testid="keys-error">{ errMsg }</div>
 		}
-		if len(rows) == 0 {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500">
-				No API tokens yet. Create one from a user’s Manage → API Tokens panel.
+		<section aria-labelledby="create-key-heading" class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 space-y-3">
+			<h2 id="create-key-heading" class="text-sm font-semibold text-gray-300">Create API key</h2>
+			if len(users) == 0 && errMsg == "" {
+				<p class="text-xs text-gray-500" data-testid="create-no-users">No users found — create a user first under <a href="/users" class="text-indigo-400">Users</a>.</p>
+			} else if len(users) > 0 {
+				<form method="POST" action="/keys/create" class="flex flex-wrap gap-3 items-end" aria-label="Create API key" data-testid="create-key-form">
+					<label class="flex-1 min-w-[10rem] space-y-1 text-xs text-gray-400">
+						<span>User</span>
+						<select name="user_id" required class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white">
+							<option value="">— select user —</option>
+							for _, u := range users {
+								<option value={ u.ID }>{ u.Username }</option>
+							}
+						</select>
+					</label>
+					<label class="flex-1 min-w-[10rem] space-y-1 text-xs text-gray-400">
+						<span>Token name</span>
+						<input name="name" required placeholder="e.g. home-server" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white"/>
+					</label>
+					<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">Create</button>
+				</form>
+			}
+		</section>
+		if len(rows) == 0 && errMsg == "" {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500" role="status" data-testid="keys-empty">
+				No API tokens yet. Create one above or from a user's Manage panel.
 			</div>
-		} else {
-			<div class="rounded-xl border border-gray-800 overflow-hidden">
+		} else if len(rows) > 0 {
+			<section aria-labelledby="keys-list-heading" class="rounded-xl border border-gray-800 overflow-hidden">
+				<h2 id="keys-list-heading" class="sr-only">Existing API keys</h2>
 				<table class="w-full text-sm">
 					<thead>
 						<tr class="border-b border-gray-800 bg-gray-900/50">
@@ -40,31 +99,32 @@ templ APIKeysLivePage(rows []APIKeyRow, errMsg string) {
 					</thead>
 					<tbody class="divide-y divide-gray-800">
 						for _, row := range rows {
-							<tr class="hover:bg-gray-900/30">
+							<tr class="hover:bg-gray-900/30" data-testid={ "key-row-" + row.TokenID }>
 								<td class="px-4 py-3">
 									<div class="text-gray-200">{ row.Username }</div>
 									<div class="text-xs text-gray-500 font-mono">{ row.UserID }</div>
 								</td>
 								<td class="px-4 py-3 text-gray-300">{ row.Name }</td>
-								<td class="px-4 py-3 font-mono text-xs text-gray-400">{ row.Prefix }…</td>
+								<td class="px-4 py-3 font-mono text-xs text-gray-400">{ row.Prefix }...</td>
 								<td class="px-4 py-3 text-xs text-gray-500">{ row.Scopes }</td>
 								<td class="px-4 py-3 text-right">
-									<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/keys/%s/revoke?user=%s", row.TokenID, row.UserID)) }>
-										<button type="submit" class="text-xs text-red-400 hover:text-red-300">Revoke</button>
-									</form>
+									<div class="flex gap-3 justify-end">
+										<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/keys/%s/rotate?user=%s&name=%s", row.TokenID, row.UserID, row.Name)) }>
+											<button type="submit" class="text-xs text-indigo-400 hover:text-indigo-300" aria-label={ fmt.Sprintf("Rotate %s", row.Name) }>Rotate</button>
+										</form>
+										<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/keys/%s/revoke?user=%s", row.TokenID, row.UserID)) }>
+											<button type="submit" class="text-xs text-red-400 hover:text-red-300" aria-label={ fmt.Sprintf("Revoke %s", row.Name) }>Revoke</button>
+										</form>
+									</div>
 								</td>
 							</tr>
 						}
 					</tbody>
 				</table>
-			</div>
+			</section>
 		}
-		<p class="text-xs text-gray-500">
-			Per-user create lives under <a href="/users" class="text-indigo-400">Users</a>.
-		</p>
 	</div>
 }
-
 type BackupRow struct {
 	ID        string
 	Timestamp string

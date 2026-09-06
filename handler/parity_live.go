@@ -15,12 +15,15 @@ var brandingMu sync.Mutex
 
 func (h *Handler) DevicesPage(w http.ResponseWriter, r *http.Request) {
 	var sessions []session.SessionInfo
-	if h.Sessions != nil {
+	var errMsg string
+	if h.Sessions == nil {
+		errMsg = "session store unavailable"
+	} else {
 		sessions = h.Sessions.List()
 	}
-	content := templates.DevicesLivePage(sessions)
+	content := templates.DevicesLivePage(sessions, errMsg)
 	nav := h.nav(r.URL.Path)
-	component := templates.Layout("Devices", nav, content)
+	component := templates.Layout("Active Sessions", nav, content)
 	h.render(w, r, component)
 }
 
@@ -28,6 +31,19 @@ func (h *Handler) DevicesRevoke(w http.ResponseWriter, r *http.Request) {
 	token := r.PathValue("token")
 	if token != "" && h.Sessions != nil {
 		h.Sessions.Revoke(token)
+	}
+	http.Redirect(w, r, "/devices", http.StatusSeeOther)
+}
+
+func (h *Handler) DevicesRename(w http.ResponseWriter, r *http.Request) {
+	token := r.PathValue("token")
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	label := r.FormValue("label")
+	if token != "" && h.Sessions != nil {
+		h.Sessions.RenameSession(token, label)
 	}
 	http.Redirect(w, r, "/devices", http.StatusSeeOther)
 }
