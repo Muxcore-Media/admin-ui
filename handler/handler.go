@@ -145,6 +145,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /queue/remove", h.requireAuth(h.UnifiedQueueRemove))
 	mux.HandleFunc("POST /queue/retry-import", h.requireAuth(h.UnifiedQueueRetryImport))
 	mux.HandleFunc("POST /queue/blocklist", h.requireAuth(h.UnifiedQueueBlocklist))
+	mux.HandleFunc("GET /acquisition-health", h.requireAuth(h.AcquisitionHealthPage))
 	mux.HandleFunc("GET /automation", h.requireAuth(h.AutomationQueuePage))
 	mux.HandleFunc("POST /automation/dispatch", h.requireAuth(h.AutomationDispatch))
 	mux.HandleFunc("POST /automation/queue/remove", h.requireAuth(h.AutomationQueueRemove))
