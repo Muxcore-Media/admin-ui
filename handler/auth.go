@@ -55,6 +55,7 @@ var staticNavLinks = []templates.NavLink{
 	{Label: "Release Profiles", Path: "/formats/release-profiles", Icon: "badge", Group: "Library"},
 
 	// Automation
+	{Label: "Acquisition Health", Path: "/acquisition-health", Icon: "activity", Group: "Automation"},
 	{Label: "Automation", Path: "/automation", Icon: "zap", Group: "Automation"},
 	{Label: "Release Search", Path: "/release-search", Icon: "search", Group: "Automation"},
 	{Label: "Import", Path: "/import", Icon: "download", Group: "Automation"},
