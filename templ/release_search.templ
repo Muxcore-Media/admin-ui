@@ -1,0 +1,153 @@
+package templates
+
+import "fmt"
+
+// ReleaseSearchResult holds a single indexer hit returned by SearchItem.
+type ReleaseSearchResult struct {
+	Guid             string
+	Title            string
+	IndexerName      string
+	DownloadProtocol string
+	Size             int64
+	Score            int32
+	DownloadURL      string
+	// Context fields forwarded into the grab form so the handler can call Dispatch.
+	ItemID   string
+	ItemType string
+	Year     int32
+	TmdbID   int32
+}
+
+// ReleaseSearchPageData is the view-model for the release search / manual-grab page.
+type ReleaseSearchPageData struct {
+	Query       string
+	ItemType    string
+	Results     []ReleaseSearchResult
+	Error       string
+	Flash       string
+	FlashStatus string
+}
+
+func formatBytes(b int64) string {
+	switch {
+	case b >= 1<<30:
+		return fmt.Sprintf("%.1f GB", float64(b)/float64(1<<30))
+	case b >= 1<<20:
+		return fmt.Sprintf("%.1f MB", float64(b)/float64(1<<20))
+	case b >= 1<<10:
+		return fmt.Sprintf("%.0f KB", float64(b)/float64(1<<10))
+	default:
+		return fmt.Sprintf("%d B", b)
+	}
+}
+
+templ ReleaseSearchPage(data ReleaseSearchPageData) {
+	<div class="space-y-6" data-testid="release-search-page">
+		<div>
+			<h1 class="text-2xl font-bold">Release Search</h1>
+			<p class="text-gray-400 text-sm mt-1">Search indexers and manually grab any release</p>
+		</div>
+		if data.Flash != "" {
+			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300" data-testid="release-search-flash" role="status">
+				Grabbed: { data.Flash }
+				if data.FlashStatus != "" {
+					<span class="text-gray-400"> — status: { data.FlashStatus }</span>
+				}
+			</div>
+		}
+		if data.Error != "" {
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" role="alert" data-testid="release-search-error">{ data.Error }</div>
+		}
+		<section aria-labelledby="release-search-form-heading">
+			<h2 id="release-search-form-heading" class="text-lg font-semibold mb-3">Search</h2>
+			<form method="get" action="/release-search" class="flex flex-wrap gap-3 items-end">
+				<div class="flex-1 min-w-[12rem]">
+					<label for="release-search-query" class="block text-xs font-medium text-gray-500 mb-1">Query</label>
+					<input
+						id="release-search-query"
+						type="search"
+						name="q"
+						value={ data.Query }
+						placeholder="e.g. Fight Club 1999"
+						autocomplete="off"
+						class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+					/>
+				</div>
+				<div>
+					<label for="release-search-type" class="block text-xs font-medium text-gray-500 mb-1">Type</label>
+					<select id="release-search-type" name="type" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white">
+						<option value="movie" selected?={ data.ItemType != "tv" }>Movie</option>
+						<option value="tv" selected?={ data.ItemType == "tv" }>TV</option>
+					</select>
+				</div>
+				<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+					Search
+				</button>
+			</form>
+		</section>
+		if data.Query != "" {
+			<section aria-labelledby="release-search-results-heading" data-testid="release-search-results">
+				<h2 id="release-search-results-heading" class="text-lg font-semibold mb-3">
+					Results
+					<span class="text-sm font-normal text-gray-500">({ fmt.Sprintf("%d", len(data.Results)) })</span>
+				</h2>
+				if len(data.Results) == 0 && data.Error == "" {
+					<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-center text-sm text-gray-500" role="status" data-testid="release-search-empty">
+						No releases found for "{ data.Query }".
+					</div>
+				} else if len(data.Results) > 0 {
+					<div class="overflow-x-auto rounded-xl border border-gray-800">
+						<table class="min-w-full divide-y divide-gray-800 text-sm">
+							<caption class="sr-only">Release search results</caption>
+							<thead class="bg-gray-900/50">
+								<tr>
+									<th scope="col" class="px-4 py-2 text-left text-xs text-gray-500">Title</th>
+									<th scope="col" class="px-4 py-2 text-left text-xs text-gray-500">Indexer</th>
+									<th scope="col" class="px-4 py-2 text-left text-xs text-gray-500">Protocol</th>
+									<th scope="col" class="px-4 py-2 text-left text-xs text-gray-500">Size</th>
+									<th scope="col" class="px-4 py-2 text-left text-xs text-gray-500">Score</th>
+									<th scope="col" class="px-4 py-2 text-right text-xs text-gray-500">Actions</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-gray-800" data-testid="release-search-rows">
+								for _, res := range data.Results {
+									<tr class="hover:bg-gray-900/40">
+										<td class="px-4 py-2 text-gray-200 truncate max-w-[18rem]" title={ res.Title }>{ res.Title }</td>
+										<td class="px-4 py-2 text-gray-400">{ res.IndexerName }</td>
+										<td class="px-4 py-2 text-gray-400">{ res.DownloadProtocol }</td>
+										<td class="px-4 py-2 text-gray-400">{ formatBytes(res.Size) }</td>
+										<td class="px-4 py-2 text-gray-400">{ fmt.Sprintf("%d", res.Score) }</td>
+										<td class="px-4 py-2 text-right whitespace-nowrap">
+											<form method="POST" action="/release-search/grab">
+												<input type="hidden" name="guid" value={ res.Guid }/>
+												<input type="hidden" name="release_title" value={ res.Title }/>
+												<input type="hidden" name="download_url" value={ res.DownloadURL }/>
+												<input type="hidden" name="download_protocol" value={ res.DownloadProtocol }/>
+												<input type="hidden" name="size" value={ fmt.Sprintf("%d", res.Size) }/>
+												<input type="hidden" name="score" value={ fmt.Sprintf("%d", res.Score) }/>
+												<input type="hidden" name="indexer" value={ res.IndexerName }/>
+												<input type="hidden" name="item_type" value={ res.ItemType }/>
+												<input type="hidden" name="item_id" value={ res.ItemID }/>
+												<input type="hidden" name="tmdb_id" value={ fmt.Sprintf("%d", res.TmdbID) }/>
+												<input type="hidden" name="year" value={ fmt.Sprintf("%d", res.Year) }/>
+												<input type="hidden" name="title" value={ res.Title }/>
+												<input type="hidden" name="query" value={ data.Query }/>
+												<input type="hidden" name="search_type" value={ data.ItemType }/>
+												<button
+													type="submit"
+													class="rounded bg-indigo-600 px-2 py-1 text-xs text-white hover:bg-indigo-500"
+													data-testid="grab-button"
+													aria-label={ fmt.Sprintf("Grab %s", res.Title) }
+												>Grab</button>
+											</form>
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</section>
+		}
+	</div>
+}
