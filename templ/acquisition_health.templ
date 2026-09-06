@@ -1,0 +1,156 @@
+package templates
+
+import "fmt"
+
+type AcquisitionPeerCard struct {
+	ID           string
+	Name         string
+	Kind         string
+	Type         string
+	Capabilities []string
+	Healthy      bool
+	HealthDetail string
+	LastOk       string
+}
+
+type AcquisitionHealthSummary struct {
+	IndexerCount       int
+	DownloaderCount    int
+	HealthyIndexers    int
+	HealthyDownloaders int
+}
+
+type AcquisitionHealthPageData struct {
+	SoftNote    bool
+	Error       string
+	Summary     AcquisitionHealthSummary
+	Indexers    []AcquisitionPeerCard
+	Downloaders []AcquisitionPeerCard
+}
+
+templ AcquisitionHealthPage(data AcquisitionHealthPageData) {
+	<div
+		class="space-y-6"
+		data-testid="acquisition-health-page"
+		aria-live="polite"
+		hx-get="/acquisition-health"
+		hx-trigger="every 15s"
+		hx-select="[data-testid='acquisition-health-page']"
+		hx-swap="outerHTML"
+	>
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Acquisition Health</h1>
+				<p class="text-gray-400 text-sm mt-1">Indexer and download-client status without SSH or Arr UIs.</p>
+			</div>
+			if !data.SoftNote {
+				<a href="/settings" class="text-sm text-indigo-400 hover:underline">Configure via Settings</a>
+			}
+		</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" data-testid="acquisition-health-error">{ data.Error }</div>
+		}
+		if data.SoftNote {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3 text-sm text-gray-400" data-testid="acquisition-health-soft-empty">
+				No indexer or download-client modules registered — enable MVP_ENABLE_INDEXER_* / MVP_ENABLE_DOWNLOADER_TORRENT and restart, or deploy acquisition sidecars.
+			</div>
+		}
+		if !data.SoftNote {
+			<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" data-testid="acquisition-health-cards">
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+					<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Indexers</div>
+					<div class="text-2xl font-semibold text-gray-100" data-testid="acquisition-indexer-count">{ fmt.Sprintf("%d", data.Summary.IndexerCount) }</div>
+					<p class="text-xs text-gray-500 mt-2">{ fmt.Sprintf("%d healthy", data.Summary.HealthyIndexers) }</p>
+				</div>
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+					<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Download clients</div>
+					<div class="text-2xl font-semibold text-gray-100" data-testid="acquisition-downloader-count">{ fmt.Sprintf("%d", data.Summary.DownloaderCount) }</div>
+					<p class="text-xs text-gray-500 mt-2">{ fmt.Sprintf("%d healthy", data.Summary.HealthyDownloaders) }</p>
+				</div>
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+					<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Acquisition path</div>
+					if data.Summary.HealthyIndexers > 0 && data.Summary.HealthyDownloaders > 0 {
+						<div class="flex items-center gap-2">
+							<span class="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
+							<span class="text-lg font-semibold text-emerald-300" data-testid="acquisition-path-status">ready</span>
+						</div>
+					} else if data.Summary.IndexerCount == 0 || data.Summary.DownloaderCount == 0 {
+						<div class="flex items-center gap-2">
+							<span class="inline-flex h-2.5 w-2.5 rounded-full bg-amber-400"></span>
+							<span class="text-lg font-semibold text-amber-300" data-testid="acquisition-path-status">incomplete</span>
+						</div>
+					} else {
+						<div class="flex items-center gap-2">
+							<span class="inline-flex h-2.5 w-2.5 rounded-full bg-red-400"></span>
+							<span class="text-lg font-semibold text-red-300" data-testid="acquisition-path-status">degraded</span>
+						</div>
+					}
+					<p class="text-xs text-gray-500 mt-2">End-to-end acquisition plumbing</p>
+				</div>
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+					<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Peers</div>
+					<div class="text-2xl font-semibold text-gray-100">{ fmt.Sprintf("%d", data.Summary.IndexerCount+data.Summary.DownloaderCount) }</div>
+					<p class="text-xs text-gray-500 mt-2">Registered acquisition modules</p>
+				</div>
+			</div>
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+				<section class="rounded-xl border border-gray-800 bg-gray-900/40 p-4" aria-labelledby="acquisition-indexers-heading">
+					<h2 id="acquisition-indexers-heading" class="text-sm font-semibold text-gray-300 mb-3">Indexers</h2>
+					if len(data.Indexers) == 0 {
+						<p class="text-sm text-gray-500" data-testid="acquisition-indexers-empty">No indexers registered.</p>
+					} else {
+						<ul class="space-y-2" data-testid="acquisition-indexers-list">
+							for _, p := range data.Indexers {
+								@AcquisitionPeerRow(p)
+							}
+						</ul>
+					}
+				</section>
+				<section class="rounded-xl border border-gray-800 bg-gray-900/40 p-4" aria-labelledby="acquisition-downloaders-heading">
+					<h2 id="acquisition-downloaders-heading" class="text-sm font-semibold text-gray-300 mb-3">Download clients</h2>
+					if len(data.Downloaders) == 0 {
+						<p class="text-sm text-gray-500" data-testid="acquisition-downloaders-empty">No download clients registered.</p>
+					} else {
+						<ul class="space-y-2" data-testid="acquisition-downloaders-list">
+							for _, p := range data.Downloaders {
+								@AcquisitionPeerRow(p)
+							}
+						</ul>
+					}
+				</section>
+			</div>
+		}
+	</div>
+}
+
+templ AcquisitionPeerRow(p AcquisitionPeerCard) {
+	<li class="rounded-lg border border-gray-800 bg-gray-900/50 p-3" data-testid={ fmt.Sprintf("acquisition-peer-%s", p.ID) }>
+		<div class="flex items-start justify-between gap-2">
+			<div class="min-w-0">
+				<div class="flex items-center gap-2">
+					<span class="text-sm font-medium text-gray-200 truncate">{ p.Name }</span>
+					@HealthDot(p.Healthy)
+				</div>
+				<div class="text-xs text-gray-500 font-mono truncate">{ p.ID }</div>
+				<div class="text-xs text-gray-400 mt-1">Type: { p.Type }</div>
+			</div>
+			<div class="text-right shrink-0">
+				if p.Healthy {
+					<span class="text-xs text-green-400" data-testid="peer-health-ok">up</span>
+				} else {
+					<span class="text-xs text-red-400" data-testid="peer-health-down">down</span>
+				}
+			</div>
+		</div>
+		if p.LastOk != "" {
+			<p class="text-xs text-gray-500 mt-2" data-testid="peer-last-ok">Last ok: { p.LastOk }</p>
+		}
+		if p.HealthDetail != "" && !p.Healthy {
+			<p class="text-xs text-red-300/80 mt-1" data-testid="peer-health-detail">{ p.HealthDetail }</p>
+		}
+		<div class="flex flex-wrap gap-2 mt-2">
+			<a href={ templ.SafeURL(fmt.Sprintf("/modules/%s", p.ID)) } class="text-xs text-indigo-400 hover:underline">Module</a>
+			<a href={ templ.SafeURL(fmt.Sprintf("/settings?module=%s", p.ID)) } class="text-xs text-indigo-400 hover:underline">Settings</a>
+		</div>
+	</li>
+}
