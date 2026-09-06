@@ -294,6 +294,10 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /rename/organize", h.requireAuth(h.OrganizePage))
 	mux.HandleFunc("POST /rename/organize", h.requireAuth(h.OrganizePost))
 
+	mux.HandleFunc("GET /password-resets", h.requireAuth(h.PasswordResetsPage))
+	mux.HandleFunc("POST /password-resets/{id}/dismiss", h.requireAuth(h.PasswordResetsDismiss))
+	mux.HandleFunc("POST /password-resets/{id}/password", h.requireAuth(h.PasswordResetsSetPassword))
+
 	mux.HandleFunc("GET /users", h.requireAuth(h.UsersPage))
 	mux.HandleFunc("GET /users/create-form", h.requireAuth(h.UsersCreateForm))
 	mux.HandleFunc("POST /users", h.requireAuth(h.UsersCreate))

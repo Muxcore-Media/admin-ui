@@ -84,7 +84,7 @@ func (h *Handler) UsersTOTPStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UsersPage(w http.ResponseWriter, r *http.Request) {
-	resets := loadPasswordResetRequests()
+	pendingResets := pendingPasswordResetCount()
 	pageCtx, pageCancel := context.WithTimeout(r.Context(), usersDialTimeout+usersReadTimeout+time.Second)
 	defer pageCancel()
 
@@ -93,7 +93,7 @@ func (h *Handler) UsersPage(w http.ResponseWriter, r *http.Request) {
 	dialCancel()
 	if err != nil {
 		slog.Warn("users: auth client failed", "error", err)
-		content := templates.UsersPage(nil, "", resets)
+		content := templates.UsersPage(nil, "", pendingResets)
 		nav := h.nav(r.URL.Path)
 		component := templates.Layout("Users", nav, content)
 		h.render(w, r, component)
@@ -106,14 +106,14 @@ func (h *Handler) UsersPage(w http.ResponseWriter, r *http.Request) {
 	readCancel()
 	if err != nil {
 		slog.Warn("users: ListUsers failed", "error", err)
-		content := templates.UsersPage(nil, "", resets)
+		content := templates.UsersPage(nil, "", pendingResets)
 		nav := h.nav(r.URL.Path)
 		component := templates.Layout("Users", nav, content)
 		h.render(w, r, component)
 		return
 	}
 
-	content := templates.UsersPage(resp.GetUsers(), "", resets)
+	content := templates.UsersPage(resp.GetUsers(), "", pendingResets)
 	nav := h.nav(r.URL.Path)
 	component := templates.Layout("Users", nav, content)
 	h.render(w, r, component)
@@ -248,6 +248,18 @@ func (h *Handler) UsersSetPassword(w http.ResponseWriter, r *http.Request) {
 
 	if sess := SessionFromContext(r.Context()); sess != nil {
 		h.auditLog(r.Context(), sess.UserID, "admin.user.set_password", "user", userID, nil)
+	}
+
+	readCtx2, readCancel2 := context.WithTimeout(pageCtx, usersReadTimeout)
+	listResp, listErr := client.ListUsers(readCtx2, &authv1.ListUsersRequest{})
+	readCancel2()
+	if listErr == nil {
+		for _, u := range listResp.GetUsers() {
+			if u.GetId() == userID {
+				_ = resolvePasswordResetByUsername(u.GetUsername())
+				break
+			}
+		}
 	}
 
 	w.Header().Set("HX-Redirect", "/users")

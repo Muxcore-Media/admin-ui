@@ -133,14 +133,12 @@ func TestUsersPage_HasHeadingTableCaptionAndAlerts(t *testing.T) {
 	html := renderComponent(t, UsersPage([]*authv1.UserInfo{{
 		Username: "alice",
 		Id:       "user-1",
-	}}, "Could not load users", []PasswordResetRow{{
-		Username: "bob",
-	}}))
+	}}, "Could not load users", 2))
 
 	for _, want := range []string{
 		`<h1 class="text-2xl font-bold">Users</h1>`,
-		`id="users-resets-heading"`,
-		`aria-labelledby="users-resets-heading"`,
+		`data-testid="password-reset-banner"`,
+		`href="/password-resets"`,
 		`<caption class="sr-only">Registered users</caption>`,
 		`scope="col"`,
 		`role="alert"`,
@@ -153,6 +151,34 @@ func TestUsersPage_HasHeadingTableCaptionAndAlerts(t *testing.T) {
 		if !strings.Contains(html, want) {
 			t.Fatalf("users page HTML missing %q", want)
 		}
+	}
+}
+
+func TestPasswordResetsPage_HasHeadingListAndStates(t *testing.T) {
+	html := renderComponent(t, PasswordResetsPage(PasswordResetsPageData{
+		Rows: []PasswordResetRow{{
+			ID:       "req-1",
+			Username: "alice",
+			Note:     "locked out",
+			UserID:   "user-1",
+		}},
+	}))
+
+	for _, want := range []string{
+		`<h1 class="text-2xl font-bold">Password reset queue</h1>`,
+		`data-testid="password-reset-row"`,
+		`data-testid="password-reset-set-password"`,
+		`data-testid="password-reset-dismiss"`,
+		`aria-label="Dismiss reset request for alice"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("password resets page HTML missing %q", want)
+		}
+	}
+
+	emptyHTML := renderComponent(t, PasswordResetsPage(PasswordResetsPageData{SoftEmpty: true}))
+	if !strings.Contains(emptyHTML, `data-testid="password-resets-empty"`) {
+		t.Fatal("expected empty state on password resets page")
 	}
 }
 

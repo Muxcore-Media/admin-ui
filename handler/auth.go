@@ -32,6 +32,7 @@ var staticNavLinks = []templates.NavLink{
 
 	// Daily admin — common household operator tasks
 	{Label: "Users", Path: "/users", Icon: "users", Group: "Daily admin"},
+	{Label: "Password resets", Path: "/password-resets", Icon: "key", Group: "Daily admin"},
 	{Label: "Invites", Path: "/invites", Icon: "mail", Group: "Daily admin"},
 	{Label: "Libraries", Path: "/libraries", Icon: "library", Group: "Daily admin"},
 	{Label: "Request", Path: "/request", Icon: "inbox", Group: "Daily admin"},
