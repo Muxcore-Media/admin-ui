@@ -2,31 +2,82 @@ package templates
 
 import "fmt"
 
+type StorageCapacityView struct {
+	Used  string
+	Free  string
+	Total string
+}
+
 type StorageProviderCard struct {
 	Name         string
 	ID           string
 	Capabilities []string
 	Healthy      bool
+	UsedBytes    string
+	FreeBytes    string
+	TotalBytes   string
+	HasCapacity  bool
 }
 
-templ StoragePage(providers []StorageProviderCard, globalCaps []string) {
-	<div class="space-y-6">
+type StoragePageData struct {
+	SoftNote           bool
+	Error              string
+	Providers          []StorageProviderCard
+	GlobalCaps         []string
+	AggregatedCapacity StorageCapacityView
+}
+
+templ StoragePage(data StoragePageData) {
+	<div class="space-y-6" data-testid="storage-page">
 		<div>
 			<h1 class="text-2xl font-bold">Storage</h1>
-			<p class="text-gray-400 text-sm mt-1">{ fmt.Sprintf("%d storage provider(s)", len(providers)) }</p>
+			<p class="text-gray-400 text-sm mt-1">Storage providers and orchestrator capacity at a glance.</p>
 		</div>
-		if len(globalCaps) > 0 {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
-				<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Orchestrator Capabilities</div>
-				<div class="flex flex-wrap gap-1.5">
-					for _, c := range globalCaps {
-						@CapabilityTag(c)
-					}
-				</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 px-4 py-3 text-sm text-yellow-300">{ data.Error }</div>
+		}
+		if data.SoftNote {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3 text-sm text-gray-400" data-testid="storage-soft-empty">
+				No storage module registered — deploy a storage-capability sidecar to see provider capacity here.
 			</div>
 		}
-		@StorageGrid(providers)
+		if !data.SoftNote {
+			if data.AggregatedCapacity.Used != "" || data.AggregatedCapacity.Free != "" || data.AggregatedCapacity.Total != "" {
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4" data-testid="storage-aggregated-capacity">
+					<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Orchestrator capacity</div>
+					@StorageCapacityStats(data.AggregatedCapacity)
+				</div>
+			}
+			if len(data.GlobalCaps) > 0 {
+				<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+					<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Orchestrator Capabilities</div>
+					<div class="flex flex-wrap gap-1.5">
+						for _, c := range data.GlobalCaps {
+							@CapabilityTag(c)
+						}
+					</div>
+				</div>
+			}
+			@StorageGrid(data.Providers)
+		}
 	</div>
+}
+
+templ StorageCapacityStats(cap StorageCapacityView) {
+	<dl class="grid grid-cols-3 gap-3 text-sm">
+		<div>
+			<dt class="text-xs text-gray-500 uppercase tracking-wider">Used</dt>
+			<dd class="mt-1 font-medium text-gray-200">{ cap.Used }</dd>
+		</div>
+		<div>
+			<dt class="text-xs text-gray-500 uppercase tracking-wider">Free</dt>
+			<dd class="mt-1 font-medium text-gray-200">{ cap.Free }</dd>
+		</div>
+		<div>
+			<dt class="text-xs text-gray-500 uppercase tracking-wider">Total</dt>
+			<dd class="mt-1 font-medium text-gray-200">{ cap.Total }</dd>
+		</div>
+	</dl>
 }
 
 templ StorageGrid(providers []StorageProviderCard) {
@@ -44,7 +95,7 @@ templ StorageGrid(providers []StorageProviderCard) {
 }
 
 templ StorageCard(p StorageProviderCard) {
-	<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+	<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4" data-testid={ fmt.Sprintf("storage-provider-%s", p.ID) }>
 		<div class="flex items-center justify-between mb-3">
 			<div class="flex items-center gap-2 min-w-0">
 				<div class="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-800/50 flex items-center justify-center text-xs font-bold text-blue-400 shrink-0">
@@ -57,6 +108,11 @@ templ StorageCard(p StorageProviderCard) {
 			</div>
 			@HealthDot(p.Healthy)
 		</div>
+		if p.HasCapacity {
+			<div class="mb-3" data-testid="storage-provider-capacity">
+				@StorageCapacityStats(StorageCapacityView{Used: p.UsedBytes, Free: p.FreeBytes, Total: p.TotalBytes})
+			</div>
+		}
 		<div>
 			<div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Capabilities</div>
 			if len(p.Capabilities) > 0 {
