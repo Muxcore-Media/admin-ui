@@ -1,0 +1,135 @@
+package templates
+
+import "fmt"
+
+type MusicWantedRow struct {
+	AlbumID       string
+	ArtistID      string
+	ArtistName    string
+	AlbumTitle    string
+	Year          int
+	MusicBrainzID string
+	Status        string
+}
+
+type MusicWantedPageData struct {
+	ModuleID   string
+	ModuleName string
+	Rows       []MusicWantedRow
+	Total      int
+	Page       int
+	PageSize   int
+	ArtistID   string
+	Error      string
+	SoftEmpty  bool
+}
+
+templ MusicSubnav(active string) {
+	<nav class="flex flex-wrap gap-2 border-b border-gray-800 pb-3" aria-label="Music sections">
+		<a
+			href="/music"
+			class={ "text-sm px-2 py-1 rounded", templ.KV("bg-indigo-600 text-white", active == "browse"), templ.KV("text-gray-400 hover:text-white", active != "browse") }
+		>Browse</a>
+		<a
+			href="/music/wanted"
+			class={ "text-sm px-2 py-1 rounded", templ.KV("bg-indigo-600 text-white", active == "wanted"), templ.KV("text-gray-400 hover:text-white", active != "wanted") }
+		>Wanted / Missing</a>
+	</nav>
+}
+
+templ MusicWantedPage(data MusicWantedPageData) {
+	<div class="space-y-6" data-testid="music-wanted-page">
+		@MusicSubnav("wanted")
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h1 class="text-2xl font-bold">Music — Wanted / Missing</h1>
+				<p class="text-gray-400 text-sm mt-1">
+					Monitored albums without track files
+					if data.ModuleID != "" {
+						<span class="text-gray-600">({ data.ModuleID })</span>
+					}
+				</p>
+			</div>
+			<a href="/wanted" class="text-sm text-indigo-400 hover:underline">Video wanted / missing</a>
+		</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300" role="alert" data-testid="music-wanted-error">{ data.Error }</div>
+		}
+		if data.SoftEmpty {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400" data-testid="music-wanted-soft-empty">
+				media-music not registered — deploy the music module to list monitored albums missing files.
+			</div>
+		}
+		if !data.SoftEmpty && data.Error == "" {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3 text-sm text-gray-400" data-testid="music-wanted-summary">
+				{ fmt.Sprintf("%d", data.Total) } monitored album(s) missing files
+			</div>
+		}
+		if len(data.Rows) == 0 && !data.SoftEmpty && data.Error == "" {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-8 text-center" role="status" data-testid="music-wanted-empty">
+				<p class="text-gray-400">Nothing missing — all monitored albums have track files.</p>
+			</div>
+		} else if len(data.Rows) > 0 {
+			<section class="overflow-x-auto rounded-xl border border-gray-800" aria-labelledby="music-wanted-table-heading" data-testid="music-wanted-table">
+				<h2 id="music-wanted-table-heading" class="sr-only">Missing music albums</h2>
+				<table class="min-w-full divide-y divide-gray-800 text-sm">
+					<caption class="sr-only">Monitored albums missing track files ({ fmt.Sprintf("%d", len(data.Rows)) })</caption>
+					<thead class="bg-gray-900/50">
+						<tr>
+							<th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Artist</th>
+							<th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Album</th>
+							<th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
+							<th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monitored</th>
+							<th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-800">
+						for _, row := range data.Rows {
+							<tr class="hover:bg-gray-900/40" data-testid="music-wanted-row">
+								<td class="px-4 py-2">
+									if row.ArtistID != "" {
+										<a href={ templ.SafeURL(fmt.Sprintf("/music/%s", row.ArtistID)) } class="text-indigo-300 hover:text-indigo-200">{ row.ArtistName }</a>
+									} else {
+										<span class="text-gray-200">{ row.ArtistName }</span>
+									}
+								</td>
+								<td class="px-4 py-2 text-gray-200">{ row.AlbumTitle }</td>
+								<td class="px-4 py-2 text-gray-400">
+									if row.Year > 0 {
+										{ fmt.Sprintf("%d", row.Year) }
+									} else {
+										<span class="text-gray-600">—</span>
+									}
+								</td>
+								<td class="px-4 py-2 text-xs">
+									<span class="text-green-400">yes</span>
+								</td>
+								<td class="px-4 py-2 text-xs">
+									<span class="rounded bg-amber-900/40 px-1.5 py-0.5 text-amber-200">{ row.Status }</span>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</section>
+			if data.Total > data.PageSize {
+				<nav class="flex items-center justify-center gap-2" aria-label="Music wanted pagination">
+					if data.Page > 1 {
+						<a href={ templ.SafeURL(musicWantedPageURL(data.Page-1, data.ArtistID)) } class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800" aria-label="Previous page">Prev</a>
+					}
+					<span class="text-sm text-gray-500" aria-current="page">Page { fmt.Sprintf("%d", data.Page) }</span>
+					if data.Page*data.PageSize < data.Total {
+						<a href={ templ.SafeURL(musicWantedPageURL(data.Page+1, data.ArtistID)) } class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800" aria-label="Next page">Next</a>
+					}
+				</nav>
+			}
+		}
+	</div>
+}
+
+func musicWantedPageURL(page int, artistID string) string {
+	if artistID != "" {
+		return fmt.Sprintf("/music/wanted?page=%d&artist_id=%s", page, artistID)
+	}
+	return fmt.Sprintf("/music/wanted?page=%d", page)
+}
