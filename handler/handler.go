@@ -147,6 +147,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /automation/queue/remove", h.requireAuth(h.AutomationQueueRemove))
 	mux.HandleFunc("POST /automation/blocklist/clear", h.requireAuth(h.AutomationBlocklistClear))
 	mux.HandleFunc("POST /automation/delay", h.requireAuth(h.AutomationDelayUpdate))
+	mux.HandleFunc("GET /release-search", h.requireAuth(h.ReleaseSearchPage))
+	mux.HandleFunc("POST /release-search/grab", h.requireAuth(h.ReleaseSearchGrab))
 
 	mux.HandleFunc("GET /subtitles", h.requireAuth(h.SubtitlesPage))
 	mux.HandleFunc("POST /subtitles/sync", h.requireAuth(h.SubtitlesSync))

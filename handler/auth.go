@@ -54,6 +54,7 @@ var staticNavLinks = []templates.NavLink{
 
 	// Automation
 	{Label: "Automation", Path: "/automation", Icon: "zap", Group: "Automation"},
+	{Label: "Release Search", Path: "/release-search", Icon: "search", Group: "Automation"},
 	{Label: "Import", Path: "/import", Icon: "download", Group: "Automation"},
 	{Label: "Subtitles", Path: "/subtitles", Icon: "captions", Group: "Automation"},
 	{Label: "List Sync", Path: "/list-sync", Icon: "repeat", Group: "Automation"},
