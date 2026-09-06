@@ -324,6 +324,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /backups/create", h.requireAuth(h.BackupsCreate))
 	mux.HandleFunc("POST /backups/{id}/delete", h.requireAuth(h.BackupsDelete))
 	mux.HandleFunc("POST /backups/{id}/restore", h.requireAuth(h.BackupsRestore))
+	mux.HandleFunc("POST /backups/schedule", h.requireAuth(h.BackupsScheduleSave))
 	mux.HandleFunc("GET /tasks", h.requireAuth(h.TasksPage))
 	mux.HandleFunc("POST /tasks/{id}/cancel", h.requireAuth(h.TasksCancel))
 	mux.HandleFunc("GET /playback", h.requireAuth(h.PlaybackAdminPage))

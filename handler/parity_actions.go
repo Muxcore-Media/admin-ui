@@ -249,10 +249,96 @@ func (h *Handler) BackupsPage(w http.ResponseWriter, r *http.Request) {
 	pageCtx, cancel := context.WithTimeout(r.Context(), backupListPageTimeout)
 	defer cancel()
 	rows, errMsg := h.listBackupRows(pageCtx)
+	sched := h.loadBackupSchedule(pageCtx)
 	flash := r.URL.Query().Get("ok")
-	content := templates.BackupsLivePage(rows, errMsg, flash)
+	content := templates.BackupsLivePage(rows, errMsg, flash, sched)
 	nav := h.nav(r.URL.Path)
 	h.render(w, r, templates.Layout("Backups", nav, content))
+}
+
+func (h *Handler) loadBackupSchedule(ctx context.Context) templates.BackupScheduleData {
+	dialCtx, dialCancel := context.WithTimeout(ctx, backupDialTimeout)
+	client, conn, err := h.backupClient(dialCtx)
+	dialCancel()
+	if err != nil {
+		return templates.BackupScheduleData{SoftEmpty: true}
+	}
+	defer func() { _ = conn.Close() }()
+	readCtx, readCancel := context.WithTimeout(ctx, backupReadTimeout)
+	cfg, err := client.GetScheduleConfig(readCtx, &backupv1.GetScheduleConfigRequest{})
+	readCancel()
+	if err != nil {
+		return templates.BackupScheduleData{SoftEmpty: true, Error: err.Error()}
+	}
+	d := templates.BackupScheduleData{
+		CronExpr:       cfg.GetCronExpr(),
+		RetentionCount: int(cfg.GetRetentionCount()),
+		RetentionDays:  int(cfg.GetRetentionDays()),
+		Enabled:        cfg.GetEnabled(),
+		LastRunStatus:  cfg.GetLastRunStatus(),
+	}
+	if t := cfg.GetNextRunUnix(); t > 0 {
+		d.NextRun = time.Unix(t, 0).UTC().Format(time.RFC822)
+	}
+	if t := cfg.GetLastRunUnix(); t > 0 {
+		d.LastRun = time.Unix(t, 0).UTC().Format(time.RFC822)
+	}
+	return d
+}
+
+func (h *Handler) BackupsScheduleSave(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	cronExpr := strings.TrimSpace(r.FormValue("cron_expr"))
+	enabled := r.FormValue("enabled") == "1"
+	retCount := int32(parseIntOr(r.FormValue("retention_count"), 0))
+	retDays := int32(parseIntOr(r.FormValue("retention_days"), 0))
+
+	pageCtx, cancel := context.WithTimeout(r.Context(), backupActionTimeout)
+	defer cancel()
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, backupDialTimeout)
+	client, conn, err := h.backupClient(dialCtx)
+	dialCancel()
+	if err != nil {
+		http.Redirect(w, r, "/backups?ok="+urlQuery("backup-local unavailable: "+err.Error()), http.StatusSeeOther)
+		return
+	}
+	defer func() { _ = conn.Close() }()
+	readCtx, readCancel := context.WithTimeout(pageCtx, backupReadTimeout)
+	_, err = client.SetScheduleConfig(readCtx, &backupv1.SetScheduleConfigRequest{
+		CronExpr:       cronExpr,
+		RetentionCount: retCount,
+		RetentionDays:  retDays,
+		Enabled:        enabled,
+	})
+	readCancel()
+	if err != nil {
+		http.Redirect(w, r, "/backups?ok="+urlQuery("schedule save failed: "+err.Error()), http.StatusSeeOther)
+		return
+	}
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.backup.schedule.save", "backup-local", "schedule", map[string]string{
+			"cron_expr":       cronExpr,
+			"enabled":         fmt.Sprintf("%v", enabled),
+			"retention_count": fmt.Sprintf("%d", retCount),
+			"retention_days":  fmt.Sprintf("%d", retDays),
+		})
+	}
+	http.Redirect(w, r, "/backups?ok=schedule+saved", http.StatusSeeOther)
+}
+
+func parseIntOr(s string, def int) int {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return def
+	}
+	var n int
+	if _, err := fmt.Sscanf(s, "%d", &n); err != nil {
+		return def
+	}
+	return n
 }
 
 func (h *Handler) listBackupRows(ctx context.Context) ([]templates.BackupRow, string) {
