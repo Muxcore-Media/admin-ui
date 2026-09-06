@@ -109,3 +109,18 @@ func TestLoadBackupScheduleSoftEmptyWhenNilCore(t *testing.T) {
 		t.Fatal("expected Enabled=false in soft-empty state")
 	}
 }
+
+// TestRegisterRoutesBackupScheduleOnce guards against duplicate POST /backups/schedule
+// registrations, which panic on Go 1.22+ ServeMux.
+func TestRegisterRoutesBackupScheduleOnce(t *testing.T) {
+	ss := session.NewStore(0)
+	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	r := mustRequest("POST", "/backups/schedule")
+	_, pattern := mux.Handler(r)
+	if pattern != "POST /backups/schedule" {
+		t.Fatalf("expected POST /backups/schedule route, got pattern %q", pattern)
+	}
+}
