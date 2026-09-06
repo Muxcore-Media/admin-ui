@@ -93,7 +93,16 @@ templ DashboardPage(data DashboardData) {
 					</div>
 				</div>
 			}
-			<div class="grid grid-cols-1 lg:grid-cols-2 gap-4" data-testid="dashboard-daily-driver">
+			<div class="grid grid-cols-1 lg:grid-cols-3 gap-4" data-testid="dashboard-daily-driver">
+				<div
+					id="now-playing-summary"
+					hx-get="/dashboard/now-playing"
+					hx-trigger="load, every 8s"
+					hx-target="this"
+					hx-swap="outerHTML"
+				>
+					@LoadingCard()
+				</div>
 				<section class="rounded-[var(--radius-lg)] border border-gray-800 bg-gray-900/50 p-4 space-y-3" aria-labelledby="dashboard-queue-heading">
 					<div class="flex items-center justify-between gap-2">
 						<h2 id="dashboard-queue-heading" class="text-sm font-semibold text-gray-300">Download queue</h2>
@@ -144,7 +153,7 @@ templ DashboardPage(data DashboardData) {
 					<a href="/calendar" class="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60">Release calendar</a>
 					<a href="/activity" class="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60">Recent activity</a>
 					<a href="/branding" class="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60">Login branding</a>
-					<a href="/streams" class="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60">Who is watching</a>
+					<a href="/now-playing" class="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[var(--accent-color)] hover:border-gray-700 hover:bg-gray-900/60">Who is watching</a>
 					<a href="/settings" class="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-gray-400 hover:border-gray-700 hover:bg-gray-900/60">Advanced settings</a>
 				</div>
 			</section>

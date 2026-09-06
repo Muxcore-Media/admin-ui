@@ -64,6 +64,7 @@ var staticNavLinks = []templates.NavLink{
 	{Label: "Tasks", Path: "/tasks", Icon: "check-sq", Group: "Automation"},
 
 	// Playback
+	{Label: "Now Playing", Path: "/now-playing", Icon: "radio", Group: "Playback"},
 	{Label: "Streams", Path: "/streams", Icon: "monitor", Group: "Playback"},
 	{Label: "Watch Stats", Path: "/watchstats", Icon: "bar-chart", Group: "Playback"},
 	{Label: "Transcode", Path: "/transcode", Icon: "film", Group: "Playback"},

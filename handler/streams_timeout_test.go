@@ -92,8 +92,8 @@ func TestStreamsHistoryPageFailsFastOnBlockedDiscovery(t *testing.T) {
 	}, `data-testid="streams-history-page"`)
 }
 
-func TestStreamsStatsPageFailsFastOnBlockedDiscovery(t *testing.T) {
+func TestNowPlayingPageFailsFastOnBlockedDiscovery(t *testing.T) {
 	testStreamsPageFailsFastOnBlockedDiscovery(t, func(h *Handler, w http.ResponseWriter, r *http.Request) {
-		h.StreamsStatsPage(w, r)
-	}, `data-testid="streams-stats-page"`)
+		h.NowPlayingPage(w, r)
+	}, `data-testid="now-playing-page"`)
 }
