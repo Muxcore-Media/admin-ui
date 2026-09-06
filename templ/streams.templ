@@ -1076,11 +1076,12 @@ type NotificationRuleRow struct {
 }
 
 type StreamsNotificationsPageData struct {
-	Error        string
-	Success      string
-	SoftNote     bool
-	Destinations []NotificationDestinationRow
-	Rules        []NotificationRuleRow
+	Error          string
+	Success        string
+	SoftNote       bool
+	ReadyEventType string
+	Destinations   []NotificationDestinationRow
+	Rules          []NotificationRuleRow
 }
 
 templ StreamsNotificationsPage(data StreamsNotificationsPageData) {
@@ -1088,7 +1089,7 @@ templ StreamsNotificationsPage(data StreamsNotificationsPageData) {
 		<div class="flex flex-wrap items-start justify-between gap-3">
 			<div>
 				<h1 class="text-2xl font-bold">Notification rules</h1>
-				<p class="text-gray-400 text-sm mt-1">Alert rules and delivery destinations for playback and guard events.</p>
+				<p class="text-gray-400 text-sm mt-1">Alert rules and delivery destinations for playback, guard, and library-ready (playable) request events.</p>
 			</div>
 			<a href="/streams" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Back to streams</a>
 		</div>
@@ -1148,10 +1149,11 @@ templ StreamsNotificationsPage(data StreamsNotificationsPageData) {
 		if !data.SoftNote {
 			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
 				<h2 class="text-lg font-semibold mb-3">Add destination</h2>
+				<p class="text-xs text-gray-500 mb-3">Use discord or webhook type for Discord or generic HTTPS outbound. Skip creating a destination to keep alerts quiet.</p>
 				<form method="POST" action="/streams/notifications/destinations/create" class="grid gap-3 md:grid-cols-2">
 					<label class="block text-sm">
 						<span class="text-gray-400">Name</span>
-						<input name="name" required class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2" placeholder="Discord #playback"/>
+						<input name="name" required class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2" placeholder="Discord #requests-ready"/>
 					</label>
 					<label class="block text-sm">
 						<span class="text-gray-400">Type</span>
@@ -1175,6 +1177,7 @@ templ StreamsNotificationsPage(data StreamsNotificationsPageData) {
 						<div class="flex flex-wrap gap-4">
 							<label class="flex items-center gap-2"><input type="checkbox" name="events" value={ playbackevents.EventPlaybackStarted } checked class="rounded border-gray-700"/><span class="text-gray-300">{ playbackevents.EventPlaybackStarted }</span></label>
 							<label class="flex items-center gap-2"><input type="checkbox" name="events" value={ playbackevents.EventPlaybackStopped } checked class="rounded border-gray-700"/><span class="text-gray-300">{ playbackevents.EventPlaybackStopped }</span></label>
+							<label class="flex items-center gap-2"><input type="checkbox" name="events" value={ data.ReadyEventType } class="rounded border-gray-700"/><span class="text-gray-300">{ data.ReadyEventType } (library ready / playable)</span></label>
 							<label class="flex items-center gap-2"><input type="checkbox" name="events" value="guard.violation" class="rounded border-gray-700"/><span class="text-gray-300">guard.violation</span></label>
 						</div>
 					</fieldset>
@@ -1233,13 +1236,14 @@ templ StreamsNotificationsPage(data StreamsNotificationsPageData) {
 				<form method="POST" action="/streams/notifications/create" class="grid gap-3 md:grid-cols-2">
 					<label class="block text-sm">
 						<span class="text-gray-400">Name</span>
-						<input name="name" required class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2" placeholder="Playback started"/>
+						<input name="name" required class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2" placeholder="Request ready"/>
 					</label>
 					<label class="block text-sm">
 						<span class="text-gray-400">Event type</span>
 						<select name="event_type" required class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2">
 							<option value={ playbackevents.EventPlaybackStarted }>{ playbackevents.EventPlaybackStarted }</option>
 							<option value={ playbackevents.EventPlaybackStopped }>{ playbackevents.EventPlaybackStopped }</option>
+							<option value={ data.ReadyEventType }>{ data.ReadyEventType }</option>
 							<option value="guard.violation">guard.violation</option>
 						</select>
 					</label>
@@ -1284,7 +1288,8 @@ templ StreamsNotificationsPage(data StreamsNotificationsPageData) {
 						<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-500">Create rule</button>
 					</div>
 				</form>
-				<p class="text-xs text-gray-500 mt-3">Templates support { `{{user}}` }, { `{{title}}` }, { `{{platform}}` }, { `{{player}}` }, { `{{ip}}` }, { `{{state}}` }, { `{{duration}}` }, { `{{rule}}` }, { `{{severity}}` }.</p>
+				<p class="text-xs text-gray-500 mt-3">Playback templates: { `{{user}}` }, { `{{title}}` }, { `{{platform}}` }, { `{{player}}` }, { `{{ip}}` }, { `{{state}}` }, { `{{duration}}` }, { `{{rule}}` }, { `{{severity}}` }. Request-ready templates: { `{{request_id}}` }, { `{{requested_by}}` }, { `{{title}}` }, { `{{year}}` }, { `{{item_type}}` }, { `{{tmdb_id}}` }, { `{{item_id}}` }.</p>
+				<p class="text-xs text-gray-500 mt-1">Event { data.ReadyEventType } fires when a requested title becomes playable (has_file), not on status=available. playback-monitor should dedupe by request_id when emitting.</p>
 			</div>
 		}
 	</div>
