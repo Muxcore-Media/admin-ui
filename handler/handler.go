@@ -222,6 +222,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /maintainer/rules", h.requireAuth(h.MaintainerAddRule))
 	mux.HandleFunc("GET /maintainer/rules/export", h.requireAuth(h.MaintainerExportRules))
 	mux.HandleFunc("POST /maintainer/rules/import", h.requireAuth(h.MaintainerImportRules))
+	mux.HandleFunc("POST /maintainer/rules/{id}/toggle", h.requireAuth(h.MaintainerToggleRule))
 	mux.HandleFunc("POST /maintainer/rules/{id}/delete", h.requireAuth(h.MaintainerDeleteRule))
 	mux.HandleFunc("POST /maintainer/candidates/{id}/approve", h.requireAuth(h.MaintainerApproveCandidate))
 	mux.HandleFunc("POST /maintainer/candidates/{id}/postpone", h.requireAuth(h.MaintainerPostponeCandidate))

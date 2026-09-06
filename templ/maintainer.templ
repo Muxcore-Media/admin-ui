@@ -82,6 +82,7 @@ type MaintainerPageData struct {
 	PlaybackUsers []string
 	Flash         string
 	Error         string
+	SoftNote      bool
 }
 
 templ MaintainerPage(data MaintainerPageData) {
@@ -89,28 +90,30 @@ templ MaintainerPage(data MaintainerPageData) {
 		<div class="flex flex-wrap items-start justify-between gap-3">
 			<div>
 				<h1 class="text-2xl font-bold">Library Maintainer</h1>
-				<p class="text-gray-400 text-sm mt-1">Automated cleanup rules, candidates, and actions for your library.</p>
+				<p class="text-gray-400 text-sm mt-1">Dry-run scans and manual candidate approval are the default day-1 workflow.</p>
 			</div>
-			<div class="flex flex-wrap gap-2">
-				<form method="POST" action="/maintainer/scan">
-					<input type="hidden" name="dry_run" value="false"/>
-					<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Scan now</button>
-				</form>
-				<form method="POST" action="/maintainer/scan">
-					<input type="hidden" name="dry_run" value="true"/>
-					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Dry-run scan</button>
-				</form>
-				<form method="POST" action="/maintainer/act">
-					<button type="submit" class="rounded-lg border border-red-800 px-3 py-2 text-sm text-red-300 hover:bg-red-950/30">Act now</button>
-				</form>
-				<form method="POST" action="/maintainer/act/free-up" class="flex items-center gap-2">
-					<input type="number" name="target_free_percent" value="15" min="1" max="99" step="0.1" class="w-20 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs"/>
-					<button type="submit" class="rounded-lg border border-orange-800 px-3 py-2 text-sm text-orange-300 hover:bg-orange-950/30">Free-up</button>
-				</form>
-				<form method="POST" action="/maintainer/exclusions/sync">
-					<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Sync lists</button>
-				</form>
-			</div>
+			if !data.SoftNote {
+				<div class="flex flex-wrap gap-2">
+					<form method="POST" action="/maintainer/scan">
+						<input type="hidden" name="dry_run" value="true"/>
+						<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Dry-run scan</button>
+					</form>
+					<form method="POST" action="/maintainer/scan">
+						<input type="hidden" name="dry_run" value="false"/>
+						<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Scan now</button>
+					</form>
+					<form method="POST" action="/maintainer/act">
+						<button type="submit" class="rounded-lg border border-red-800 px-3 py-2 text-sm text-red-300 hover:bg-red-950/30">Act now</button>
+					</form>
+					<form method="POST" action="/maintainer/act/free-up" class="flex items-center gap-2">
+						<input type="number" name="target_free_percent" value="15" min="1" max="99" step="0.1" class="w-20 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs"/>
+						<button type="submit" class="rounded-lg border border-orange-800 px-3 py-2 text-sm text-orange-300 hover:bg-orange-950/30">Free-up</button>
+					</form>
+					<form method="POST" action="/maintainer/exclusions/sync">
+						<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">Sync lists</button>
+					</form>
+				</div>
+			}
 		</div>
 		if data.Flash != "" {
 			<div class="rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300">{ data.Flash }</div>
@@ -118,6 +121,12 @@ templ MaintainerPage(data MaintainerPageData) {
 		if data.Error != "" {
 			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ data.Error }</div>
 		}
+		if data.SoftNote {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3 text-sm text-gray-400" data-testid="maintainer-soft-empty">
+				media-library-maintainer not registered — deploy the module to manage cleanup rules, scans, and candidates.
+			</div>
+		}
+		if !data.SoftNote {
 		<div>
 			<h2 class="text-lg font-semibold mb-3">Storage</h2>
 			if len(data.Storage) == 0 {
@@ -328,6 +337,7 @@ templ MaintainerPage(data MaintainerPageData) {
 								<th class="px-4 py-2 text-left text-xs text-gray-500">Outcome</th>
 								<th class="px-4 py-2 text-left text-xs text-gray-500">Action</th>
 								<th class="px-4 py-2 text-left text-xs text-gray-500">Auto act</th>
+								<th class="px-4 py-2 text-left text-xs text-gray-500">Enabled</th>
 								<th class="px-4 py-2 text-left text-xs text-gray-500"></th>
 							</tr>
 						</thead>
@@ -345,8 +355,18 @@ templ MaintainerPage(data MaintainerPageData) {
 											<span>no</span>
 										}
 									</td>
-									<td class="px-4 py-2 text-right">
-										<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/maintainer/rules/%s/delete", r.ID)) }>
+									<td class="px-4 py-2 text-gray-400">
+										if r.Enabled {
+											<span>yes</span>
+										} else {
+											<span>no</span>
+										}
+									</td>
+									<td class="px-4 py-2 text-right space-x-2">
+										<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/maintainer/rules/%s/toggle", r.ID)) } class="inline">
+											<button type="submit" class="text-xs text-indigo-400 hover:text-indigo-300">Toggle</button>
+										</form>
+										<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/maintainer/rules/%s/delete", r.ID)) } class="inline">
 											<button type="submit" class="text-xs text-red-400 hover:text-red-300">Delete</button>
 										</form>
 									</td>
@@ -517,7 +537,7 @@ templ MaintainerPage(data MaintainerPageData) {
 											<button type="submit" class="text-xs text-yellow-400 hover:text-yellow-300">Postpone</button>
 										</form>
 										<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/maintainer/candidates/%s/cancel", c.ID)) } class="inline">
-											<button type="submit" class="text-xs text-red-400 hover:text-red-300">Cancel</button>
+											<button type="submit" class="text-xs text-red-400 hover:text-red-300">Dismiss</button>
 										</form>
 									</td>
 								</tr>
@@ -560,5 +580,6 @@ templ MaintainerPage(data MaintainerPageData) {
 				</div>
 			}
 		</div>
+		}
 	</div>
 }
