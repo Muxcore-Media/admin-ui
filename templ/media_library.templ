@@ -7,7 +7,7 @@ import (
 	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
 )
 
-templ MediaMissingPage(displayName string, moduleID string, features []string, items []*mediaadminv1.MissingItem, total, page, pageSize int) {
+templ MediaMissingPage(displayName string, moduleID string, features []mediaadminv1.Feature, items []*mediaadminv1.MissingItem, total, page, pageSize int) {
 	<div class="space-y-6">
 		@MediaSubnav(moduleID, displayName, features, "missing")
 		<div>
@@ -69,7 +69,7 @@ templ MediaMissingPage(displayName string, moduleID string, features []string, i
 	</div>
 }
 
-templ MediaTagsPage(displayName string, moduleID string, features []string, tags []*mediaadminv1.Tag) {
+templ MediaTagsPage(displayName string, moduleID string, features []mediaadminv1.Feature, tags []*mediaadminv1.Tag) {
 	<div class="space-y-6">
 		@MediaSubnav(moduleID, displayName, features, "tags")
 		<div>
@@ -118,7 +118,7 @@ templ MediaTagsPage(displayName string, moduleID string, features []string, tags
 	</div>
 }
 
-templ MediaCollectionsPage(displayName string, moduleID string, features []string, collections []*mediaadminv1.CollectionSummary) {
+templ MediaCollectionsPage(displayName string, moduleID string, features []mediaadminv1.Feature, collections []*mediaadminv1.CollectionSummary) {
 	<div class="space-y-6">
 		@MediaSubnav(moduleID, displayName, features, "collections")
 		<div>
@@ -150,7 +150,7 @@ templ MediaCollectionsPage(displayName string, moduleID string, features []strin
 	</div>
 }
 
-templ MediaCollectionDetailPage(displayName string, moduleID string, features []string, name string, collectionID string, items []*mediaadminv1.MediaItem, monitored bool, flash string) {
+templ MediaCollectionDetailPage(displayName string, moduleID string, features []mediaadminv1.Feature, name string, collectionID string, items []*mediaadminv1.MediaItem, monitored bool, flash string) {
 	<div class="space-y-6">
 		@MediaSubnav(moduleID, displayName, features, "collections")
 		<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/collections", moduleID)) } class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Collections</a>
@@ -186,7 +186,7 @@ templ MediaCollectionDetailPage(displayName string, moduleID string, features []
 	</div>
 }
 
-templ MediaCalendarPage(displayName string, moduleID string, features []string, items []*mediaadminv1.CalendarItem, start, end string) {
+templ MediaCalendarPage(displayName string, moduleID string, features []mediaadminv1.Feature, items []*mediaadminv1.CalendarItem, start, end string) {
 	<div class="space-y-6">
 		@MediaSubnav(moduleID, displayName, features, "calendar")
 		<div>

@@ -27,7 +27,7 @@ func (f fixtureCalendarAdmin) GetCalendar(context.Context, *mediaadminv1.GetCale
 }
 
 func (f fixtureCalendarAdmin) GetMediaTypeInfo(context.Context, *mediaadminv1.GetMediaTypeInfoRequest) (*mediaadminv1.GetMediaTypeInfoResponse, error) {
-	return &mediaadminv1.GetMediaTypeInfoResponse{DisplayName: "TV", Features: []string{"calendar"}}, nil
+	return &mediaadminv1.GetMediaTypeInfoResponse{DisplayName: "TV", Features: []mediaadminv1.Feature{mediaadminv1.Feature_FEATURE_CALENDAR}}, nil
 }
 
 type calendarCapDiscovery struct {

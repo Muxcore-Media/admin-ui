@@ -24,7 +24,10 @@ type fixtureMusicWantedAdmin struct {
 func (f fixtureMusicWantedAdmin) GetMediaTypeInfo(context.Context, *mediaadminv1.GetMediaTypeInfoRequest) (*mediaadminv1.GetMediaTypeInfoResponse, error) {
 	return &mediaadminv1.GetMediaTypeInfoResponse{
 		DisplayName: "Music Manager",
-		Features:    []string{"missing", "tags"},
+		Features: []mediaadminv1.Feature{
+			mediaadminv1.Feature_FEATURE_MISSING,
+			mediaadminv1.Feature_FEATURE_TAGS,
+		},
 	}, nil
 }
 

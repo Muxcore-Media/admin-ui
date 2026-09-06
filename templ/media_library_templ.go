@@ -15,7 +15,7 @@ import (
 	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
 )
 
-func MediaMissingPage(displayName string, moduleID string, features []string, items []*mediaadminv1.MissingItem, total, page, pageSize int) templ.Component {
+func MediaMissingPage(displayName string, moduleID string, features []mediaadminv1.Feature, items []*mediaadminv1.MissingItem, total, page, pageSize int) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -272,7 +272,7 @@ func MediaMissingPage(displayName string, moduleID string, features []string, it
 	})
 }
 
-func MediaTagsPage(displayName string, moduleID string, features []string, tags []*mediaadminv1.Tag) templ.Component {
+func MediaTagsPage(displayName string, moduleID string, features []mediaadminv1.Feature, tags []*mediaadminv1.Tag) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -438,7 +438,7 @@ func MediaTagsPage(displayName string, moduleID string, features []string, tags 
 	})
 }
 
-func MediaCollectionsPage(displayName string, moduleID string, features []string, collections []*mediaadminv1.CollectionSummary) templ.Component {
+func MediaCollectionsPage(displayName string, moduleID string, features []mediaadminv1.Feature, collections []*mediaadminv1.CollectionSummary) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -552,7 +552,7 @@ func MediaCollectionsPage(displayName string, moduleID string, features []string
 	})
 }
 
-func MediaCollectionDetailPage(displayName string, moduleID string, features []string, name string, collectionID string, items []*mediaadminv1.MediaItem, monitored bool, flash string) templ.Component {
+func MediaCollectionDetailPage(displayName string, moduleID string, features []mediaadminv1.Feature, name string, collectionID string, items []*mediaadminv1.MediaItem, monitored bool, flash string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -702,7 +702,7 @@ func MediaCollectionDetailPage(displayName string, moduleID string, features []s
 	})
 }
 
-func MediaCalendarPage(displayName string, moduleID string, features []string, items []*mediaadminv1.CalendarItem, start, end string) templ.Component {
+func MediaCalendarPage(displayName string, moduleID string, features []mediaadminv1.Feature, items []*mediaadminv1.CalendarItem, start, end string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {

@@ -29,7 +29,7 @@ func (f fixtureWantedAdmin) GetMediaTypeInfo(context.Context, *mediaadminv1.GetM
 	}
 	return &mediaadminv1.GetMediaTypeInfoResponse{
 		DisplayName: name,
-		Features:    []string{"missing"},
+		Features:    []mediaadminv1.Feature{mediaadminv1.Feature_FEATURE_MISSING},
 	}, nil
 }
 
