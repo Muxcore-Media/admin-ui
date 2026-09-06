@@ -133,7 +133,21 @@ type BackupRow struct {
 	Modules   string
 }
 
-templ BackupsLivePage(rows []BackupRow, errMsg, flash string) {
+// BackupScheduleData carries schedule + retention config for the Backups page.
+type BackupScheduleData struct {
+	CronExpr       string
+	RetentionCount int
+	RetentionDays  int
+	Enabled        bool
+	NextRun        string
+	LastRun        string
+	LastRunStatus  string
+	SoftEmpty      bool
+	Error          string
+	Saved          bool
+}
+
+templ BackupsLivePage(rows []BackupRow, errMsg, flash string, sched BackupScheduleData) {
 	<div class="space-y-6 max-w-4xl" data-testid="backups-page">
 		<div class="flex flex-wrap items-end justify-between gap-3">
 			<div>
@@ -152,11 +166,12 @@ templ BackupsLivePage(rows []BackupRow, errMsg, flash string) {
 		if errMsg != "" {
 			<div class="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-2 text-sm text-amber-200" role="alert">{ errMsg }</div>
 		}
-		if len(rows) == 0 {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500" role="status">
-				No backups yet, or backup-local is not registered.
+		@backupScheduleSection(sched)
+		if len(rows) == 0 && errMsg == "" {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500" role="status" data-testid="backups-empty">
+				No backups yet. Create one above or wait for the scheduled run.
 			</div>
-		} else {
+		} else if len(rows) > 0 {
 			<section class="rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800" aria-labelledby="backups-list-heading">
 				<h2 id="backups-list-heading" class="sr-only">Available backups</h2>
 				for _, b := range rows {
@@ -187,6 +202,120 @@ templ BackupsLivePage(rows []BackupRow, errMsg, flash string) {
 			</section>
 		}
 	</div>
+}
+
+// backupScheduleSection renders the schedule status + CRUD panel.
+// When sched.SoftEmpty is true (backup-local down) the section degrades gracefully.
+templ backupScheduleSection(sched BackupScheduleData) {
+	<section aria-labelledby="backup-schedule-heading" class="rounded-xl border border-gray-800 bg-gray-900/50 divide-y divide-gray-800" data-testid="backup-schedule-section">
+		<div class="px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+			<div>
+				<h2 id="backup-schedule-heading" class="text-sm font-semibold text-gray-300">Schedule</h2>
+				<p class="text-xs text-gray-500 mt-0.5">Automatic backup cron schedule and retention policy.</p>
+			</div>
+			if !sched.SoftEmpty {
+				if sched.Enabled {
+					<span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-800/60 bg-emerald-950/30 px-2.5 py-0.5 text-xs font-medium text-emerald-300" data-testid="schedule-status-enabled">
+						<span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+						Enabled
+					</span>
+				} else {
+					<span class="inline-flex items-center gap-1.5 rounded-full border border-gray-700 bg-gray-900 px-2.5 py-0.5 text-xs font-medium text-gray-500" data-testid="schedule-status-disabled">
+						<span class="h-1.5 w-1.5 rounded-full bg-gray-600"></span>
+						Disabled
+					</span>
+				}
+			}
+		</div>
+		if sched.SoftEmpty {
+			<div class="px-4 py-4 text-sm text-gray-500" data-testid="schedule-soft-empty">
+				backup-local is not registered — schedule configuration unavailable.
+			</div>
+		} else {
+			if sched.Error != "" {
+				<div class="px-4 py-2 text-xs text-amber-300" role="alert" data-testid="schedule-error">{ sched.Error }</div>
+			}
+			if sched.NextRun != "" || sched.LastRun != "" {
+				<div class="px-4 py-3 flex flex-wrap gap-6 text-xs text-gray-400" data-testid="schedule-status-row">
+					if sched.NextRun != "" {
+						<div>
+							<span class="text-gray-500 uppercase tracking-wider text-[10px]">Next run</span>
+							<div class="text-gray-200 mt-0.5">{ sched.NextRun }</div>
+						</div>
+					}
+					if sched.LastRun != "" {
+						<div>
+							<span class="text-gray-500 uppercase tracking-wider text-[10px]">Last run</span>
+							<div class="text-gray-200 mt-0.5">{ sched.LastRun }</div>
+							if sched.LastRunStatus != "" {
+								<div class="text-gray-500 mt-0.5">{ sched.LastRunStatus }</div>
+							}
+						</div>
+					}
+				</div>
+			}
+			<form
+				method="POST"
+				action="/backups/schedule"
+				class="px-4 py-4 space-y-4"
+				aria-label="Backup schedule configuration"
+				data-testid="schedule-form"
+			>
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+					<label class="block space-y-1 text-sm col-span-full sm:col-span-2">
+						<span class="text-gray-400 text-xs">Cron expression <span class="text-gray-600">(5-field, e.g. <code class="font-mono">0 2 * * *</code> = daily at 02:00 UTC)</span></span>
+						<input
+							name="cron_expr"
+							value={ sched.CronExpr }
+							placeholder="0 2 * * *"
+							class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm font-mono text-white"
+							aria-label="Cron expression"
+							data-testid="schedule-cron-input"
+						/>
+					</label>
+					<label class="block space-y-1 text-sm">
+						<span class="text-gray-400 text-xs">Keep last N backups <span class="text-gray-600">(0 = unlimited)</span></span>
+						<input
+							name="retention_count"
+							type="number"
+							min="0"
+							value={ fmt.Sprint(sched.RetentionCount) }
+							class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white"
+							aria-label="Retention count"
+							data-testid="schedule-retention-count"
+						/>
+					</label>
+					<label class="block space-y-1 text-sm">
+						<span class="text-gray-400 text-xs">Keep backups for N days <span class="text-gray-600">(0 = unlimited)</span></span>
+						<input
+							name="retention_days"
+							type="number"
+							min="0"
+							value={ fmt.Sprint(sched.RetentionDays) }
+							class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white"
+							aria-label="Retention days"
+							data-testid="schedule-retention-days"
+						/>
+					</label>
+				</div>
+				<label class="flex items-center gap-2 text-sm text-gray-300">
+					if sched.Enabled {
+						<input type="checkbox" name="enabled" value="1" checked class="rounded border-gray-600" data-testid="schedule-enabled-checkbox"/>
+					} else {
+						<input type="checkbox" name="enabled" value="1" class="rounded border-gray-600" data-testid="schedule-enabled-checkbox"/>
+					}
+					<span>Enable scheduled backups</span>
+				</label>
+				<button
+					type="submit"
+					class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+					data-testid="schedule-save-btn"
+				>
+					Save schedule
+				</button>
+			</form>
+		}
+	</section>
 }
 
 type TaskRow struct {
