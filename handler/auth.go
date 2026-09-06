@@ -37,6 +37,7 @@ var staticNavLinks = []templates.NavLink{
 	{Label: "Request", Path: "/request", Icon: "inbox", Group: "Daily admin"},
 	{Label: "Approvals", Path: "/approvals", Icon: "check-sq", Group: "Daily admin"},
 	{Label: "Queue", Path: "/queue", Icon: "list", Group: "Daily admin"},
+	{Label: "Wanted / Missing", Path: "/wanted", Icon: "alert-circle", Group: "Daily admin"},
 	{Label: "Calendar", Path: "/calendar", Icon: "calendar", Group: "Daily admin"},
 	{Label: "Backups", Path: "/backups", Icon: "archive", Group: "Daily admin"},
 	{Label: "Branding", Path: "/branding", Icon: "palette", Group: "Daily admin"},
