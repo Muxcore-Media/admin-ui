@@ -139,6 +139,9 @@ func TestDashboardDailyDriverPanel(t *testing.T) {
 	if !strings.Contains(body, `data-testid="dashboard-daily-driver"`) {
 		t.Fatal("expected daily driver panel")
 	}
+	if !strings.Contains(body, "now-playing-summary") {
+		t.Fatal("expected now playing dashboard widget")
+	}
 	if !strings.Contains(body, "Wanted items") || !strings.Contains(body, "Upcoming releases") {
 		t.Fatalf("expected queue and calendar summaries, got: %s", truncate(body, 600))
 	}
