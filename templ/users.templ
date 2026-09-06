@@ -21,14 +21,7 @@ func totpBadge(enabled bool) string {
 	return "Off"
 }
 
-type PasswordResetRow struct {
-	ID        string
-	Username  string
-	Note      string
-	CreatedAt string
-}
-
-templ UsersPage(users []*authv1.UserInfo, errorMsg string, resets []PasswordResetRow) {
+templ UsersPage(users []*authv1.UserInfo, errorMsg string, pendingResetCount int) {
 	<div class="space-y-6" data-testid="users-page">
 		<div class="flex items-center justify-between">
 			<div>
@@ -47,24 +40,13 @@ templ UsersPage(users []*authv1.UserInfo, errorMsg string, resets []PasswordRese
 		if errorMsg != "" {
 			<div class="rounded-xl border border-red-900/50 bg-red-950/20 p-4 text-sm text-red-300" role="alert" data-testid="users-error">{ errorMsg }</div>
 		}
-		if len(resets) > 0 {
-			<section class="rounded-xl border border-amber-800/40 bg-amber-950/20 p-4 space-y-2" data-testid="password-reset-requests" aria-labelledby="users-resets-heading">
-				<h2 id="users-resets-heading" class="text-sm font-semibold text-amber-200">Pending password reset requests</h2>
-				<p class="text-xs text-gray-400">From consumer /forgot-password (ADMIN_UI_PASSWORD_RESET_FILE). Open the user below and set a new password.</p>
-				<ul class="divide-y divide-amber-900/40 text-sm">
-					for _, r := range resets {
-						<li class="flex flex-wrap items-center justify-between gap-2 py-2">
-							<div>
-								<span class="font-medium text-gray-200">{ r.Username }</span>
-								if r.Note != "" {
-									<span class="text-xs text-gray-500 ml-2">{ r.Note }</span>
-								}
-								<div class="text-xs text-gray-500">{ r.CreatedAt }</div>
-							</div>
-						</li>
-					}
-				</ul>
-			</section>
+		if pendingResetCount > 0 {
+			<div class="rounded-xl border border-amber-800/40 bg-amber-950/20 p-4 text-sm" data-testid="password-reset-banner">
+				<a href="/password-resets" class="text-amber-200 hover:text-amber-100 font-medium">
+					{ fmt.Sprintf("%d pending password reset request(s)", pendingResetCount) }
+				</a>
+				<span class="text-gray-500 ml-2">— review on the password reset queue</span>
+			</div>
 		}
 		<div id="create-form"></div>
 		<section class="rounded-xl border border-gray-800 overflow-hidden" aria-labelledby="users-table-heading">
