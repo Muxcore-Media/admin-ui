@@ -38,6 +38,7 @@ type MusicDetailData struct {
 
 templ MusicListPage(data MusicPageData) {
 	<div class="space-y-6" data-testid="music-page">
+		@MusicSubnav("browse")
 		<div class="flex flex-wrap items-start justify-between gap-3">
 			<div>
 				<h1 class="text-2xl font-bold">Music</h1>
@@ -113,6 +114,7 @@ templ MusicListPage(data MusicPageData) {
 
 templ MusicDetailPage(data MusicDetailData) {
 	<div class="space-y-6" data-testid="music-detail-page">
+		@MusicSubnav("browse")
 		<div>
 			<a href="/music" class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Music</a>
 			<h1 class="text-2xl font-bold mt-2">{ data.Artist.Name }</h1>

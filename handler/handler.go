@@ -201,6 +201,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /migrate", h.requireAuth(h.MigratePost))
 
 	mux.HandleFunc("GET /music", h.requireAuth(h.MusicListPage))
+	mux.HandleFunc("GET /music/wanted", h.requireAuth(h.MusicWantedPage))
 	mux.HandleFunc("GET /music/{id}", h.requireAuth(h.MusicDetailPage))
 
 	mux.HandleFunc("GET /tagging", h.requireAuth(h.TaggingPage))
