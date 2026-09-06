@@ -329,6 +329,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /tasks/{id}/cancel", h.requireAuth(h.TasksCancel))
 	mux.HandleFunc("GET /playback", h.requireAuth(h.PlaybackAdminPage))
 	mux.HandleFunc("POST /playback", h.requireAuth(h.PlaybackAdminSave))
+	mux.HandleFunc("GET /watchstats", h.requireAuth(h.WatchStatsPage))
 	mux.HandleFunc("GET /streams", h.requireAuth(h.StreamsPage))
 	mux.HandleFunc("GET /streams/events", h.requireAuth(h.StreamsLiveEvents))
 	mux.HandleFunc("GET /streams/active.json", h.requireAuth(h.StreamsActiveJSON))
