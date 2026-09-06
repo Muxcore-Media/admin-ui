@@ -16,6 +16,7 @@ type Session struct {
 	Permissions    []string
 	TenantID       string
 	AuthLocalToken string
+	Label          string
 	CreatedAt      time.Time
 	ExpiresAt      time.Time
 }
@@ -105,6 +106,21 @@ func (s *Store) Revoke(token string) {
 	_ = s.persist()
 }
 
+// RenameSession sets a human-readable label on an active session so operators can
+// identify devices without revoking them. A blank label clears the existing one.
+func (s *Store) RenameSession(token, label string) bool {
+	s.mu.Lock()
+	sess, ok := s.sessions[token]
+	if ok {
+		sess.Label = strings.TrimSpace(label)
+	}
+	s.mu.Unlock()
+	if ok {
+		_ = s.persist()
+	}
+	return ok
+}
+
 func (s *Store) GetFromRequest(r *http.Request) (*Session, bool) {
 	cookie, err := r.Cookie("session")
 	if err != nil {
@@ -119,11 +135,12 @@ func (s *Store) Count() int {
 	return len(s.sessions)
 }
 
-// SessionInfo is a public view of an active admin session (Jellyfin Devices stand-in).
+// SessionInfo is a public view of an active admin session.
 type SessionInfo struct {
 	Token     string
 	UserID    string
 	Username  string
+	Label     string
 	Roles     []string
 	CreatedAt time.Time
 	ExpiresAt time.Time
@@ -142,6 +159,7 @@ func (s *Store) List() []SessionInfo {
 			Token:     tok,
 			UserID:    sess.UserID,
 			Username:  sess.Username,
+			Label:     sess.Label,
 			Roles:     append([]string(nil), sess.Roles...),
 			CreatedAt: sess.CreatedAt,
 			ExpiresAt: sess.ExpiresAt,

@@ -304,6 +304,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /devices", h.requireAuth(h.DevicesPage))
 	mux.HandleFunc("POST /devices/{token}/revoke", h.requireAuth(h.DevicesRevoke))
+	mux.HandleFunc("POST /devices/{token}/rename", h.requireAuth(h.DevicesRename))
 	mux.HandleFunc("GET /logs", h.requireAuth(h.LogsPage))
 	mux.HandleFunc("GET /logs/partial", h.requireAuth(h.LogsPartial))
 	mux.HandleFunc("GET /branding", h.requireAuth(h.BrandingPage))
@@ -312,6 +313,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /networking", h.requireAuth(h.NetworkingPage))
 	mux.HandleFunc("POST /networking", h.requireAuth(h.NetworkingSave))
 	mux.HandleFunc("GET /keys", h.requireAuth(h.APIKeysPage))
+	mux.HandleFunc("POST /keys/create", h.requireAuth(h.APIKeysCreate))
+	mux.HandleFunc("POST /keys/{id}/rotate", h.requireAuth(h.APIKeysRotate))
 	mux.HandleFunc("POST /keys/{id}/revoke", h.requireAuth(h.APIKeysRevoke))
 	mux.HandleFunc("GET /backups", h.requireAuth(h.BackupsPage))
 	mux.HandleFunc("POST /backups/create", h.requireAuth(h.BackupsCreate))

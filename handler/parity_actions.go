@@ -54,44 +54,132 @@ var (
 func (h *Handler) APIKeysPage(w http.ResponseWriter, r *http.Request) {
 	pageCtx, pageCancel := context.WithTimeout(r.Context(), usersDialTimeout+usersReadTimeout+time.Second)
 	defer pageCancel()
-	rows, errMsg := h.collectAPIKeys(pageCtx)
-	content := templates.APIKeysLivePage(rows, errMsg)
+	rows, users, errMsg := h.collectAPIKeysAndUsers(pageCtx)
+	content := templates.APIKeysLivePage(rows, users, errMsg)
 	nav := h.nav(r.URL.Path)
 	h.render(w, r, templates.Layout("API Keys", nav, content))
+}
+
+func (h *Handler) APIKeysCreate(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	userID := strings.TrimSpace(r.FormValue("user_id"))
+	name := strings.TrimSpace(r.FormValue("name"))
+	if userID == "" || name == "" {
+		http.Error(w, "user_id and name are required", http.StatusBadRequest)
+		return
+	}
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), usersDialTimeout+usersReadTimeout+time.Second)
+	defer pageCancel()
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, usersDialTimeout)
+	client, conn, err := h.authClient(dialCtx)
+	dialCancel()
+	if err != nil {
+		http.Error(w, "auth unavailable: "+err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	defer func() { _ = conn.Close() }()
+	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
+	resp, err := client.CreateAPIToken(readCtx, &authv1.CreateAPITokenRequest{UserId: userID, Name: name})
+	readCancel()
+	if err != nil {
+		http.Error(w, "create token: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if resp.GetError() != "" {
+		http.Error(w, resp.GetError(), http.StatusBadRequest)
+		return
+	}
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.apikey.create", "token_name", name, map[string]string{"user_id": userID})
+	}
+	username := h.resolveUsername(pageCtx, client, userID)
+	nav := h.nav("/keys")
+	content := templates.APIKeyCopyOnce(username, name, resp.GetToken())
+	h.render(w, r, templates.Layout("API Key Created", nav, content))
+}
+
+func (h *Handler) APIKeysRotate(w http.ResponseWriter, r *http.Request) {
+	oldTokenID := r.PathValue("id")
+	userID := r.URL.Query().Get("user")
+	name := strings.TrimSpace(r.URL.Query().Get("name"))
+	if userID == "" || name == "" {
+		http.Error(w, "user and name are required", http.StatusBadRequest)
+		return
+	}
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), usersDialTimeout+2*usersReadTimeout+time.Second)
+	defer pageCancel()
+	dialCtx, dialCancel := context.WithTimeout(pageCtx, usersDialTimeout)
+	client, conn, err := h.authClient(dialCtx)
+	dialCancel()
+	if err != nil {
+		http.Error(w, "auth unavailable: "+err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	defer func() { _ = conn.Close() }()
+	createCtx, createCancel := context.WithTimeout(pageCtx, usersReadTimeout)
+	resp, err := client.CreateAPIToken(createCtx, &authv1.CreateAPITokenRequest{UserId: userID, Name: name})
+	createCancel()
+	if err != nil {
+		http.Error(w, "create token: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if resp.GetError() != "" {
+		http.Error(w, resp.GetError(), http.StatusBadRequest)
+		return
+	}
+	deleteCtx, deleteCancel := context.WithTimeout(pageCtx, usersReadTimeout)
+	_, _ = client.DeleteAPIToken(deleteCtx, &authv1.DeleteAPITokenRequest{TokenId: oldTokenID})
+	deleteCancel()
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.apikey.rotate", "old_token", oldTokenID, map[string]string{
+			"user_id": userID, "token_name": name,
+		})
+	}
+	username := h.resolveUsername(pageCtx, client, userID)
+	nav := h.nav("/keys")
+	content := templates.APIKeyCopyOnce(username, name, resp.GetToken())
+	h.render(w, r, templates.Layout("API Key Rotated", nav, content))
 }
 
 func (h *Handler) APIKeysRevoke(w http.ResponseWriter, r *http.Request) {
 	tokenID := r.PathValue("id")
 	userID := r.URL.Query().Get("user")
-	client, conn, err := h.authClient(r.Context())
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), usersDialTimeout+usersReadTimeout)
+	defer pageCancel()
+	client, conn, err := h.authClient(pageCtx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 	defer func() { _ = conn.Close() }()
-	_, _ = client.DeleteAPIToken(r.Context(), &authv1.DeleteAPITokenRequest{TokenId: tokenID})
+	_, _ = client.DeleteAPIToken(pageCtx, &authv1.DeleteAPITokenRequest{TokenId: tokenID})
 	if sess := SessionFromContext(r.Context()); sess != nil {
 		h.auditLog(r.Context(), sess.UserID, "admin.apikey.revoke", "token", tokenID, map[string]string{"user_id": userID})
 	}
 	http.Redirect(w, r, "/keys", http.StatusSeeOther)
 }
 
-func (h *Handler) collectAPIKeys(ctx context.Context) ([]templates.APIKeyRow, string) {
+func (h *Handler) collectAPIKeysAndUsers(ctx context.Context) ([]templates.APIKeyRow, []templates.APIKeyUserOption, string) {
 	dialCtx, dialCancel := context.WithTimeout(ctx, usersDialTimeout)
 	client, conn, err := h.authClient(dialCtx)
 	dialCancel()
 	if err != nil {
-		return nil, "auth unavailable: " + err.Error()
+		return nil, nil, "auth unavailable: " + err.Error()
 	}
 	defer func() { _ = conn.Close() }()
 	readCtx, readCancel := context.WithTimeout(ctx, usersReadTimeout)
-	users, err := client.ListUsers(readCtx, &authv1.ListUsersRequest{})
+	listResp, err := client.ListUsers(readCtx, &authv1.ListUsersRequest{})
 	readCancel()
 	if err != nil {
-		return nil, "list users: " + err.Error()
+		return nil, nil, "list users: " + err.Error()
 	}
 	var rows []templates.APIKeyRow
-	for _, u := range users.GetUsers() {
+	var users []templates.APIKeyUserOption
+	for _, u := range listResp.GetUsers() {
+		users = append(users, templates.APIKeyUserOption{ID: u.GetId(), Username: u.GetUsername()})
 		readCtx, readCancel := context.WithTimeout(ctx, usersReadTimeout)
 		tok, err := client.ListAPITokens(readCtx, &authv1.ListAPITokensRequest{UserId: u.GetId()})
 		readCancel()
@@ -109,7 +197,24 @@ func (h *Handler) collectAPIKeys(ctx context.Context) ([]templates.APIKeyRow, st
 			})
 		}
 	}
-	return rows, ""
+	return rows, users, ""
+}
+
+// resolveUsername looks up the username for userID from the auth service.
+// On failure it returns userID as a fallback so callers always get a displayable string.
+func (h *Handler) resolveUsername(ctx context.Context, client authv1.AuthServiceClient, userID string) string {
+	readCtx, readCancel := context.WithTimeout(ctx, usersReadTimeout)
+	defer readCancel()
+	resp, err := client.ListUsers(readCtx, &authv1.ListUsersRequest{})
+	if err != nil {
+		return userID
+	}
+	for _, u := range resp.GetUsers() {
+		if u.GetId() == userID {
+			return u.GetUsername()
+		}
+	}
+	return userID
 }
 
 // --- Backups ---
