@@ -2,6 +2,8 @@ package handler
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -590,6 +593,46 @@ type parentalSettings struct {
 	BlockedTags       string `json:"blocked_tags"`
 	AllowedTags       string `json:"allowed_tags"`
 	AllowUnrated      bool   `json:"allow_unrated"`
+	KidsMode          bool   `json:"kids_mode"`
+	// PINHash is a salted SHA-256 hex digest; empty means no PIN is set.
+	PINHash string `json:"pin_hash,omitempty"`
+}
+
+// hashParentalPIN returns a salted SHA-256 hex digest of a PIN.
+// userID is the per-user salt so hashes are not reusable across accounts.
+func hashParentalPIN(userID, pin string) string {
+	h := sha256.Sum256([]byte(userID + ":" + pin))
+	return hex.EncodeToString(h[:])
+}
+
+// validateParentalPIN returns an error if pin is not exactly 4–6 ASCII digits.
+func validateParentalPIN(pin string) error {
+	if len(pin) < 4 || len(pin) > 6 {
+		return fmt.Errorf("PIN must be 4–6 digits")
+	}
+	for _, c := range pin {
+		if c < '0' || c > '9' {
+			return fmt.Errorf("PIN must contain digits only")
+		}
+	}
+	return nil
+}
+
+// validateParentalRating returns an error for a malformed rating string.
+// An empty string (no restriction) is always accepted.
+func validateParentalRating(rating string) error {
+	if rating == "" {
+		return nil
+	}
+	if len(rating) > 20 {
+		return fmt.Errorf("rating too long (max 20 characters)")
+	}
+	for _, c := range rating {
+		if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '-' && c != '+' && c != ' ' {
+			return fmt.Errorf("invalid character %q in rating", c)
+		}
+	}
+	return nil
 }
 
 func loadParentalMap() map[string]parentalSettings {
@@ -626,35 +669,72 @@ func (h *Handler) UsersParental(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
 	m := loadParentalMap()
 	p := m[userID]
-	if r.Method == http.MethodPost {
-		_ = r.ParseForm()
-		p = parentalSettings{
-			MaxParentalRating: strings.TrimSpace(r.FormValue("max_rating")),
-			BlockedTags:       strings.TrimSpace(r.FormValue("blocked_tags")),
-			AllowedTags:       strings.TrimSpace(r.FormValue("allowed_tags")),
-			AllowUnrated:      r.FormValue("allow_unrated") == "1",
-		}
-		m[userID] = p
-		if err := saveParentalMap(m); err != nil {
-			_ = templates.UserParentalForm(templates.ParentalData{
-				UserID: userID, MaxParentalRating: p.MaxParentalRating, BlockedTags: p.BlockedTags,
-				AllowedTags: p.AllowedTags, AllowUnrated: p.AllowUnrated, Error: err.Error(),
-			}).Render(r.Context(), w)
-			return
-		}
-		if err := h.syncParentalToUserdata(r.Context(), userID, p); err != nil {
-			slog.Warn("parental: userdata sync failed", "user_id", userID, "error", err)
-		}
+
+	renderForm := func(saved bool, errMsg string) {
 		_ = templates.UserParentalForm(templates.ParentalData{
-			UserID: userID, MaxParentalRating: p.MaxParentalRating, BlockedTags: p.BlockedTags,
-			AllowedTags: p.AllowedTags, AllowUnrated: p.AllowUnrated, Saved: true,
+			UserID:            userID,
+			MaxParentalRating: p.MaxParentalRating,
+			BlockedTags:       p.BlockedTags,
+			AllowedTags:       p.AllowedTags,
+			AllowUnrated:      p.AllowUnrated,
+			KidsMode:          p.KidsMode,
+			PINSet:            p.PINHash != "",
+			Saved:             saved,
+			Error:             errMsg,
 		}).Render(r.Context(), w)
+	}
+
+	if r.Method != http.MethodPost {
+		renderForm(false, "")
 		return
 	}
-	_ = templates.UserParentalForm(templates.ParentalData{
-		UserID: userID, MaxParentalRating: p.MaxParentalRating, BlockedTags: p.BlockedTags,
-		AllowedTags: p.AllowedTags, AllowUnrated: p.AllowUnrated,
-	}).Render(r.Context(), w)
+
+	_ = r.ParseForm()
+
+	rating := strings.TrimSpace(r.FormValue("max_rating"))
+	if err := validateParentalRating(rating); err != nil {
+		renderForm(false, err.Error())
+		return
+	}
+
+	updated := parentalSettings{
+		MaxParentalRating: rating,
+		BlockedTags:       strings.TrimSpace(r.FormValue("blocked_tags")),
+		AllowedTags:       strings.TrimSpace(r.FormValue("allowed_tags")),
+		AllowUnrated:      r.FormValue("allow_unrated") == "1",
+		KidsMode:          r.FormValue("kids_mode") == "1",
+		PINHash:           p.PINHash, // preserve existing PIN by default
+	}
+
+	if r.FormValue("clear_pin") == "1" {
+		updated.PINHash = ""
+	} else if newPIN := strings.TrimSpace(r.FormValue("pin")); newPIN != "" {
+		if err := validateParentalPIN(newPIN); err != nil {
+			renderForm(false, err.Error())
+			return
+		}
+		updated.PINHash = hashParentalPIN(userID, newPIN)
+	}
+
+	p = updated
+	m[userID] = p
+	if err := saveParentalMap(m); err != nil {
+		renderForm(false, err.Error())
+		return
+	}
+	if err := h.syncParentalToUserdata(r.Context(), userID, p); err != nil {
+		slog.Warn("parental: userdata sync failed (soft-fail)", "user_id", userID, "error", err)
+	}
+
+	if sess := SessionFromContext(r.Context()); sess != nil {
+		h.auditLog(r.Context(), sess.UserID, "admin.parental.save", "user", userID, map[string]string{
+			"max_rating": p.MaxParentalRating,
+			"kids_mode":  fmt.Sprintf("%v", p.KidsMode),
+			"pin_set":    fmt.Sprintf("%v", p.PINHash != ""),
+		})
+	}
+
+	renderForm(true, "")
 }
 
 // --- Live TV admin ---
