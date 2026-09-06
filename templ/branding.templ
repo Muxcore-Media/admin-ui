@@ -1,0 +1,44 @@
+package templates
+
+const (
+	logoMarkPath   = "/static/branding/logo-mark.svg"
+	productName    = "MuxCore"
+	productTitle   = "MuxCore Admin"
+	productTagline = "Sign in to manage your cluster"
+)
+
+templ LogoMark(class string) {
+	<img
+		src={ logoMarkPath }
+		alt={ productName }
+		class={ class }
+		width="32"
+		height="32"
+		decoding="async"
+	/>
+}
+
+templ NavBrand() {
+	<a href="/" class="flex items-center gap-2.5" data-testid="nav-brand">
+		@LogoMark("h-8 w-8 shrink-0 rounded-[var(--radius-md)]")
+		<span class="text-base font-bold tracking-tight text-[var(--text-primary)]">
+			{ productName } <span class="text-[var(--accent-color)]">Admin</span>
+		</span>
+	</a>
+}
+
+templ LoginBrandHeader() {
+	<div class="mb-8 text-center" data-testid="login-brand">
+		@LogoMark("mx-auto mb-4 h-12 w-12 rounded-[var(--radius-md)]")
+		<h1 class="text-2xl font-bold">{ productTitle }</h1>
+		<p class="mt-1 text-sm text-[var(--text-secondary)]">{ productTagline }</p>
+	</div>
+}
+
+templ StandaloneBrandHeader(title string, subtitle string) {
+	<div class="mb-8 text-center" data-testid="standalone-brand">
+		@LogoMark("mx-auto mb-4 h-12 w-12 rounded-[var(--radius-md)]")
+		<h1 class="text-2xl font-bold">{ title }</h1>
+		<p class="mt-1 text-sm text-[var(--text-secondary)]">{ subtitle }</p>
+	</div>
+}
