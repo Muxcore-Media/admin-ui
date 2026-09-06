@@ -112,7 +112,7 @@ func (h *Handler) MediaLibraryList(w http.ResponseWriter, r *http.Request) {
 	info, err := client.GetMediaTypeInfo(readCtx, &mediaadminv1.GetMediaTypeInfoRequest{})
 	readCancel()
 	displayName := moduleID
-	var features []string
+	var features []mediaadminv1.Feature
 	if err == nil {
 		displayName = info.GetDisplayName()
 		features = info.GetFeatures()
@@ -168,7 +168,7 @@ func (h *Handler) MediaLibraryItem(w http.ResponseWriter, r *http.Request) {
 
 	info, _ := client.GetMediaTypeInfo(ctx, &mediaadminv1.GetMediaTypeInfoRequest{})
 	displayName := moduleID
-	var features []string
+	var features []mediaadminv1.Feature
 	if info != nil {
 		displayName = info.GetDisplayName()
 		features = info.GetFeatures()

@@ -160,15 +160,6 @@ func (h *Handler) fetchUnifiedMissing(ctx context.Context, mods []*discoveryv1.M
 	return items, summary, errs
 }
 
-func mediaFeatureEnabled(features []string, name string) bool {
-	for _, f := range features {
-		if f == name {
-			return true
-		}
-	}
-	return false
-}
-
 func (h *Handler) renderUnifiedWanted(w http.ResponseWriter, r *http.Request, data templates.UnifiedWantedData) {
 	content := templates.UnifiedWantedPage(data)
 	h.render(w, r, templates.Layout("Wanted / Missing", h.nav(r.URL.Path), content))

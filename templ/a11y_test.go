@@ -642,7 +642,7 @@ func TestMediaLibraryPage_HasHeadingSearchLabelsAndSections(t *testing.T) {
 		Id:    "item-1",
 		Title: "Inception",
 		Year:  2010,
-	}}, 1, 1, 24, "movies", []string{"missing"}, "dune", ""))
+	}}, 1, 1, 24, "movies", []mediaadminv1.Feature{mediaadminv1.Feature_FEATURE_MISSING}, "dune", ""))
 
 	for _, want := range []string{
 		`<h1 class="text-2xl font-bold">Movies</h1>`,

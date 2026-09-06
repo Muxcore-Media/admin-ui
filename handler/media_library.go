@@ -29,7 +29,7 @@ func (h *Handler) mediaDial(w http.ResponseWriter, r *http.Request, moduleID str
 	return client, func() { _ = conn.Close() }, true
 }
 
-func (h *Handler) mediaInfo(client mediaadminv1.MediaAdminServiceClient, r *http.Request, moduleID string) (string, []string) {
+func (h *Handler) mediaInfo(client mediaadminv1.MediaAdminServiceClient, r *http.Request, moduleID string) (string, []mediaadminv1.Feature) {
 	info, err := client.GetMediaTypeInfo(r.Context(), &mediaadminv1.GetMediaTypeInfoRequest{})
 	if err != nil || info == nil {
 		return moduleID, nil

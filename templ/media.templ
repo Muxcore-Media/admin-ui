@@ -8,13 +8,32 @@ import (
 	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
 )
 
-func mediaHasFeature(features []string, name string) bool {
+func mediaHasFeature(features []mediaadminv1.Feature, name string) bool {
+	want := featureFromName(name)
+	if want == mediaadminv1.Feature_FEATURE_UNSPECIFIED {
+		return false
+	}
 	for _, f := range features {
-		if f == name {
+		if f == want {
 			return true
 		}
 	}
 	return false
+}
+
+func featureFromName(name string) mediaadminv1.Feature {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "missing":
+		return mediaadminv1.Feature_FEATURE_MISSING
+	case "tags":
+		return mediaadminv1.Feature_FEATURE_TAGS
+	case "collections":
+		return mediaadminv1.Feature_FEATURE_COLLECTIONS
+	case "calendar":
+		return mediaadminv1.Feature_FEATURE_CALENDAR
+	default:
+		return mediaadminv1.Feature_FEATURE_UNSPECIFIED
+	}
 }
 
 func mediaPosterURL(item *mediaadminv1.MediaItem) string {
@@ -59,7 +78,7 @@ func automationItemTypeForTemplate(moduleID, displayName string) string {
 	}
 }
 
-templ MediaSubnav(moduleID string, displayName string, features []string, active string) {
+templ MediaSubnav(moduleID string, displayName string, features []mediaadminv1.Feature, active string) {
 	<nav class="flex flex-wrap items-center gap-2 border-b border-gray-800 pb-3" aria-label={ fmt.Sprintf("%s library navigation", displayName) }>
 		<span class="text-sm font-semibold text-gray-300 mr-2">{ displayName }</span>
 		<a
@@ -108,7 +127,7 @@ templ MediaSubnav(moduleID string, displayName string, features []string, active
 	</nav>
 }
 
-templ MediaListPage(displayName string, items []*mediaadminv1.MediaItem, total, page, pageSize int, moduleID string, features []string, search, tagID string) {
+templ MediaListPage(displayName string, items []*mediaadminv1.MediaItem, total, page, pageSize int, moduleID string, features []mediaadminv1.Feature, search, tagID string) {
 	<div class="space-y-6" data-testid="media-list-page">
 		@MediaSubnav(moduleID, displayName, features, "browse")
 		<div>
@@ -211,7 +230,7 @@ templ MediaItemCard(item *mediaadminv1.MediaItem, moduleID string) {
 	</a>
 }
 
-templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []ActivityEntry, profiles []ProfileOption, roots []RootOption, features []string, displayName string, releases []*mediaadminv1.IndexerResult, seasons []SeasonView, files []MediaFileView, titles []AlternateTitleView, trailers []TrailerView, flash, flashStatus, errorMsg string) {
+templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []ActivityEntry, profiles []ProfileOption, roots []RootOption, features []mediaadminv1.Feature, displayName string, releases []*mediaadminv1.IndexerResult, seasons []SeasonView, files []MediaFileView, titles []AlternateTitleView, trailers []TrailerView, flash, flashStatus, errorMsg string) {
 	<div class="space-y-6">
 		@MediaSubnav(moduleID, displayName, features, "")
 		<a href={ templ.SafeURL(fmt.Sprintf("/media/%s", moduleID)) } class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Back</a>
