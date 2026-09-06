@@ -250,40 +250,69 @@ func (h *Handler) BackupsPage(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	rows, errMsg := h.listBackupRows(pageCtx)
 	sched := h.loadBackupSchedule(pageCtx)
+	if r.URL.Query().Get("sched_saved") == "1" {
+		sched.Saved = true
+	}
 	flash := r.URL.Query().Get("ok")
 	content := templates.BackupsLivePage(rows, errMsg, flash, sched)
 	nav := h.nav(r.URL.Path)
 	h.render(w, r, templates.Layout("Backups", nav, content))
 }
 
+// resolveBackupLocalAddr returns the module ID and HTTP address for the module
+// that advertises the "backup" capability, plus a bool indicating whether it
+// was found.  The returned addr may be empty when the module has no HTTP addr.
+func (h *Handler) resolveBackupLocalAddr(ctx context.Context) (id, addr string, ok bool) {
+	if h.Core == nil {
+		return "", "", false
+	}
+	mods, err := h.Core.Discovery.FindByCapability(ctx, capBackup)
+	if err != nil || len(mods) == 0 {
+		return "", "", false
+	}
+	mod := mods[0]
+	return mod.GetId(), normalizeDialAddr(mod.GetId(), mod.GetHttpAddr()), true
+}
+
+// loadBackupSchedule reads backup_schedule_cron, backup_retention_count, and
+// backup_retention_days from the backup-local SettingsProvider via the mesh.
+// SoftEmpty is set only when the module is not reachable; an online module with
+// no schedule configured is a valid state (empty cron = disabled).
 func (h *Handler) loadBackupSchedule(ctx context.Context) templates.BackupScheduleData {
 	dialCtx, dialCancel := context.WithTimeout(ctx, backupDialTimeout)
-	client, conn, err := h.backupClient(dialCtx)
+	id, addr, ok := h.resolveBackupLocalAddr(dialCtx)
 	dialCancel()
-	if err != nil {
+	if !ok {
 		return templates.BackupScheduleData{SoftEmpty: true}
 	}
-	defer func() { _ = conn.Close() }()
 	readCtx, readCancel := context.WithTimeout(ctx, backupReadTimeout)
-	cfg, err := client.GetScheduleConfig(readCtx, &backupv1.GetScheduleConfigRequest{})
+	raw, err := h.settingsMeshCall(readCtx, id, addr, methodGet, nil)
 	readCancel()
 	if err != nil {
-		return templates.BackupScheduleData{SoftEmpty: true, Error: err.Error()}
+		slog.Warn("backups: loadBackupSchedule settings call failed", "module", id, "error", err)
+		return templates.BackupScheduleData{SoftEmpty: true}
 	}
-	d := templates.BackupScheduleData{
-		CronExpr:       cfg.GetCronExpr(),
-		RetentionCount: int(cfg.GetRetentionCount()),
-		RetentionDays:  int(cfg.GetRetentionDays()),
-		Enabled:        cfg.GetEnabled(),
-		LastRunStatus:  cfg.GetLastRunStatus(),
+	var defs []settingDefJSON
+	if json.Unmarshal(raw, &defs) != nil {
+		return templates.BackupScheduleData{SoftEmpty: true}
 	}
-	if t := cfg.GetNextRunUnix(); t > 0 {
-		d.NextRun = time.Unix(t, 0).UTC().Format(time.RFC822)
+	data := templates.BackupScheduleData{ModuleID: id}
+	for _, d := range defs {
+		val := d.Value
+		if val == "" {
+			val = d.Default
+		}
+		switch strings.ToLower(d.Key) {
+		case "backup_schedule_cron":
+			data.CronExpr = val
+		case "backup_retention_count":
+			data.RetentionCount = val
+		case "backup_retention_days":
+			data.RetentionDays = val
+		}
 	}
-	if t := cfg.GetLastRunUnix(); t > 0 {
-		d.LastRun = time.Unix(t, 0).UTC().Format(time.RFC822)
-	}
-	return d
+	data.Enabled = data.CronExpr != ""
+	return data
 }
 
 func (h *Handler) BackupsScheduleSave(w http.ResponseWriter, r *http.Request) {
@@ -291,54 +320,57 @@ func (h *Handler) BackupsScheduleSave(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	cronExpr := strings.TrimSpace(r.FormValue("cron_expr"))
 	enabled := r.FormValue("enabled") == "1"
-	retCount := int32(parseIntOr(r.FormValue("retention_count"), 0))
-	retDays := int32(parseIntOr(r.FormValue("retention_days"), 0))
+	cronExpr := strings.TrimSpace(r.FormValue("cron_expr"))
+	retentionCount := strings.TrimSpace(r.FormValue("retention_count"))
+	retentionDays := strings.TrimSpace(r.FormValue("retention_days"))
 
-	pageCtx, cancel := context.WithTimeout(r.Context(), backupActionTimeout)
-	defer cancel()
+	// Disable = empty cron expression; the checkbox controls this.
+	if !enabled {
+		cronExpr = ""
+	}
+
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), backupActionTimeout)
+	defer pageCancel()
+
 	dialCtx, dialCancel := context.WithTimeout(pageCtx, backupDialTimeout)
-	client, conn, err := h.backupClient(dialCtx)
+	id, addr, ok := h.resolveBackupLocalAddr(dialCtx)
 	dialCancel()
-	if err != nil {
-		http.Redirect(w, r, "/backups?ok="+urlQuery("backup-local unavailable: "+err.Error()), http.StatusSeeOther)
+	if !ok {
+		http.Redirect(w, r, "/backups?ok="+urlQuery("backup-local not available"), http.StatusSeeOther)
 		return
 	}
-	defer func() { _ = conn.Close() }()
-	readCtx, readCancel := context.WithTimeout(pageCtx, backupReadTimeout)
-	_, err = client.SetScheduleConfig(readCtx, &backupv1.SetScheduleConfigRequest{
-		CronExpr:       cronExpr,
-		RetentionCount: retCount,
-		RetentionDays:  retDays,
-		Enabled:        enabled,
-	})
-	readCancel()
-	if err != nil {
-		http.Redirect(w, r, "/backups?ok="+urlQuery("schedule save failed: "+err.Error()), http.StatusSeeOther)
-		return
+
+	type kv struct{ key, val string }
+	updates := []kv{
+		{"backup_schedule_cron", cronExpr},
+		{"backup_retention_count", retentionCount},
+		{"backup_retention_days", retentionDays},
 	}
+	for _, u := range updates {
+		payload, err := json.Marshal(updateSettingReq{Key: u.key, Value: u.val})
+		if err != nil {
+			http.Redirect(w, r, "/backups?ok="+urlQuery("marshal error: "+err.Error()), http.StatusSeeOther)
+			return
+		}
+		writeCtx, writeCancel := context.WithTimeout(pageCtx, backupReadTimeout)
+		_, err = h.settingsMeshCall(writeCtx, id, addr, methodUpdate, payload)
+		writeCancel()
+		if err != nil {
+			slog.Warn("backups: schedule UpdateSetting failed", "key", u.key, "module", id, "error", err)
+			http.Redirect(w, r, "/backups?ok="+urlQuery("UpdateSetting failed: "+err.Error()), http.StatusSeeOther)
+			return
+		}
+	}
+
 	if sess := SessionFromContext(r.Context()); sess != nil {
-		h.auditLog(r.Context(), sess.UserID, "admin.backup.schedule.save", "backup-local", "schedule", map[string]string{
-			"cron_expr":       cronExpr,
-			"enabled":         fmt.Sprintf("%v", enabled),
-			"retention_count": fmt.Sprintf("%d", retCount),
-			"retention_days":  fmt.Sprintf("%d", retDays),
+		h.auditLog(r.Context(), sess.UserID, "admin.backups.schedule.save", "module", id, map[string]string{
+			"cron":            cronExpr,
+			"retention_count": retentionCount,
+			"retention_days":  retentionDays,
 		})
 	}
-	http.Redirect(w, r, "/backups?ok=schedule+saved", http.StatusSeeOther)
-}
-
-func parseIntOr(s string, def int) int {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return def
-	}
-	var n int
-	if _, err := fmt.Sscanf(s, "%d", &n); err != nil {
-		return def
-	}
-	return n
+	http.Redirect(w, r, "/backups?sched_saved=1", http.StatusSeeOther)
 }
 
 func (h *Handler) listBackupRows(ctx context.Context) ([]templates.BackupRow, string) {
