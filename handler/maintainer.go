@@ -70,7 +70,10 @@ func (h *Handler) MaintainerPage(w http.ResponseWriter, r *http.Request) {
 
 	client, closer, err := h.withMaintainerClient(pageCtx)
 	if err != nil {
-		data.Error = err.Error()
+		data.SoftNote = true
+		if h.Core != nil {
+			data.Error = err.Error()
+		}
 		h.renderMaintainer(w, r, data)
 		return
 	}
@@ -394,6 +397,41 @@ func (h *Handler) MaintainerImportRules(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	msg := fmt.Sprintf("Imported %d rules", resp.GetImported())
+	http.Redirect(w, r, "/maintainer?ok="+url.QueryEscape(msg), http.StatusSeeOther)
+}
+
+func (h *Handler) MaintainerToggleRule(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	pageCtx, pageCancel := context.WithTimeout(r.Context(), maintainerActionTimeout)
+	defer pageCancel()
+	client, closer, err := h.withMaintainerClient(pageCtx)
+	if err != nil {
+		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	defer closer()
+
+	readCtx, readCancel := context.WithTimeout(pageCtx, maintainerReadTimeout)
+	resp, err := client.GetRule(readCtx, &maintainv1.GetRuleRequest{Id: id})
+	readCancel()
+	if err != nil {
+		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	rule := resp.GetRule()
+	rule.Enabled = !rule.GetEnabled()
+
+	readCtx, readCancel = context.WithTimeout(pageCtx, maintainerReadTimeout)
+	_, err = client.UpsertRule(readCtx, &maintainv1.UpsertRuleRequest{Rule: rule})
+	readCancel()
+	if err != nil {
+		http.Redirect(w, r, "/maintainer?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	msg := "Rule disabled"
+	if rule.GetEnabled() {
+		msg = "Rule enabled"
+	}
 	http.Redirect(w, r, "/maintainer?ok="+url.QueryEscape(msg), http.StatusSeeOther)
 }
 
