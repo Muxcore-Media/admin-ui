@@ -3095,7 +3095,7 @@ func StreamsNotificationsPage(data StreamsNotificationsPageData) templ.Component
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 322, " <span class=\"text-gray-500\">(library ready / playable)</span></span></label> <label class=\"flex items-center gap-2\"><input type=\"checkbox\" name=\"events\" value=\"guard.violation\" class=\"rounded border-gray-700\"><span class=\"text-gray-300\">guard.violation</span></label></div></fieldset><label class=\"flex items-center gap-2 text-sm\"><input type=\"checkbox\" name=\"enabled\" value=\"1\" checked class=\"rounded border-gray-700\"> <span class=\"text-gray-300\">Enabled</span></label><div class=\"md:col-span-2\"><button type=\"submit\" class=\"rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-500\">Create destination</button></div></form></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 322, " (library ready / playable)</span></label> <label class=\"flex items-center gap-2\"><input type=\"checkbox\" name=\"events\" value=\"guard.violation\" class=\"rounded border-gray-700\"><span class=\"text-gray-300\">guard.violation</span></label></div></fieldset><label class=\"flex items-center gap-2 text-sm\"><input type=\"checkbox\" name=\"enabled\" value=\"1\" checked class=\"rounded border-gray-700\"> <span class=\"text-gray-300\">Enabled</span></label><div class=\"md:col-span-2\"><button type=\"submit\" class=\"rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-500\">Create destination</button></div></form></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
