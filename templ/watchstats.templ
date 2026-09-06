@@ -1,0 +1,166 @@
+package templates
+
+import "fmt"
+
+type WatchStatsTitleRow struct {
+	Title        string
+	MediaType    string
+	PlayCount    int
+	WatchMinutes string
+}
+
+type WatchStatsUserRow struct {
+	Username     string
+	PlayCount    int
+	WatchMinutes string
+}
+
+type WatchStatsPageData struct {
+	Error        string
+	SoftNote     bool
+	RecentPlays  []StreamSessionRow
+	TopTitles7d  []WatchStatsTitleRow
+	TopTitles30d []WatchStatsTitleRow
+	UserTotals   []WatchStatsUserRow
+}
+
+templ WatchStatsPage(data WatchStatsPageData) {
+	<div class="space-y-8" data-testid="watchstats-page">
+		<div>
+			<h1 class="text-2xl font-bold">Watch Stats</h1>
+			<p class="mt-1 text-sm text-gray-400">Recent plays, top titles, and per-user totals across the household.</p>
+		</div>
+		if data.Error != "" {
+			<div class="rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300" data-testid="watchstats-error">{ data.Error }</div>
+		}
+		if data.SoftNote {
+			<div class="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-3 text-sm text-gray-400" data-testid="watchstats-soft-empty">
+				playback-monitor not registered — deploy the module to track watch statistics.
+			</div>
+		}
+		if !data.SoftNote {
+			<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+				<div class="space-y-2" data-testid="watchstats-top7">
+					<h2 class="text-base font-semibold">Top titles — last 7 days</h2>
+					if len(data.TopTitles7d) == 0 {
+						<p class="text-sm text-gray-500">No plays recorded in the last 7 days.</p>
+					} else {
+						<div class="overflow-hidden rounded-xl border border-gray-800">
+							<table class="w-full text-sm">
+								<thead>
+									<tr class="border-b border-gray-800 text-left text-xs text-gray-500">
+										<th class="px-4 py-2 font-medium">Title</th>
+										<th class="px-4 py-2 font-medium">Type</th>
+										<th class="px-4 py-2 font-medium text-right">Plays</th>
+										<th class="px-4 py-2 font-medium text-right">Watch time</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-gray-800/50">
+									for _, row := range data.TopTitles7d {
+										<tr class="hover:bg-gray-800/30">
+										<td class="px-4 py-2 font-medium text-gray-100 truncate max-w-[14rem]" title={ row.Title }>{ row.Title }</td>
+										<td class="px-4 py-2 text-gray-400 capitalize">{ row.MediaType }</td>
+										<td class="px-4 py-2 text-right text-gray-200">{ fmt.Sprintf("%d", row.PlayCount) }</td>
+										<td class="px-4 py-2 text-right text-gray-400">{ row.WatchMinutes }</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</div>
+			<div class="space-y-2" data-testid="watchstats-top30">
+				<h2 class="text-base font-semibold">Top titles — last 30 days</h2>
+				if len(data.TopTitles30d) == 0 {
+					<p class="text-sm text-gray-500">No plays recorded in the last 30 days.</p>
+				} else {
+					<div class="overflow-hidden rounded-xl border border-gray-800">
+						<table class="w-full text-sm">
+							<thead>
+								<tr class="border-b border-gray-800 text-left text-xs text-gray-500">
+									<th class="px-4 py-2 font-medium">Title</th>
+									<th class="px-4 py-2 font-medium">Type</th>
+									<th class="px-4 py-2 font-medium text-right">Plays</th>
+									<th class="px-4 py-2 font-medium text-right">Watch time</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-gray-800/50">
+								for _, row := range data.TopTitles30d {
+									<tr class="hover:bg-gray-800/30">
+										<td class="px-4 py-2 font-medium text-gray-100 truncate max-w-[14rem]" title={ row.Title }>{ row.Title }</td>
+										<td class="px-4 py-2 text-gray-400 capitalize">{ row.MediaType }</td>
+										<td class="px-4 py-2 text-right text-gray-200">{ fmt.Sprintf("%d", row.PlayCount) }</td>
+										<td class="px-4 py-2 text-right text-gray-400">{ row.WatchMinutes }</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</div>
+			</div>
+			<div class="space-y-2" data-testid="watchstats-users">
+				<h2 class="text-base font-semibold">Per-user totals — last 30 days</h2>
+				if len(data.UserTotals) == 0 {
+					<p class="text-sm text-gray-500">No user activity recorded in the last 30 days.</p>
+				} else {
+					<div class="overflow-hidden rounded-xl border border-gray-800">
+						<table class="w-full text-sm">
+							<thead>
+								<tr class="border-b border-gray-800 text-left text-xs text-gray-500">
+									<th class="px-4 py-2 font-medium">User</th>
+									<th class="px-4 py-2 font-medium text-right">Plays</th>
+									<th class="px-4 py-2 font-medium text-right">Watch time</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-gray-800/50">
+								for _, u := range data.UserTotals {
+									<tr class="hover:bg-gray-800/30">
+									<td class="px-4 py-2 font-medium text-gray-100">{ u.Username }</td>
+									<td class="px-4 py-2 text-right text-gray-200">{ fmt.Sprintf("%d", u.PlayCount) }</td>
+										<td class="px-4 py-2 text-right text-gray-400">{ u.WatchMinutes }</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</div>
+			<div class="space-y-2" data-testid="watchstats-recent">
+				<h2 class="text-base font-semibold">Recent plays</h2>
+				if len(data.RecentPlays) == 0 {
+					<p class="text-sm text-gray-500">No recent play history.</p>
+				} else {
+					<div class="overflow-hidden rounded-xl border border-gray-800">
+						<table class="w-full text-sm">
+							<thead>
+								<tr class="border-b border-gray-800 text-left text-xs text-gray-500">
+									<th class="px-4 py-2 font-medium">Title</th>
+									<th class="px-4 py-2 font-medium">User</th>
+									<th class="px-4 py-2 font-medium">State</th>
+									<th class="px-4 py-2 font-medium hidden sm:table-cell">Platform</th>
+									<th class="px-4 py-2 font-medium hidden md:table-cell">Started</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-gray-800/50">
+								for _, row := range data.RecentPlays {
+									<tr class="hover:bg-gray-800/30">
+										<td class="px-4 py-2 font-medium text-gray-100 truncate max-w-[14rem]" title={ row.Title }>{ row.Title }</td>
+										<td class="px-4 py-2 text-gray-300">{ row.User }</td>
+										<td class="px-4 py-2">
+											if row.State != "" {
+												<span class="rounded-full bg-gray-800 px-2 py-0.5 text-xs text-gray-300 capitalize">{ row.State }</span>
+											}
+										</td>
+										<td class="px-4 py-2 text-gray-400 hidden sm:table-cell">{ row.Platform }</td>
+										<td class="px-4 py-2 text-gray-500 hidden md:table-cell">{ row.Started }</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</div>
+		}
+	</div>
+}
