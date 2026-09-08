@@ -20,6 +20,7 @@ import (
 	"github.com/Muxcore-Media/admin-ui/session"
 	"github.com/a-h/templ"
 
+	scannerv1 "github.com/Muxcore-Media/contracts-scanner/muxcore/scanner/v1"
 	formatsv1 "github.com/Muxcore-Media/media-custom-formats/proto/formatsv1"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
@@ -71,6 +72,10 @@ type Handler struct {
 	MigrateMusic  arrmigrate.MusicImporter
 	// ResolveProfileID maps quality profile name → MuxCore id (tests / optional).
 	ResolveProfileID func(ctx context.Context, name string) string
+	// MigrateScanner, when set, runs the post-import library scan (tests).
+	MigrateScanner interface {
+		ScanLibraryRoots(ctx context.Context, in *scannerv1.ScanLibraryRootsRequest) (*scannerv1.ScanLibraryRootsResponse, error)
+	}
 
 	ResetLoginRate func(ip string)
 
@@ -204,6 +209,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /music/wanted", h.requireAuth(h.MusicWantedPage))
 	mux.HandleFunc("GET /music/{id}", h.requireAuth(h.MusicDetailPage))
 
+	mux.HandleFunc("GET /ai", h.requireAuth(h.AIPage))
 	mux.HandleFunc("GET /tagging", h.requireAuth(h.TaggingPage))
 	mux.HandleFunc("POST /tagging/tags", h.requireAuth(h.TaggingCreateTag))
 	mux.HandleFunc("POST /tagging/rules", h.requireAuth(h.TaggingCreateRule))

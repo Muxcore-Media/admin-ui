@@ -103,6 +103,49 @@ func TestMigrateImportFixture(t *testing.T) {
 	if !strings.Contains(body, "Imported 1") {
 		t.Fatalf("expected import summary: %s", truncate(body, 500))
 	}
+	if !strings.Contains(body, "Library scan skipped") {
+		t.Fatalf("expected scan skip when scanner is down: %s", truncate(body, 500))
+	}
+}
+
+func TestMigrateImportTriggersLibraryScan(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v3/qualityprofile", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode([]map[string]any{{"id": 1, "name": "HD"}})
+	})
+	mux.HandleFunc("/api/v3/movie", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode([]map[string]any{
+			{"id": 1, "title": "Fight Club", "year": 1999, "tmdbId": 550, "monitored": true, "qualityProfileId": 1, "rootFolderPath": "/movies"},
+		})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	movies := &migrateMoviesStub{}
+	scan := &scannerStub{}
+	ss := session.NewStore(0)
+	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
+	h.ArrHTTPClient = srv.Client()
+	h.MigrateMovies = movies
+	h.MigrateScanner = scan
+	h.ResolveProfileID = func(context.Context, string) string { return "qp_hd" }
+
+	form := "service=radarr&base_url=" + srv.URL + "&api_key=k"
+	r := httptest.NewRequest(http.MethodPost, "/migrate", strings.NewReader(form))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	r.RemoteAddr = "127.0.0.1:1"
+	w := httptest.NewRecorder()
+	h.MigratePost(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d", w.Code)
+	}
+	if movies.n != 1 || scan.rootsCalls != 1 {
+		t.Fatalf("imports=%d scans=%d", movies.n, scan.rootsCalls)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, `data-testid="migrate-scan"`) || !strings.Contains(body, "found=1 imported=1") {
+		t.Fatalf("expected scan note: %s", truncate(body, 600))
+	}
 }
 
 func TestMigrateRouteAndNav(t *testing.T) {
@@ -115,6 +158,11 @@ func TestMigrateRouteAndNav(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("expected Migrate nav link")
+	}
+	for _, l := range staticNavLinks {
+		if l.Path == "/migrate" && l.Group != "Library" {
+			t.Fatalf("expected Migrate in Library nav, got %q", l.Group)
+		}
 	}
 	ss := session.NewStore(0)
 	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
