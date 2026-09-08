@@ -28,15 +28,18 @@ type MigrateResultView struct {
 	Skipped  int
 	Errors   []string
 	Items    []MigrateItemRow
+	ScanNote string
 }
 
 type MigratePageData struct {
-	Service string
-	BaseURL string
-	APIKey  string
-	DryRun  bool
-	Error   string
-	Result  *MigrateResultView
+	Service   string
+	BaseURL   string
+	APIKey    string
+	DryRun    bool
+	RemapFrom string
+	RemapTo   string
+	Error     string
+	Result    *MigrateResultView
 }
 
 func MigratePage(data MigratePageData) templ.Component {
@@ -147,6 +150,25 @@ func MigratePage(data MigratePageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, " fetched</p>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			if data.Result.ScanNote != "" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<p class=\"text-gray-200\" data-testid=\"migrate-scan\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_VarScan string
+				templ_7745c5c3_VarScan, templ_7745c5c3_Err = templ.JoinStringErrs(data.Result.ScanNote)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/migrate.templ`, Line: 57, Col: 88}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_VarScan))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -264,7 +286,33 @@ func MigratePage(data MigratePageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "> Dry run (list only, do not add)</label></div></div><div class=\"flex gap-2\"><button type=\"submit\" class=\"rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500\" data-testid=\"migrate-submit\">Run migrate</button></div></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "> Dry run (list only, do not add)</label></div></div><div class=\"grid gap-3 sm:grid-cols-2\" data-testid=\"migrate-remap\"><div><label class=\"block text-xs text-gray-500 mb-1\">Arr root prefix (optional)</label> <input type=\"text\" name=\"remap_from\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_VarRemapFrom string
+		templ_7745c5c3_VarRemapFrom, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.RemapFrom)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/migrate.templ`, Line: 131, Col: 29}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_VarRemapFrom)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "\" placeholder=\"/data/media/movies\" class=\"w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm\"></div><div><label class=\"block text-xs text-gray-500 mb-1\">MuxCore library root (optional)</label> <input type=\"text\" name=\"remap_to\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_VarRemapTo string
+		templ_7745c5c3_VarRemapTo, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.RemapTo)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/migrate.templ`, Line: 141, Col: 27}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_VarRemapTo)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "\" placeholder=\"/library/movies\" class=\"w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm\"></div></div><p class=\"text-xs text-gray-500\">Rewrite Arr folder paths onto this host. Leave the prefix empty to place every title under the MuxCore root.</p><div class=\"flex gap-2\"><button type=\"submit\" class=\"rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500\" data-testid=\"migrate-submit\">Run migrate</button></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

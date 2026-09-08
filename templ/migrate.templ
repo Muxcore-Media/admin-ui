@@ -20,15 +20,18 @@ type MigrateResultView struct {
 	Skipped  int
 	Errors   []string
 	Items    []MigrateItemRow
+	ScanNote string
 }
 
 type MigratePageData struct {
-	Service string
-	BaseURL string
-	APIKey  string
-	DryRun  bool
-	Error   string
-	Result  *MigrateResultView
+	Service   string
+	BaseURL   string
+	APIKey    string
+	DryRun    bool
+	RemapFrom string
+	RemapTo   string
+	Error     string
+	Result    *MigrateResultView
 }
 
 templ MigratePage(data MigratePageData) {
@@ -52,6 +55,9 @@ templ MigratePage(data MigratePageData) {
 						skipped { strconv.Itoa(data.Result.Skipped) }
 						of { strconv.Itoa(data.Result.Fetched) } fetched
 					</p>
+				}
+				if data.Result.ScanNote != "" {
+					<p class="text-gray-200" data-testid="migrate-scan">{ data.Result.ScanNote }</p>
 				}
 				if len(data.Result.Errors) > 0 {
 					<div class="mt-2 text-amber-300" data-testid="migrate-errors">
@@ -117,6 +123,31 @@ templ MigratePage(data MigratePageData) {
 					</label>
 				</div>
 			</div>
+			<div class="grid gap-3 sm:grid-cols-2" data-testid="migrate-remap">
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">Arr root prefix (optional)</label>
+					<input
+						type="text"
+						name="remap_from"
+						value={ data.RemapFrom }
+						placeholder="/data/media/movies"
+						class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+					/>
+				</div>
+				<div>
+					<label class="block text-xs text-gray-500 mb-1">MuxCore library root (optional)</label>
+					<input
+						type="text"
+						name="remap_to"
+						value={ data.RemapTo }
+						placeholder="/library/movies"
+						class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
+					/>
+				</div>
+			</div>
+			<p class="text-xs text-gray-500">
+				Rewrite Arr folder paths onto this host. Leave the prefix empty to place every title under the MuxCore root.
+			</p>
 			<div class="flex gap-2">
 				<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500" data-testid="migrate-submit">
 					Run migrate

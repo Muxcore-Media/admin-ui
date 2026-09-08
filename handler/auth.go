@@ -48,12 +48,14 @@ var staticNavLinks = []templates.NavLink{
 	// Library — paths, naming, and quality setup
 	{Label: "Root Folders", Path: "/roots", Icon: "folder", Group: "Library"},
 	{Label: "Library Scan", Path: "/library-scan", Icon: "repeat", Group: "Library"},
+	{Label: "Migrate", Path: "/migrate", Icon: "swap", Group: "Library"},
 	{Label: "Naming", Path: "/rename/templates", Icon: "pencil", Group: "Library"},
 	{Label: "Metadata", Path: "/metadata", Icon: "tag", Group: "Library"},
 	{Label: "Formats", Path: "/formats", Icon: "sliders", Group: "Library"},
 	{Label: "Music", Path: "/music", Icon: "music", Group: "Library"},
 	{Label: "Music Wanted", Path: "/music/wanted", Icon: "alert-circle", Group: "Library"},
 	{Label: "Tagging", Path: "/tagging", Icon: "tags", Group: "Library"},
+	{Label: "AI", Path: "/ai", Icon: "sparkles", Group: "Library"},
 	{Label: "Profiles", Path: "/formats/profiles", Icon: "award", Group: "Library"},
 	{Label: "Release Profiles", Path: "/formats/release-profiles", Icon: "badge", Group: "Library"},
 
@@ -91,7 +93,6 @@ var staticNavLinks = []templates.NavLink{
 	{Label: "Storage", Path: "/storage", Icon: "hard-drive", Group: "Advanced"},
 	{Label: "Devices", Path: "/devices", Icon: "smartphone", Group: "Advanced"},
 	{Label: "Auth / SSO", Path: "/auth", Icon: "key", Group: "Advanced"},
-	{Label: "Migrate", Path: "/migrate", Icon: "swap", Group: "Advanced"},
 	{Label: "Maintainer", Path: "/maintainer", Icon: "wrench", Group: "Advanced"},
 }
 

@@ -14,6 +14,7 @@ import (
 
 	"github.com/Muxcore-Media/admin-ui/arrmigrate"
 	templates "github.com/Muxcore-Media/admin-ui/templ"
+	scannerv1 "github.com/Muxcore-Media/contracts-scanner/muxcore/scanner/v1"
 	mgmntv1 "github.com/Muxcore-Media/media-movies/proto/mgmntv1"
 	musicv1 "github.com/Muxcore-Media/media-music/proto/gen/muxcore/music/v1"
 	tvmgmtv1 "github.com/Muxcore-Media/media-tvshows/proto/tvmgmtv1"
@@ -210,10 +211,12 @@ func (h *Handler) MigratePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := templates.MigratePageData{
-		Service: strings.ToLower(strings.TrimSpace(r.FormValue("service"))),
-		BaseURL: strings.TrimSpace(r.FormValue("base_url")),
-		APIKey:  strings.TrimSpace(r.FormValue("api_key")),
-		DryRun:  r.FormValue("dry_run") == "1",
+		Service:   strings.ToLower(strings.TrimSpace(r.FormValue("service"))),
+		BaseURL:   strings.TrimSpace(r.FormValue("base_url")),
+		APIKey:    strings.TrimSpace(r.FormValue("api_key")),
+		DryRun:    r.FormValue("dry_run") == "1",
+		RemapFrom: strings.TrimSpace(r.FormValue("remap_from")),
+		RemapTo:   strings.TrimSpace(r.FormValue("remap_to")),
 	}
 	if data.Service == "" {
 		data.Service = "radarr"
@@ -237,6 +240,7 @@ func (h *Handler) MigratePost(w http.ResponseWriter, r *http.Request) {
 		h.render(w, r, templates.Layout("Arr Migrate", h.nav("/migrate"), templates.MigratePage(data)))
 		return
 	}
+	items = arrmigrate.RemapItems(items, data.RemapFrom, data.RemapTo)
 
 	resolveCtx, resolveCancel := context.WithTimeout(pageCtx, migrateResolveTimeout)
 	movies, tv, music, closer, resolveErr := h.resolveMigrateImporters(resolveCtx)
@@ -254,6 +258,9 @@ func (h *Handler) MigratePost(w http.ResponseWriter, r *http.Request) {
 
 	res := arrmigrate.Run(pageCtx, items, data.DryRun, movies, tv, music, h.resolveProfileByName)
 	data.Result = migrateResultToView(res)
+	if !data.DryRun && data.Result != nil {
+		data.Result.ScanNote = h.scanLibraryAfterMigrate(pageCtx)
+	}
 	if sess := SessionFromContext(r.Context()); sess != nil && !data.DryRun {
 		h.auditLog(r.Context(), sess.UserID, "admin.migrate.arr", "migrate", data.Service, map[string]string{
 			"fetched":  fmt.Sprintf("%d", res.Fetched),
@@ -292,4 +299,32 @@ func migrateResultToView(res arrmigrate.Result) *templates.MigrateResultView {
 		})
 	}
 	return v
+}
+
+func (h *Handler) scanLibraryAfterMigrate(ctx context.Context) string {
+	scanCtx, scanCancel := context.WithTimeout(ctx, scannerScanTimeout)
+	defer scanCancel()
+	if h.MigrateScanner != nil {
+		resp, err := h.MigrateScanner.ScanLibraryRoots(scanCtx, &scannerv1.ScanLibraryRootsRequest{})
+		if err != nil {
+			slog.Warn("arr migrate: library scan failed", "error", err)
+			return "Library scan failed — " + err.Error()
+		}
+		return fmt.Sprintf("Library scan complete — found=%d imported=%d skipped=%d",
+			resp.GetFilesFound(), resp.GetFilesImported(), resp.GetFilesSkipped())
+	}
+	dialCtx, dialCancel := context.WithTimeout(ctx, scannerDialTimeout)
+	client, closer, err := h.withScannerClient(dialCtx)
+	dialCancel()
+	if err != nil {
+		return "Library scan skipped — " + err.Error()
+	}
+	defer closer()
+	resp, err := client.ScanLibraryRoots(scanCtx, &scannerv1.ScanLibraryRootsRequest{})
+	if err != nil {
+		slog.Warn("arr migrate: library scan failed", "error", err)
+		return "Library scan failed — " + err.Error()
+	}
+	return fmt.Sprintf("Library scan complete — found=%d imported=%d skipped=%d",
+		resp.GetFilesFound(), resp.GetFilesImported(), resp.GetFilesSkipped())
 }
