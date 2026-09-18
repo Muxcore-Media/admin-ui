@@ -21,7 +21,7 @@ const (
 	capMediaTranscoderAdmin  = "media.transcoder"
 	transcodeDialTimeout     = 3 * time.Second
 	transcodeReadTimeout     = 5 * time.Second
-	transcodePageTimeout     = transcodeDialTimeout + 5*transcodeReadTimeout + time.Second
+	transcodePageTimeout     = transcodeDialTimeout + 7*transcodeReadTimeout + time.Second
 	transcodeEditPageTimeout = transcodeDialTimeout + transcodeReadTimeout + time.Second
 )
 
@@ -71,11 +71,29 @@ func (h *Handler) TranscodePage(w http.ResponseWriter, r *http.Request) {
 	defer closer()
 
 	readCtx, readCancel := context.WithTimeout(pageCtx, transcodeReadTimeout)
+	jobs, err := client.ListJobs(readCtx, &transcodev1.ListJobsRequest{Page: 1, PageSize: 50, Status: "all"})
+	readCancel()
+	if err == nil {
+		for _, j := range jobs.GetJobs() {
+			data.Jobs = append(data.Jobs, mapJobRow(j))
+		}
+	}
+
+	readCtx, readCancel = context.WithTimeout(pageCtx, transcodeReadTimeout)
 	profs, err := client.ListProfiles(readCtx, &transcodev1.ListProfilesRequest{})
 	readCancel()
 	if err == nil {
 		for _, p := range profs.GetProfiles() {
-			data.Profiles = append(data.Profiles, templates.TranscodeProfileRow{ID: p.GetId(), Name: p.GetName()})
+			data.Profiles = append(data.Profiles, mapProfileRow(p))
+		}
+	}
+
+	readCtx, readCancel = context.WithTimeout(pageCtx, transcodeReadTimeout)
+	hw, err := client.DetectHardware(readCtx, &transcodev1.DetectHardwareRequest{})
+	readCancel()
+	if err == nil {
+		for _, d := range hw.GetDevices() {
+			data.Hardware = append(data.Hardware, mapHardwareRow(d))
 		}
 	}
 
@@ -169,7 +187,7 @@ func (h *Handler) TranscodeEditPage(w http.ResponseWriter, r *http.Request) {
 		readCancel()
 		if err == nil {
 			for _, p := range profs.GetProfiles() {
-				data.Profiles = append(data.Profiles, templates.TranscodeProfileRow{ID: p.GetId(), Name: p.GetName()})
+				data.Profiles = append(data.Profiles, mapProfileRow(p))
 			}
 		}
 	}
@@ -214,6 +232,27 @@ func (h *Handler) TranscodeDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/transcode?ok=deleted", http.StatusSeeOther)
+}
+
+func (h *Handler) TranscodeCancelJob(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		http.Redirect(w, r, "/transcode?error="+url.QueryEscape("job id required"), http.StatusSeeOther)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), transcodeReadTimeout)
+	defer cancel()
+	client, closer, err := h.withTranscoderClient(ctx)
+	if err != nil {
+		http.Redirect(w, r, "/transcode?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	defer closer()
+	if _, err := client.CancelJob(ctx, &transcodev1.CancelJobRequest{JobId: id}); err != nil {
+		http.Redirect(w, r, "/transcode?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/transcode?ok=cancelled", http.StatusSeeOther)
 }
 
 func (h *Handler) TranscodeScan(w http.ResponseWriter, r *http.Request) {
@@ -310,7 +349,31 @@ func mapPipelineRunRow(run *transcodev1.PipelineRun) templates.TranscodePipeline
 func (h *Handler) renderTranscode(w http.ResponseWriter, r *http.Request, data templates.TranscodePageData) {
 	content := templates.TranscodeAdminPage(data)
 	nav := h.nav(r.URL.Path)
-	h.render(w, r, templates.Layout("Transcode", nav, content))
+	h.render(w, r, templates.Layout("Transcoder", nav, content))
+}
+
+func mapProfileRow(p *transcodev1.TranscodeProfile) templates.TranscodeProfileRow {
+	return templates.TranscodeProfileRow{
+		ID: p.GetId(), Name: p.GetName(), VideoCodec: p.GetVideoCodec(),
+		AudioCodec: p.GetAudioCodec(), Preset: p.GetPreset(), UseGPU: p.GetUseGpu(),
+		Container: p.GetContainer(),
+	}
+}
+
+func mapJobRow(j *transcodev1.TranscodeJob) templates.TranscodeJobRow {
+	st := strings.ToLower(j.GetStatus())
+	return templates.TranscodeJobRow{
+		ID: j.GetId(), InputPath: j.GetInputPath(), ProfileName: j.GetProfileName(),
+		Status: j.GetStatus(), ProgressPct: fmt.Sprintf("%.0f%%", j.GetProgress()*100),
+		Error: j.GetError(), CreatedAt: j.GetCreatedAt(),
+		Cancellable: st == "queued" || st == "running",
+	}
+}
+
+func mapHardwareRow(d *transcodev1.HardwareDevice) templates.TranscodeHardwareRow {
+	return templates.TranscodeHardwareRow{
+		Name: d.GetName(), Type: d.GetType(), Encoder: d.GetEncoder(), Available: d.GetAvailable(),
+	}
 }
 
 func mapSetupRow(s *transcodev1.TranscodeSetup) templates.TranscodeSetupRow {

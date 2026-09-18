@@ -3,8 +3,31 @@ package templates
 import "fmt"
 
 type TranscodeProfileRow struct {
-	ID   string
-	Name string
+	ID         string
+	Name       string
+	VideoCodec string
+	AudioCodec string
+	Preset     string
+	UseGPU     bool
+	Container  string
+}
+
+type TranscodeJobRow struct {
+	ID           string
+	InputPath    string
+	ProfileName  string
+	Status       string
+	ProgressPct  string
+	Error        string
+	CreatedAt    string
+	Cancellable  bool
+}
+
+type TranscodeHardwareRow struct {
+	Name      string
+	Type      string
+	Encoder   string
+	Available bool
 }
 
 type TranscodeStepTemplateRow struct {
@@ -55,24 +78,26 @@ type TranscodePipelineRunRow struct {
 
 type TranscodePageData struct {
 	Profiles      []TranscodeProfileRow
+	Jobs          []TranscodeJobRow
+	Hardware      []TranscodeHardwareRow
 	StepTemplates []TranscodeStepTemplateRow
 	Setups        []TranscodeSetupRow
-	Runs         []TranscodePipelineRunRow
-	ReviewRuns   []TranscodePipelineRunRow
-	Edit         *TranscodeSetupRow
-	FlowInitJSON string
-	Flash        string
-	Error        string
-	SoftEmpty    bool
+	Runs          []TranscodePipelineRunRow
+	ReviewRuns    []TranscodePipelineRunRow
+	Edit          *TranscodeSetupRow
+	FlowInitJSON  string
+	Flash         string
+	Error         string
+	SoftEmpty     bool
 }
 
 templ TranscodeAdminPage(data TranscodePageData) {
 	<div class="space-y-6 max-w-6xl" data-testid="transcode-page">
 		<div class="flex flex-wrap items-end justify-between gap-3">
 			<div>
-				<h1 class="text-2xl font-bold">Transcode</h1>
+				<h1 class="text-2xl font-bold">Transcoder</h1>
 				<p class="text-gray-400 text-sm mt-1">
-					Automated media conversion: pipeline flows, output profiles, filters, and source handling.
+					Encode jobs, profiles, and hardware — plus pipeline setups when you need them.
 				</p>
 			</div>
 			<div class="flex flex-wrap gap-2">
@@ -84,7 +109,7 @@ templ TranscodeAdminPage(data TranscodePageData) {
 		</div>
 		if data.SoftEmpty {
 			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400" data-testid="transcode-soft-empty">
-				media-transcoder not registered — configure setups when the module is online.
+				media-transcoder not registered — deploy the module to see encode jobs, profiles, and hardware.
 			</div>
 		}
 		if data.Flash != "" {
@@ -92,6 +117,113 @@ templ TranscodeAdminPage(data TranscodePageData) {
 		}
 		if data.Error != "" {
 			<div class="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-2 text-sm text-red-300">{ data.Error }</div>
+		}
+		if !data.SoftEmpty {
+			<div class="rounded-xl border border-gray-800 overflow-hidden" data-testid="transcode-jobs">
+				<div class="border-b border-gray-800 bg-gray-900/50 px-4 py-3 text-sm font-semibold text-gray-300">Jobs</div>
+				if len(data.Jobs) == 0 {
+					<div class="px-4 py-6 text-sm text-gray-500" data-testid="transcode-jobs-empty">No transcode jobs.</div>
+				} else {
+					<table class="w-full text-sm">
+						<thead>
+							<tr class="border-b border-gray-800 bg-gray-900/30">
+								<th class="text-left px-4 py-2 text-xs text-gray-500 uppercase" scope="col">Input</th>
+								<th class="text-left px-4 py-2 text-xs text-gray-500 uppercase" scope="col">Profile</th>
+								<th class="text-left px-4 py-2 text-xs text-gray-500 uppercase" scope="col">Status</th>
+								<th class="text-left px-4 py-2 text-xs text-gray-500 uppercase" scope="col">Progress</th>
+								<th class="text-left px-4 py-2 text-xs text-gray-500 uppercase" scope="col">Action</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, j := range data.Jobs {
+								<tr>
+									<td class="px-4 py-2 font-mono text-xs text-gray-400 truncate max-w-xs">{ j.InputPath }</td>
+									<td class="px-4 py-2 text-gray-300">{ j.ProfileName }</td>
+									<td class="px-4 py-2 text-gray-300">{ j.Status }</td>
+									<td class="px-4 py-2 text-gray-300">{ j.ProgressPct }</td>
+									<td class="px-4 py-2">
+										if j.Cancellable {
+											<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/transcode/jobs/%s/cancel", j.ID)) }>
+												<button type="submit" class="text-sm text-amber-300 hover:text-amber-200">Cancel</button>
+											</form>
+										} else if j.Error != "" {
+											<span class="text-xs text-red-400">{ j.Error }</span>
+										}
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				}
+			</div>
+			<div class="rounded-xl border border-gray-800 overflow-hidden" data-testid="transcode-profiles">
+				<div class="border-b border-gray-800 bg-gray-900/50 px-4 py-3 text-sm font-semibold text-gray-300">Profiles</div>
+				if len(data.Profiles) == 0 {
+					<div class="px-4 py-6 text-sm text-gray-500">No encode profiles.</div>
+				} else {
+					<table class="w-full text-sm">
+						<thead>
+							<tr class="border-b border-gray-800 bg-gray-900/30">
+								<th class="text-left px-4 py-2 text-xs text-gray-500 uppercase" scope="col">Name</th>
+								<th class="text-left px-4 py-2 text-xs text-gray-500 uppercase" scope="col">Video</th>
+								<th class="text-left px-4 py-2 text-xs text-gray-500 uppercase" scope="col">Audio</th>
+								<th class="text-left px-4 py-2 text-xs text-gray-500 uppercase" scope="col">GPU</th>
+								<th class="text-left px-4 py-2 text-xs text-gray-500 uppercase" scope="col">Container</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, p := range data.Profiles {
+								<tr>
+									<td class="px-4 py-2 text-gray-200">{ p.Name }</td>
+									<td class="px-4 py-2 font-mono text-xs text-gray-400">{ p.VideoCodec }</td>
+									<td class="px-4 py-2 font-mono text-xs text-gray-400">{ p.AudioCodec }</td>
+									<td class="px-4 py-2 text-gray-300">
+										if p.UseGPU {
+											<span>GPU</span>
+										} else {
+											<span>CPU</span>
+										}
+									</td>
+									<td class="px-4 py-2 font-mono text-xs text-gray-400">{ p.Container }</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				}
+			</div>
+			<div class="rounded-xl border border-gray-800 overflow-hidden" data-testid="transcode-hardware">
+				<div class="border-b border-gray-800 bg-gray-900/50 px-4 py-3 text-sm font-semibold text-gray-300">Hardware</div>
+				if len(data.Hardware) == 0 {
+					<div class="px-4 py-6 text-sm text-gray-500" data-testid="transcode-hardware-empty">No hardware accelerators detected.</div>
+				} else {
+					<table class="w-full text-sm">
+						<thead>
+							<tr class="border-b border-gray-800 bg-gray-900/30">
+								<th class="text-left px-4 py-2 text-xs text-gray-500 uppercase" scope="col">Device</th>
+								<th class="text-left px-4 py-2 text-xs text-gray-500 uppercase" scope="col">Type</th>
+								<th class="text-left px-4 py-2 text-xs text-gray-500 uppercase" scope="col">Encoder</th>
+								<th class="text-left px-4 py-2 text-xs text-gray-500 uppercase" scope="col">Available</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, d := range data.Hardware {
+								<tr>
+									<td class="px-4 py-2 text-gray-200">{ d.Name }</td>
+									<td class="px-4 py-2 font-mono text-xs text-gray-400">{ d.Type }</td>
+									<td class="px-4 py-2 font-mono text-xs text-gray-400">{ d.Encoder }</td>
+									<td class="px-4 py-2 text-gray-300">
+										if d.Available {
+											<span>yes</span>
+										} else {
+											<span>no</span>
+										}
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				}
+			</div>
 		}
 		if data.Edit != nil {
 			@TranscodeSetupForm(data)
@@ -187,16 +319,6 @@ templ TranscodeAdminPage(data TranscodePageData) {
 				</table>
 			}
 		</div>
-		if len(data.Profiles) > 0 {
-			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
-				<h2 class="text-sm font-semibold text-gray-300 mb-2">Transcode profiles</h2>
-				<div class="flex flex-wrap gap-2 text-xs text-gray-400">
-					for _, p := range data.Profiles {
-						<span class="rounded border border-gray-700 px-2 py-1 font-mono">{ p.Name } ({ p.ID })</span>
-					}
-				</div>
-			</div>
-		}
 	</div>
 }
 

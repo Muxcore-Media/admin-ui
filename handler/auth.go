@@ -72,7 +72,7 @@ var staticNavLinks = []templates.NavLink{
 	{Label: "Now Playing", Path: "/now-playing", Icon: "radio", Group: "Playback"},
 	{Label: "Streams", Path: "/streams", Icon: "monitor", Group: "Playback"},
 	{Label: "Watch Stats", Path: "/watchstats", Icon: "bar-chart", Group: "Playback"},
-	{Label: "Transcode", Path: "/transcode", Icon: "film", Group: "Playback"},
+	{Label: "Transcoder", Path: "/transcode", Icon: "film", Group: "Playback"},
 	{Label: "Playback", Path: "/playback", Icon: "play", Group: "Playback"},
 	{Label: "Live TV", Path: "/livetv", Icon: "tv", Group: "Playback"},
 	{Label: "Jellyfin", Path: "/jellyfin", Icon: "server", Group: "Playback"},

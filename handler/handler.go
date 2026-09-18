@@ -374,6 +374,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /streams/map/data", h.requireAuth(h.StreamsMapData))
 	mux.HandleFunc("GET /transcode", h.requireAuth(h.TranscodePage))
 	mux.HandleFunc("GET /transcode/edit", h.requireAuth(h.TranscodeEditPage))
+	mux.HandleFunc("POST /transcode/jobs/{id}/cancel", h.requireAuth(h.TranscodeCancelJob))
 	mux.HandleFunc("POST /transcode/save", h.requireAuth(h.TranscodeSave))
 	mux.HandleFunc("POST /transcode/delete/{id}", h.requireAuth(h.TranscodeDelete))
 	mux.HandleFunc("POST /transcode/scan", h.requireAuth(h.TranscodeScan))

@@ -23,8 +23,8 @@ func TestTranscodeTimeoutsBound(t *testing.T) {
 	if transcodeReadTimeout != 5*time.Second {
 		t.Fatalf("transcodeReadTimeout: got %v, want 5s", transcodeReadTimeout)
 	}
-	if transcodePageTimeout < transcodeDialTimeout+transcodeReadTimeout {
-		t.Fatal("transcode page budget must cover dial + at least one read")
+	if transcodePageTimeout < transcodeDialTimeout+7*transcodeReadTimeout {
+		t.Fatal("transcode page budget must cover dial + jobs/profiles/hardware/setups/runs reads")
 	}
 	if transcodeEditPageTimeout < transcodeDialTimeout+transcodeReadTimeout {
 		t.Fatal("transcode edit page budget must cover dial + read")
