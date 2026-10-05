@@ -21,6 +21,7 @@ import (
 
 	"github.com/Muxcore-Media/core/sdk/go/client"
 	modulesdk "github.com/Muxcore-Media/core/sdk/go/module"
+	"github.com/Muxcore-Media/core/sdk/go/module/meshid"
 
 	"github.com/Muxcore-Media/admin-ui/handler"
 	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
@@ -146,6 +147,17 @@ func Main(v string) {
 
 	var coreClient *client.Client
 	var coreConnected bool
+
+	// Mesh identity (ADR-0017) before meshdial loads its process-wide config:
+	// meshid exports the MUXCORE_TLS_* every dial reads. Without one, no mesh
+	// call can succeed in the household profile, so exit and let the
+	// supervisor restart (and retry enrollment) as SDK modules do.
+	if ids, err := ensureMeshIdentity(context.Background(), meshid.Ensure, os.Getenv, cfg.CoreAddr); err != nil {
+		slog.Error("admin-ui cannot start without a mesh identity", "error", err)
+		os.Exit(1)
+	} else if ids.Cert != "" {
+		slog.Info("mesh identity", "cert", ids.Cert, "enrolled", ids.Enrolled)
+	}
 
 	// Mesh transport security (NFR-SEC-003): TLS unless
 	// MUXCORE_INSECURE_DISABLE_TLS=true (dev profile), logged once here.

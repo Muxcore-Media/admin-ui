@@ -5,6 +5,12 @@ All notable changes to the MuxCore Admin UI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.20] - 2026-10-05
+
+
+### Security
+- Mesh identity at startup (ADR-0017, T-M3-02g): admin-ui calls `sdk/go/module/meshid.Ensure` (module ID `MUXCORE_MODULE_ID`, default `admin-ui`; core address `ADMIN_UI_CORE_ADDR`) before its first gRPC dial. It reuses `MUXCORE_TLS_CERT`/`KEY` or the identity stored in `MUXCORE_TLS_DIR`, or enrolls with `MUXCORE_BOOTSTRAP_TOKEN`; the exported `MUXCORE_TLS_*` are what `internal/meshdial` uses for every dial to core and peer modules. Without an identity in the household profile admin-ui exits (the supervisor restarts it). Insecure dev mode (`MUXCORE_INSECURE_DISABLE_TLS`, legacy `ADMIN_UI_INSECURE`/`MUXCORE_DEV_TLS_SKIP`) skips it; the insecure flag with `MUXCORE_PROFILE=household` is fatal.
+
 ## [0.1.19] - 2026-10-05
 
 ### Changed
