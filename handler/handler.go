@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
 
@@ -606,6 +607,9 @@ func SessionFromContext(ctx context.Context) *session.Session {
 
 // auditLog writes an audit entry asynchronously. Errors are logged but not returned
 // to avoid blocking the request flow.
+// auditLogTimeout bounds each asynchronous audit write.
+const auditLogTimeout = 5 * time.Second
+
 func (h *Handler) auditLog(ctx context.Context, actor, action, resource, resourceID string, details map[string]string) {
 	if h.AuditHook != nil {
 		h.AuditHook(actor, action, resource, resourceID, details)
@@ -613,12 +617,18 @@ func (h *Handler) auditLog(ctx context.Context, actor, action, resource, resourc
 	if h.Core == nil || h.Core.Audit == nil {
 		return
 	}
+	// The write is asynchronous and must outlive the HTTP request: detach from
+	// request cancellation (keeping values such as trace id and outgoing
+	// metadata) and bound it with its own timeout.
+	detached := context.WithoutCancel(ctx)
 	go func() {
+		callCtx, cancel := context.WithTimeout(detached, auditLogTimeout)
+		defer cancel()
 		traceID := ""
-		if tid, ok := ctx.Value("trace_id").(string); ok {
+		if tid, ok := detached.Value("trace_id").(string); ok {
 			traceID = tid
 		}
-		if _, err := h.Core.Audit.Log(ctx, actor, action, resource, resourceID, traceID, details); err != nil {
+		if _, err := h.Core.Audit.Log(callCtx, actor, action, resource, resourceID, traceID, details); err != nil {
 			slog.Warn("audit log failed", "action", action, "error", err)
 		}
 	}()
