@@ -10,8 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
 
 	subtv1 "github.com/Muxcore-Media/media-subtitles/proto/subtv1"
 
@@ -48,7 +47,7 @@ func (h *Handler) withSubtitlesClient(ctx context.Context) (subtv1.SubtitleServi
 	if addr == "" {
 		return nil, nil, fmt.Errorf("subtitles module has no dial address")
 	}
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := meshdial.NewClient(addr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("dial %s: %w", addr, err)
 	}

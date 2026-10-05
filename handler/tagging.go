@@ -12,8 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
 
 	meshv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/mesh/v1"
 
@@ -73,7 +72,7 @@ func (h *Handler) taggingModule(ctx context.Context) (id, grpcAddr, name string,
 
 func (h *Handler) taggingMeshCall(ctx context.Context, moduleID, httpAddr, method string, payload []byte) ([]byte, error) {
 	if httpAddr != "" {
-		conn, err := grpc.NewClient(httpAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := meshdial.NewClient(httpAddr)
 		if err == nil {
 			defer func() { _ = conn.Close() }()
 			client := meshv1.NewModuleMeshClient(conn)

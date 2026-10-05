@@ -9,8 +9,7 @@ import (
 	"net/http"
 	"sync"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
 
 	authv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/auth/v1"
 	discoveryv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/discovery/v1"
@@ -545,7 +544,7 @@ func (h *Handler) checkAuthorized(ctx context.Context, sess *session.Session) er
 		return fmt.Errorf("authorizer has no gRPC address")
 	}
 
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := meshdial.NewClient(addr)
 	if err != nil {
 		return fmt.Errorf("dial authorizer %s: %w", addr, err)
 	}

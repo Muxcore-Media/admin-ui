@@ -28,22 +28,22 @@ func (h *Handler) DevicesPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DevicesRevoke(w http.ResponseWriter, r *http.Request) {
-	token := r.PathValue("token")
-	if token != "" && h.Sessions != nil {
-		h.Sessions.Revoke(token)
+	id := r.PathValue("token") // session ID (hash), not the bearer
+	if id != "" && h.Sessions != nil {
+		h.Sessions.RevokeByID(id)
 	}
 	http.Redirect(w, r, "/devices", http.StatusSeeOther)
 }
 
 func (h *Handler) DevicesRename(w http.ResponseWriter, r *http.Request) {
-	token := r.PathValue("token")
+	id := r.PathValue("token") // session ID (hash), not the bearer
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	label := r.FormValue("label")
-	if token != "" && h.Sessions != nil {
-		h.Sessions.RenameSession(token, label)
+	if id != "" && h.Sessions != nil {
+		h.Sessions.RenameByID(id, label)
 	}
 	http.Redirect(w, r, "/devices", http.StatusSeeOther)
 }

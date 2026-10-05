@@ -9,8 +9,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
+
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
 	mgmntv1 "github.com/Muxcore-Media/media-movies/proto/mgmntv1"
@@ -20,7 +21,7 @@ import (
 )
 
 func (h *Handler) dialMovieModule(addr string) (*grpc.ClientConn, mgmntv1.MovieManagementServiceClient, error) {
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := meshdial.NewClient(addr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("dial %s: %w", addr, err)
 	}
@@ -85,7 +86,7 @@ func (h *Handler) MediaFileDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) dialTVModule(addr string) (*grpc.ClientConn, tvmgmtv1.TvManagementServiceClient, error) {
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := meshdial.NewClient(addr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("dial %s: %w", addr, err)
 	}

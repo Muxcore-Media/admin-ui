@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
+
 	spoolv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/spool/v1"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
@@ -144,7 +144,7 @@ func (h *Handler) initSpoolAPI() {
 		return
 	}
 	if h.Core != nil && h.coreConnected {
-		conn, err := grpc.NewClient(h.Core.CurrentAddr(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := meshdial.NewClient(h.Core.CurrentAddr())
 		if err == nil {
 			h.Spool = &grpcSpoolAPI{client: spoolv1.NewSpoolServiceClient(conn)}
 			return

@@ -18,7 +18,7 @@ make build
 
 # Run against a local muxcored (dev mode, no TLS)
 export ADMIN_UI_CORE_ADDR=localhost:9090
-export ADMIN_UI_INSECURE=true
+export MUXCORE_INSECURE_DISABLE_TLS=true
 ./admin-ui
 # → Listening on :8080
 ```
@@ -45,7 +45,10 @@ All configuration is via environment variables:
 |----------|---------|-------------|
 | `ADMIN_UI_ADDR` | `:8080` | HTTP listen address |
 | `ADMIN_UI_CORE_ADDR` | `localhost:9090` | Core gRPC address |
-| `ADMIN_UI_INSECURE` | `false` | Disable TLS for core gRPC (dev only) |
+| `MUXCORE_INSECURE_DISABLE_TLS` | `false` | `true`: plaintext mesh gRPC to core and modules (dev profile only; loud startup warning) |
+| `ADMIN_UI_INSECURE` | `false` | Deprecated alias of `MUXCORE_INSECURE_DISABLE_TLS` (also drops the `Secure` cookie flag when no HTTPS cert is set) |
+| `MUXCORE_TLS_CA` | system roots | PEM CA bundle used to verify core/module gRPC servers |
+| `MUXCORE_TLS_CERT` / `MUXCORE_TLS_KEY` | — | Optional client certificate for mesh mTLS (set both) |
 | `ADMIN_UI_AUTH_ADDR` | `http://localhost:9401` | Auth module base URL (login + code exchange) |
 | `ADMIN_UI_TLS_CERT` | — | TLS cert file path (enables HTTPS) |
 | `ADMIN_UI_TLS_KEY` | — | TLS key file path |
@@ -56,7 +59,9 @@ All configuration is via environment variables:
 | `ADMIN_UI_AUTH_INTERNAL_ADDR` | same as `ADMIN_UI_AUTH_ADDR` | Server-side auth base for OAuth code exchange (use LAN URL when browser uses public auth) |
 | `ADMIN_UI_PUBLIC_URL` | — | Public origin override for OAuth callbacks (e.g. `https://admin.zem.systems`) |
 | `ADMIN_UI_HEALTH_MONITOR_URL` | `http://127.0.0.1:9203` | Health-monitor HTTP base for dashboard panel |
-| `ADMIN_UI_DATA_DIR` | `$TMP/muxcore-admin-ui` or `MEDIA_UI_USERDATA_DIR` | Root for durable JSON state (branding, networking, sessions, …) |
+| `ADMIN_UI_DATA_DIR` | `MEDIA_UI_USERDATA_DIR`, else `$XDG_STATE_HOME/muxcore/admin-ui`, else `~/.local/state/muxcore/admin-ui` | Root for durable JSON state (branding, networking, sessions, …) |
+| `ADMIN_UI_SESSION_KEY` | generated `session.key` (0600) next to the session file | Key protecting session bearer material at rest (32 bytes base64/hex, or any passphrase → SHA-256) |
+| `ADMIN_UI_RESTORE_ROOT` | `BACKUP_RESTORE_DIR`, else `/data/restore` | Allow-listed root for backup restore targets (paths outside → 400) |
 | `ADMIN_UI_*_FILE` | under data dir | Per-artifact overrides: `BRANDING`, `NETWORKING`, `PARENTAL`, `LIVETV`, `PLAYBACK`, `PASSWORD_RESET`, `SESSION` |
 | `ADMIN_UI_USERDATA_URL` | mesh `userdata.local` | HTTP base for parental prefs sync to userdata-local |
 | `ADMIN_UI_METRICS_TOKEN` | — | When set, `/metrics` requires `Authorization: Bearer <token>` |

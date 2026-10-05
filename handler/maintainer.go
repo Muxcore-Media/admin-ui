@@ -10,8 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
 
 	maintainv1 "github.com/Muxcore-Media/media-library-maintainer/proto/maintainv1"
 
@@ -52,7 +51,7 @@ func (h *Handler) withMaintainerClient(pageCtx context.Context) (maintainv1.Main
 	if err != nil {
 		return nil, nil, err
 	}
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := meshdial.NewClient(addr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("dial %s: %w", addr, err)
 	}

@@ -11,8 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
 
 	listsyncv1 "github.com/Muxcore-Media/media-list-sync/proto/listsyncv1"
 
@@ -48,7 +47,7 @@ func (h *Handler) withListSyncClient(ctx context.Context) (listsyncv1.ListSyncSe
 	if err != nil {
 		return nil, nil, err
 	}
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := meshdial.NewClient(addr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("dial %s: %w", addr, err)
 	}

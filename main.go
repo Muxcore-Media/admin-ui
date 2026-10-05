@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"syscall"
@@ -21,6 +22,7 @@ import (
 	"github.com/Muxcore-Media/core/sdk/go/client"
 
 	"github.com/Muxcore-Media/admin-ui/handler"
+	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
 	"github.com/Muxcore-Media/admin-ui/session"
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
@@ -135,12 +137,14 @@ func Main(v string) {
 	var coreClient *client.Client
 	var coreConnected bool
 
-	var opts2 []client.Option
-	if cfg.Insecure {
-		opts2 = append(opts2, client.WithInsecure())
+	// Mesh transport security (NFR-SEC-003): TLS unless
+	// MUXCORE_INSECURE_DISABLE_TLS=true (dev profile), logged once here.
+	_ = meshdial.LogStartup(slog.Default())
+	var c *client.Client
+	dialOpt, err := meshdial.DialOption()
+	if err == nil {
+		c, err = client.Dial(cfg.CoreAddr, client.WithGRPCOption(dialOpt))
 	}
-
-	c, err := client.Dial(cfg.CoreAddr, opts2...)
 	if err != nil {
 		slog.Warn("core connection failed, starting in degraded mode", "error", err)
 	} else {
@@ -149,7 +153,10 @@ func Main(v string) {
 		slog.Info("connected to core", "addr", cfg.CoreAddr)
 	}
 
-	ss := session.NewFileStore(handler.SessionFilePath(), cfg.SessionTTL)
+	sessionPath := handler.SessionFilePath()
+	removeLegacySessionFile(sessionPath)
+	ss := session.NewFileStore(sessionPath, cfg.SessionTTL)
+	slog.Info("admin session store", "path", sessionPath)
 	loginRL := newRateLimiter()
 	met := newMetrics()
 	trustedProxies := parseTrustedProxiesCSV(cfg.TrustedProxies)
@@ -243,6 +250,19 @@ func Main(v string) {
 
 	if coreClient != nil {
 		_ = coreClient.Close()
+	}
+}
+
+// removeLegacySessionFile deletes the plaintext session file that earlier
+// releases kept under os.TempDir(); those sessions are not migrated (users
+// sign in again).
+func removeLegacySessionFile(current string) {
+	legacy := filepath.Join(handler.LegacyTempDataDir(), "sessions.json")
+	if filepath.Clean(current) == legacy {
+		return
+	}
+	if err := os.Remove(legacy); err == nil {
+		slog.Info("removed legacy plaintext session file; users must sign in again", "path", legacy)
 	}
 }
 

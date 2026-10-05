@@ -1,7 +1,7 @@
 {
   "name": "Admin UI",
   "description": "Web dashboard for MuxCore — modules, cluster, events, audit, media library, automation, and settings",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "author": "Muxcore Media",
   "roles": [
     "admin-ui"

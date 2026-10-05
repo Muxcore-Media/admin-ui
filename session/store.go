@@ -1,12 +1,14 @@
 package session
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type Session struct {
@@ -21,11 +23,15 @@ type Session struct {
 	ExpiresAt      time.Time
 }
 
+// Store keeps admin sessions keyed by the SHA-256 of the bearer token (the
+// session ID). Raw tokens are only ever held by the client cookie; neither the
+// in-memory map nor the persisted file contains them (NFR-SEC-005).
 type Store struct {
 	mu       sync.RWMutex
-	sessions map[string]*Session
+	sessions map[string]*Session // key: ID(token)
 	ttl      time.Duration
 	filePath string
+	aead     cipherAEAD
 }
 
 func NewStore(ttl time.Duration) *Store {
@@ -35,6 +41,21 @@ func NewStore(ttl time.Duration) *Store {
 	}
 	go s.cleanupLoop()
 	return s
+}
+
+// ID returns the stable, non-reversible identifier for a session token. It is
+// safe to render in UIs and to persist.
+func ID(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
+}
+
+func newToken() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
 func (s *Store) TTL() time.Duration {
@@ -57,10 +78,13 @@ func (s *Store) CreateWithTenant(userID, username, tenantID string, roles, permi
 		CreatedAt:   now,
 		ExpiresAt:   now.Add(s.ttl),
 	}
-	token := uuid.New().String()
+	token, err := newToken()
+	if err != nil {
+		return "", err
+	}
 
 	s.mu.Lock()
-	s.sessions[token] = sess
+	s.sessions[ID(token)] = sess
 	s.mu.Unlock()
 	_ = s.persist()
 
@@ -68,8 +92,12 @@ func (s *Store) CreateWithTenant(userID, username, tenantID string, roles, permi
 }
 
 func (s *Store) Get(token string) (*Session, bool) {
+	if token == "" {
+		return nil, false
+	}
+	id := ID(token)
 	s.mu.RLock()
-	sess, ok := s.sessions[token]
+	sess, ok := s.sessions[id]
 	s.mu.RUnlock()
 
 	if !ok {
@@ -78,7 +106,7 @@ func (s *Store) Get(token string) (*Session, bool) {
 
 	if time.Now().After(sess.ExpiresAt) {
 		s.mu.Lock()
-		delete(s.sessions, token)
+		delete(s.sessions, id)
 		s.mu.Unlock()
 		return nil, false
 	}
@@ -92,25 +120,36 @@ func (s *Store) BindAuthLocalToken(adminSessionToken, authLocalToken string) {
 		return
 	}
 	s.mu.Lock()
-	if sess, ok := s.sessions[adminSessionToken]; ok {
+	if sess, ok := s.sessions[ID(adminSessionToken)]; ok {
 		sess.AuthLocalToken = authLocalToken
 	}
 	s.mu.Unlock()
 	_ = s.persist()
 }
 
+// Revoke removes the session for a raw bearer token (logout).
 func (s *Store) Revoke(token string) {
+	s.RevokeByID(ID(token))
+}
+
+// RevokeByID removes the session with the given ID (see ID / SessionInfo.ID).
+func (s *Store) RevokeByID(id string) {
 	s.mu.Lock()
-	delete(s.sessions, token)
+	delete(s.sessions, id)
 	s.mu.Unlock()
 	_ = s.persist()
 }
 
-// RenameSession sets a human-readable label on an active session so operators can
-// identify devices without revoking them. A blank label clears the existing one.
+// RenameSession sets a human-readable label on the session for a raw token.
 func (s *Store) RenameSession(token, label string) bool {
+	return s.RenameByID(ID(token), label)
+}
+
+// RenameByID sets a human-readable label on an active session so operators can
+// identify devices without revoking them. A blank label clears the existing one.
+func (s *Store) RenameByID(id, label string) bool {
 	s.mu.Lock()
-	sess, ok := s.sessions[token]
+	sess, ok := s.sessions[id]
 	if ok {
 		sess.Label = strings.TrimSpace(label)
 	}
@@ -135,9 +174,10 @@ func (s *Store) Count() int {
 	return len(s.sessions)
 }
 
-// SessionInfo is a public view of an active admin session.
+// SessionInfo is a public view of an active admin session. ID is the session
+// identifier (hash of the bearer), never the bearer itself.
 type SessionInfo struct {
-	Token     string
+	ID        string
 	UserID    string
 	Username  string
 	Label     string
@@ -151,12 +191,12 @@ func (s *Store) List() []SessionInfo {
 	defer s.mu.RUnlock()
 	out := make([]SessionInfo, 0, len(s.sessions))
 	now := time.Now()
-	for tok, sess := range s.sessions {
+	for id, sess := range s.sessions {
 		if now.After(sess.ExpiresAt) {
 			continue
 		}
 		out = append(out, SessionInfo{
-			Token:     tok,
+			ID:        id,
 			UserID:    sess.UserID,
 			Username:  sess.Username,
 			Label:     sess.Label,
@@ -175,9 +215,9 @@ func (s *Store) cleanupLoop() {
 	for range ticker.C {
 		now := time.Now()
 		s.mu.Lock()
-		for token, sess := range s.sessions {
+		for id, sess := range s.sessions {
 			if now.After(sess.ExpiresAt) {
-				delete(s.sessions, token)
+				delete(s.sessions, id)
 			}
 		}
 		s.mu.Unlock()

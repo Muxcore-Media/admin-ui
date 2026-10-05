@@ -3,6 +3,7 @@ package session
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -103,5 +104,121 @@ func TestFileStorePersistsLabel(t *testing.T) {
 	}
 	if sess.Label != "Bedroom TV" {
 		t.Fatalf("expected label persisted, got %q", sess.Label)
+	}
+}
+
+func TestFileStoreNoPlaintextAndPermissions(t *testing.T) {
+	t.Setenv(EnvSessionKey, "")
+	dir := filepath.Join(t.TempDir(), "data")
+	path := filepath.Join(dir, "sessions.json")
+
+	s1 := NewFileStore(path, time.Hour)
+	tok, err := s1.Create("u1", "alice", []string{"admin"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const bearer = "auth-local-bearer-SECRET-123"
+	s1.BindAuthLocalToken(tok, bearer)
+
+	for p, want := range map[string]os.FileMode{dir: 0o700, path: 0o600, filepath.Join(dir, KeyFileName): 0o600} {
+		st, err := os.Stat(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := st.Mode().Perm(); got != want {
+			t.Fatalf("%s mode = %o, want %o", p, got, want)
+		}
+	}
+
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), tok) {
+		t.Fatal("session bearer token found in plaintext on disk")
+	}
+	if strings.Contains(string(raw), bearer) {
+		t.Fatal("auth-local token found in plaintext on disk")
+	}
+	if !strings.Contains(string(raw), ID(tok)) {
+		t.Fatal("expected session keyed by token hash")
+	}
+
+	// Reload after "restart": same key file, session + decrypted bearer restored.
+	s2 := NewFileStore(path, time.Hour)
+	sess, ok := s2.Get(tok)
+	if !ok {
+		t.Fatal("expected session after reload")
+	}
+	if sess.AuthLocalToken != bearer {
+		t.Fatalf("AuthLocalToken = %q after reload", sess.AuthLocalToken)
+	}
+}
+
+func TestFileStoreEnvKeyAndRotation(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sessions.json")
+	t.Setenv(EnvSessionKey, "first-key")
+	s1 := NewFileStore(path, time.Hour)
+	tok, _ := s1.Create("u1", "alice", nil, nil)
+	s1.BindAuthLocalToken(tok, "bearer")
+	if _, err := os.Stat(filepath.Join(filepath.Dir(path), KeyFileName)); !os.IsNotExist(err) {
+		t.Fatal("key file must not be written when ADMIN_UI_SESSION_KEY is set")
+	}
+	if _, ok := NewFileStore(path, time.Hour).Get(tok); !ok {
+		t.Fatal("expected session with same env key")
+	}
+	t.Setenv(EnvSessionKey, "second-key")
+	if _, ok := NewFileStore(path, time.Hour).Get(tok); ok {
+		t.Fatal("session sealed with a rotated key must be dropped")
+	}
+}
+
+func TestFileStoreDiscardsLegacyPlaintextFile(t *testing.T) {
+	t.Setenv(EnvSessionKey, "")
+	path := filepath.Join(t.TempDir(), "sessions.json")
+	legacy := `{"sessions":{"11111111-2222-3333-4444-555555555555":{"UserID":"u1","AuthLocalToken":"LEGACY-SECRET","ExpiresAt":"2999-01-01T00:00:00Z"}}}`
+	if err := os.WriteFile(path, []byte(legacy), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s := NewFileStore(path, time.Hour)
+	if s.Count() != 0 {
+		t.Fatalf("expected legacy sessions discarded, got %d", s.Count())
+	}
+	raw, _ := os.ReadFile(path)
+	if strings.Contains(string(raw), "LEGACY-SECRET") {
+		t.Fatal("legacy plaintext should be overwritten")
+	}
+	st, _ := os.Stat(path)
+	if st.Mode().Perm() != 0o600 {
+		t.Fatalf("rewritten file mode = %o", st.Mode().Perm())
+	}
+}
+
+func TestListExposesIDNotToken(t *testing.T) {
+	s := NewStore(time.Hour)
+	tok, _ := s.Create("u1", "alice", nil, nil)
+	infos := s.List()
+	if len(infos) != 1 || infos[0].ID != ID(tok) || infos[0].ID == tok {
+		t.Fatalf("unexpected list: %+v", infos)
+	}
+	if !s.RenameByID(infos[0].ID, "TV") {
+		t.Fatal("RenameByID failed")
+	}
+	s.RevokeByID(infos[0].ID)
+	if _, ok := s.Get(tok); ok {
+		t.Fatal("expected session revoked by ID")
+	}
+}
+
+func TestParseKey(t *testing.T) {
+	k32 := strings.Repeat("ab", 32)
+	if b, err := ParseKey(k32); err != nil || len(b) != 32 || b[0] != 0xab {
+		t.Fatalf("hex key: %v %x", err, b)
+	}
+	if b, err := ParseKey("passphrase"); err != nil || len(b) != 32 {
+		t.Fatalf("passphrase key: %v", err)
+	}
+	if _, err := ParseKey("  "); err == nil {
+		t.Fatal("expected error for empty key")
 	}
 }

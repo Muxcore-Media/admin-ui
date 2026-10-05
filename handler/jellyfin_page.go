@@ -8,8 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
 
 	jellyfinv1 "github.com/Muxcore-Media/jellyfin/proto/jellyfinv1"
 
@@ -67,7 +66,7 @@ func (h *Handler) JellyfinStatusPage(w http.ResponseWriter, r *http.Request) {
 		h.renderJellyfin(w, r, data)
 		return
 	}
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := meshdial.NewClient(addr)
 	if err != nil {
 		data.Error = fmt.Sprintf("dial %s: %v", addr, err)
 		h.renderJellyfin(w, r, data)
@@ -137,7 +136,7 @@ func (h *Handler) JellyfinSync(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/jellyfin?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := meshdial.NewClient(addr)
 	if err != nil {
 		http.Redirect(w, r, "/jellyfin?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
@@ -170,7 +169,7 @@ func (h *Handler) JellyfinRefresh(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/jellyfin?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := meshdial.NewClient(addr)
 	if err != nil {
 		http.Redirect(w, r, "/jellyfin?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return

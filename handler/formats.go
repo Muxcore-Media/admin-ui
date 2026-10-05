@@ -9,8 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
+
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	formatsv1 "github.com/Muxcore-Media/media-custom-formats/proto/formatsv1"
 
@@ -43,7 +44,7 @@ func (h *Handler) formatsModuleAddr(ctx context.Context) (string, error) {
 }
 
 func (h *Handler) dialFormatsModule(addr string) (*grpc.ClientConn, formatsv1.FormatServiceClient, error) {
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := meshdial.NewClient(addr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("dial %s: %w", addr, err)
 	}

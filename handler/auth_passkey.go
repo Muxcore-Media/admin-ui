@@ -7,8 +7,9 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
+
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 
 	authv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/auth/v1"
@@ -34,7 +35,7 @@ func (h *Handler) authClient(ctx context.Context) (authv1.AuthServiceClient, *gr
 	if addr == "" {
 		return nil, nil, fmt.Errorf("auth module has no gRPC address")
 	}
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := meshdial.NewClient(addr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("dial auth module: %w", err)
 	}
