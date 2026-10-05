@@ -58,7 +58,7 @@ func (h *Handler) AuditPage(w http.ResponseWriter, r *http.Request) {
 	defer pageCancel()
 
 	readCtx, readCancel := context.WithTimeout(pageCtx, auditReadTimeout)
-	entries, err := h.Core.Audit.Query(readCtx, filter.Actor, filter.Action, filter.Resource, filter.TraceID, from, to, maxResults)
+	entries, err := h.Core.Audit.Query(withUserAuth(readCtx), filter.Actor, filter.Action, filter.Resource, filter.TraceID, from, to, maxResults)
 	readCancel()
 	if err != nil {
 		slog.Warn("audit: query failed", "error", err)

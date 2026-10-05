@@ -5,6 +5,16 @@ All notable changes to the MuxCore Admin UI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.16] - 2026-10-05
+
+
+### Security
+
+- request-media calls (list, create, approve, deny, approvals) now identify the caller by auth-local user ID, not username (auth-local `Can` resolves users by ID, so username callers were denied), and forward `Authorization: Bearer <auth-local token>` from the session (ADR-0019, T-M3-06c). `X-Caller-Id=<user id>` and `X-MuxCore-User` are still sent for one release. admin-ui has no gRPC path to request-media; other gRPC calls already use the session token via `x-auth-token`.
+- scheduler-cron HTTP calls send `Authorization: Bearer` from new `ADMIN_UI_SCHEDULER_TOKEN` (fallback `SCHEDULER_HTTP_TOKEN`) when set; required by scheduler-cron v0.1.7 off-loopback.
+- health-monitor `/status` fetch sends `Authorization: Bearer` from new `ADMIN_UI_HEALTH_MONITOR_TOKEN` (fallback `HEALTH_MONITOR_HTTP_TOKEN`) when set. Tokens are never logged.
+- Operator calls to core now carry the signed-in user's auth-local token as `authorization: Bearer <token>` gRPC metadata (per request, from the session) so core authenticates them as the user, not a module principal (T-M3-03a): audit `Query` and all SpoolService calls (ListSpools, ListTags, FetchTag, DeployTag); the api-rest HTTP spool fallback sends `Authorization: Bearer`. admin-ui does not call Audit Export/VerifyChain, Lifecycle or discovery Leave. Audit `Log` stays module-authenticated.
+
 ## [0.1.15] - 2026-10-05
 
 

@@ -266,8 +266,8 @@ func TestApprovalsApproveSendsCallerID(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.ApprovalsApprove(w, r)
 
-	if gotCaller != "alice" {
-		t.Fatalf("approve X-Caller-Id: want %q, got %q", "alice", gotCaller)
+	if gotCaller != "uid-1" {
+		t.Fatalf("approve X-Caller-Id: want %q, got %q", "uid-1", gotCaller)
 	}
 }
 
@@ -297,7 +297,7 @@ func TestApprovalsDenySendsCallerID(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.ApprovalsDeny(w, r)
 
-	if gotCaller != "alice" {
-		t.Fatalf("deny X-Caller-Id: want %q, got %q", "alice", gotCaller)
+	if gotCaller != "uid-1" {
+		t.Fatalf("deny X-Caller-Id: want %q, got %q", "uid-1", gotCaller)
 	}
 }

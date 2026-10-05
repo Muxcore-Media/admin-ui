@@ -148,8 +148,8 @@ func TestRequestListSendsCallerID(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.RequestPage(w, r)
 
-	if gotCaller != "alice" {
-		t.Fatalf("X-Caller-Id: want %q, got %q", "alice", gotCaller)
+	if gotCaller != "uid-1" {
+		t.Fatalf("X-Caller-Id: want %q, got %q", "uid-1", gotCaller)
 	}
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected page 200, got %d", w.Code)
@@ -207,8 +207,8 @@ func TestRequestApproveSendsCallerID(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.RequestApprove(w, r)
 
-	if gotCaller != "alice" {
-		t.Fatalf("approve X-Caller-Id: want %q, got %q", "alice", gotCaller)
+	if gotCaller != "uid-1" {
+		t.Fatalf("approve X-Caller-Id: want %q, got %q", "uid-1", gotCaller)
 	}
 }
 
@@ -238,7 +238,7 @@ func TestRequestDenySendsCallerID(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.RequestDeny(w, r)
 
-	if gotCaller != "alice" {
-		t.Fatalf("deny X-Caller-Id: want %q, got %q", "alice", gotCaller)
+	if gotCaller != "uid-1" {
+		t.Fatalf("deny X-Caller-Id: want %q, got %q", "uid-1", gotCaller)
 	}
 }

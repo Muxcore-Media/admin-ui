@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -137,7 +138,15 @@ func (h *Handler) MonitorSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := &http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Get(base + "/status")
+	mreq, err := http.NewRequestWithContext(r.Context(), http.MethodGet, base+"/status", nil)
+	if err != nil {
+		_, _ = w.Write([]byte(`<div class="rounded-xl border border-red-900/50 bg-red-950/30 p-4 text-sm text-red-400">Health monitor unreachable</div>`))
+		return
+	}
+	if tok := healthMonitorToken(); tok != "" {
+		mreq.Header.Set("Authorization", "Bearer "+tok)
+	}
+	resp, err := client.Do(mreq)
 	if err != nil {
 		slog.Warn("monitor: fetch /status failed", "url", base+"/status", "error", err)
 		_, _ = w.Write([]byte(`<div class="rounded-xl border border-red-900/50 bg-red-950/30 p-4 text-sm text-red-400">Health monitor unreachable</div>`))
@@ -226,4 +235,14 @@ func (h *Handler) dashboardWantedQueueTotal(pageCtx context.Context, client auto
 		return 0
 	}
 	return int(q.GetTotal())
+}
+
+// healthMonitorToken returns the bearer token for health-monitor /status
+// (required off-loopback): ADMIN_UI_HEALTH_MONITOR_TOKEN, falling back to
+// HEALTH_MONITOR_HTTP_TOKEN. Empty when unset.
+func healthMonitorToken() string {
+	if t := strings.TrimSpace(os.Getenv("ADMIN_UI_HEALTH_MONITOR_TOKEN")); t != "" {
+		return t
+	}
+	return strings.TrimSpace(os.Getenv("HEALTH_MONITOR_HTTP_TOKEN"))
 }
