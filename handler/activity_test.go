@@ -79,7 +79,7 @@ func (f fixtureActivityMedia) GetMediaTypeInfo(_ context.Context, _ *mediaadminv
 func (f fixtureActivityMedia) ListHistory(_ context.Context, _ *mediaadminv1.ListHistoryRequest) (*mediaadminv1.ListHistoryResponse, error) {
 	return &mediaadminv1.ListHistoryResponse{
 		Records: []*mediaadminv1.HistoryRecord{{
-			Id: "r1", EventType: "import", ItemId: "m1", Title: "Fight Club",
+			Id: "r1", EventType: mediaadminv1.HistoryEventType_HISTORY_EVENT_TYPE_IMPORT, ItemId: "m1", Title: "Fight Club",
 			SourceTitle: "Fight.Club.1999.mkv", Quality: "1080p", Indexer: "fixture",
 			CreatedAt: "2026-09-01T12:00:00Z",
 		}},

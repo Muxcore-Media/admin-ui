@@ -193,7 +193,7 @@ func (h *Handler) SubtitlesPage(w http.ResponseWriter, r *http.Request) {
 				}
 				data.SearchHits = append(data.SearchHits, templates.SubtitlesSearchHit{
 					FileID: hit.GetFileId(), Provider: firstNonEmpty(hit.GetProvider(), hit.GetSource()),
-					Language: hit.GetLanguage(), Release: hit.GetReleaseName(), Score: int(hit.GetScore()),
+					Language: hit.GetLanguage(), Release: hit.GetReleaseName(), Score: subtitleCandidateScore(hit),
 				})
 			}
 		}
@@ -581,7 +581,7 @@ func (h *Handler) SubtitlesMediaDetail(w http.ResponseWriter, r *http.Request) {
 				}
 				data.SearchHits = append(data.SearchHits, templates.SubtitlesSearchHit{
 					FileID: hit.GetFileId(), Provider: firstNonEmpty(hit.GetProvider(), hit.GetSource()),
-					Language: hit.GetLanguage(), Release: hit.GetReleaseName(), Score: int(hit.GetScore()),
+					Language: hit.GetLanguage(), Release: hit.GetReleaseName(), Score: subtitleCandidateScore(hit),
 				})
 			}
 		}
@@ -738,4 +738,12 @@ func (h *Handler) SubtitlesTestArr(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/subtitles?status="+url.QueryEscape(resp.GetMessage()), http.StatusSeeOther)
+}
+
+// subtitleCandidateScore derives a display/download score for a search hit.
+// SubtitleCandidate has no score field (media-subtitles v0.5+); the module's
+// own Bazarr-compatible surface uses the provider rating as the score, so
+// admin-ui does the same.
+func subtitleCandidateScore(hit *subtv1.SubtitleCandidate) int {
+	return int(hit.GetRating())
 }

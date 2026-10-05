@@ -170,7 +170,7 @@ func (h *Handler) MediaCollectionDetail(w http.ResponseWriter, r *http.Request) 
 			if conn, movieClient, err := h.dialMovieModule(addr); err == nil {
 				defer func() { _ = conn.Close() }()
 				if prefs, err := movieClient.GetCollectionPrefs(r.Context(), &mgmntv1.GetCollectionPrefsRequest{CollectionId: int32(id)}); err == nil {
-					monitored = prefs.GetMonitored()
+					monitored = prefs.GetPrefs().GetMonitored()
 				}
 			}
 		}
@@ -202,7 +202,7 @@ func (h *Handler) MediaCollectionMonitor(w http.ResponseWriter, r *http.Request)
 	}
 	defer func() { _ = conn.Close() }()
 	if _, err := client.SetCollectionMonitored(r.Context(), &mgmntv1.SetCollectionMonitoredRequest{
-		CollectionId: int32(id), Monitored: monitored, SearchOnAdd: true,
+		CollectionId: int32(id), Monitored: monitored, SearchOnAdd: boolPtr(true),
 	}); err != nil {
 		http.Redirect(w, r, redirectBase+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return

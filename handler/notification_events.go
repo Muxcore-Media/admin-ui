@@ -11,9 +11,6 @@ import (
 // not when status=available. Emitters: request-media / playback-monitor (follow-up).
 const notificationEventRequestReady = "media.request.ready"
 
-// notificationEventGuardViolation matches playback-monitor's allowed guard rule type.
-const notificationEventGuardViolation = "guard.violation"
-
 func notificationDestinationCreateBody(r *http.Request) ([]byte, error) {
 	destType := strings.TrimSpace(r.FormValue("type"))
 	config := map[string]string{}

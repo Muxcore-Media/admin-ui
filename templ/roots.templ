@@ -6,7 +6,8 @@ import (
 	rootsv1 "github.com/Muxcore-Media/media-root-folders/proto/rootsv1"
 )
 
-func formatBytes(n int64) string {
+// formatRootBytes renders root-folder capacity in IEC units; non-positive sizes (unknown) render as an em dash.
+func formatRootBytes(n int64) string {
 	if n <= 0 {
 		return "—"
 	}
@@ -53,7 +54,7 @@ templ RootsListPage(roots []*rootsv1.RootFolder, errMsg string) {
 								{ r.GetMediaKind() }
 								if r.GetAccessible() {
 									<span class="text-emerald-400">· accessible</span>
-									<span>· free { formatBytes(r.GetFreeBytes()) } / { formatBytes(r.GetTotalBytes()) }</span>
+									<span>· free { formatRootBytes(r.GetFreeBytes()) } / { formatRootBytes(r.GetTotalBytes()) }</span>
 								} else {
 									<span class="text-amber-400">· inaccessible</span>
 								}

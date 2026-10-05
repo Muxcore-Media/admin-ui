@@ -370,31 +370,6 @@ func (h *Handler) loadAlternateTitles(ctx context.Context, moduleID, itemID, dis
 	}
 }
 
-func (h *Handler) loadTrailers(ctx context.Context, moduleID, itemID, displayName string, item *mediaadminv1.MediaItem) []templates.TrailerView {
-	if automationItemType(moduleID, displayName) != "movie" || item == nil {
-		return nil
-	}
-	addr, err := h.mediaModuleAddr(ctx, moduleID)
-	if err != nil {
-		return nil
-	}
-	conn, client, err := h.dialMovieModule(addr)
-	if err != nil {
-		return nil
-	}
-	defer func() { _ = conn.Close() }()
-	resp, err := client.ListTrailers(ctx, &mgmntv1.ListTrailersRequest{MovieId: itemID})
-	if err != nil {
-		slog.Debug("media: ListTrailers failed", "module", moduleID, "id", itemID, "error", err)
-		return nil
-	}
-	out := make([]templates.TrailerView, 0, len(resp.GetTrailers()))
-	for _, t := range resp.GetTrailers() {
-		out = append(out, templates.TrailerView{Name: t.GetName(), Type: t.GetType(), URL: t.GetUrl()})
-	}
-	return out
-}
-
 func (h *Handler) MediaAlternateTitleAdd(w http.ResponseWriter, r *http.Request) {
 	moduleID := r.PathValue("moduleID")
 	itemID := r.PathValue("id")

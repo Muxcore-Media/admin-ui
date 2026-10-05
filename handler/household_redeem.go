@@ -168,10 +168,12 @@ func invalidInvitePeek(status int, body []byte) bool {
 	case http.StatusNotFound, http.StatusGone:
 		return true
 	case http.StatusBadRequest:
+		// Only an explicit "valid": false marks the invite invalid; a generic
+		// 400 without the field is a request error, not an invalid invite.
 		var peek struct {
-			Valid bool `json:"valid"`
+			Valid *bool `json:"valid"`
 		}
-		if err := json.Unmarshal(body, &peek); err == nil && !peek.Valid {
+		if err := json.Unmarshal(body, &peek); err == nil && peek.Valid != nil && !*peek.Valid {
 			return true
 		}
 	}

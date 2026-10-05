@@ -46,7 +46,7 @@ func featureFromName(name string) mediaadminv1.Feature {
 
 func mediaPosterURL(item *mediaadminv1.MediaItem) string {
 	for _, a := range item.GetArtwork() {
-		if a.GetType() == "poster" && a.GetUrl() != "" {
+		if a.GetType() == mediaadminv1.ArtworkType_ARTWORK_TYPE_POSTER && a.GetUrl() != "" {
 			return a.GetUrl()
 		}
 	}

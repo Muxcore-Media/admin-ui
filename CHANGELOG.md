@@ -44,7 +44,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Settings page discovers SettingsProvider modules via `settings` capability **and** ListAll probe (modules that respond to mesh `Settings` without advertising the capability)
 
-## [Unreleased]
+## [0.1.13] - 2026-10-05
+
+### Fixed
+- List-sync edit no longer disables the source on every save.
+- Invite links are only rejected when the server reports `valid: false`.
+- Builds against published module contracts (core v0.6.2, no filesystem `replace`); templ build errors fixed.
+
+### Removed
+- List-sync per-source import settings and the history "removed" count (not in media-list-sync v0.1.10).
+- Movie "Trailers & extras" section (`ListTrailers` no longer exists in media-movies).
 
 ### Added
 
