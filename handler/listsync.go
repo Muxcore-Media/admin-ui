@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -56,23 +57,18 @@ func (h *Handler) withListSyncClient(ctx context.Context) (listsyncv1.ListSyncSe
 
 func sourceRowFromProto(s *listsyncv1.ListSource) templates.ListSyncSourceRow {
 	return templates.ListSyncSourceRow{
-		ID:                  s.GetId(),
-		Name:                s.GetName(),
-		Type:                s.GetType(),
-		Enabled:             s.GetEnabled(),
-		Username:            s.GetUsername(),
-		ClientID:            s.GetClientId(),
-		ListURL:             s.GetListUrl(),
-		IntervalMin:         int(s.GetSyncIntervalMinutes()),
-		LastSynced:          s.GetLastSynced(),
-		BaseURL:             s.GetBaseUrl(),
-		QualityProfileID:    s.GetQualityProfileId(),
-		RootFolderPath:      s.GetRootFolderPath(),
-		CleanLibraryLevel:   s.GetCleanLibraryLevel(),
-		TagIDs:              s.GetTagIds(),
-		MonitorMode:         s.GetMonitorMode(),
-		MinimumAvailability: s.GetMinimumAvailability(),
-		SearchOnAdd:         s.GetSearchOnAdd(),
+		ID:               s.GetId(),
+		Name:             s.GetName(),
+		Type:             s.GetType(),
+		Enabled:          s.GetEnabled(),
+		Username:         s.GetUsername(),
+		ClientID:         s.GetClientId(),
+		ListURL:          s.GetListUrl(),
+		IntervalMin:      int(s.GetSyncIntervalMinutes()),
+		LastSynced:       s.GetLastSynced(),
+		BaseURL:          s.GetBaseUrl(),
+		QualityProfileID: s.GetQualityProfileId(),
+		RootFolderPath:   s.GetRootFolderPath(),
 	}
 }
 
@@ -89,41 +85,42 @@ func (h *Handler) listSyncFindSource(ctx context.Context, client listsyncv1.List
 	return nil, fmt.Errorf("source not found")
 }
 
-func parseSearchOnAddForm(r *http.Request) *bool {
-	v := r.FormValue("search_on_add") == "1"
-	return boolPtr(v)
-}
-
+// parseListSyncSourceForm builds a partial UpdateSourceRequest from the edit
+// form. media-list-sync applies only the fields that are set, so every form
+// field is sent explicitly except api_key, which is omitted when blank to keep
+// the stored credential ("leave blank to keep existing").
 func parseListSyncSourceForm(r *http.Request, existing *listsyncv1.ListSource) *listsyncv1.UpdateSourceRequest {
 	interval, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("sync_interval_minutes")))
 	if interval <= 0 {
 		interval = 60
 	}
 	req := &listsyncv1.UpdateSourceRequest{
-		Name:                strings.TrimSpace(r.FormValue("name")),
-		Username:            strings.TrimSpace(r.FormValue("username")),
-		ClientId:            strings.TrimSpace(r.FormValue("client_id")),
-		ListUrl:             strings.TrimSpace(r.FormValue("list_url")),
-		SyncIntervalMinutes: int32(interval),
-		BaseUrl:             strings.TrimSpace(r.FormValue("base_url")),
-		ApiKey:              strings.TrimSpace(r.FormValue("api_key")),
-		QualityProfileId:    strings.TrimSpace(r.FormValue("quality_profile_id")),
-		RootFolderPath:      strings.TrimSpace(r.FormValue("root_folder_path")),
-		CleanLibraryLevel:   strings.TrimSpace(r.FormValue("clean_library_level")),
-		TagIds:              strings.TrimSpace(r.FormValue("tag_ids")),
-		MonitorMode:         strings.TrimSpace(r.FormValue("monitor_mode")),
-		MinimumAvailability: strings.TrimSpace(r.FormValue("minimum_availability")),
-		SearchOnAdd:         parseSearchOnAddForm(r),
+		Name:                stringPtr(strings.TrimSpace(r.FormValue("name"))),
+		Username:            stringPtr(strings.TrimSpace(r.FormValue("username"))),
+		ClientId:            stringPtr(strings.TrimSpace(r.FormValue("client_id"))),
+		ListUrl:             stringPtr(strings.TrimSpace(r.FormValue("list_url"))),
+		SyncIntervalMinutes: int32Ptr(int32(interval)),
+		BaseUrl:             stringPtr(strings.TrimSpace(r.FormValue("base_url"))),
+		QualityProfileId:    stringPtr(strings.TrimSpace(r.FormValue("quality_profile_id"))),
+		RootFolderPath:      stringPtr(strings.TrimSpace(r.FormValue("root_folder_path"))),
+	}
+	if apiKey := strings.TrimSpace(r.FormValue("api_key")); apiKey != "" {
+		req.ApiKey = stringPtr(apiKey)
 	}
 	if existing != nil {
 		req.Id = existing.GetId()
-		enabled := r.FormValue("enabled") == "1"
-		req.Enabled = boolPtr(enabled)
+		// The form posts a hidden enabled=0 before the checkbox (enabled=1), so
+		// FormValue (first value) would always read "0"; check all values.
+		req.Enabled = boolPtr(slices.Contains(r.Form["enabled"], "1"))
 	}
 	return req
 }
 
 func boolPtr(v bool) *bool { return &v }
+
+func stringPtr(v string) *string { return &v }
+
+func int32Ptr(v int32) *int32 { return &v }
 
 func (h *Handler) listSyncFormOptions(ctx context.Context) ([]templates.ProfileOption, []templates.RootOption) {
 	profiles := h.listProfileOptions(ctx)
@@ -282,15 +279,14 @@ func (h *Handler) ListSyncHistoryPage(w http.ResponseWriter, r *http.Request) {
 	data.Total = int(resp.GetTotal())
 	for _, e := range resp.GetEntries() {
 		data.Entries = append(data.Entries, templates.ListSyncHistoryRow{
-			ID:           e.GetId(),
-			SourceName:   e.GetSourceName(),
-			Status:       e.GetStatus(),
-			ItemsFound:   int(e.GetItemsFound()),
-			ItemsNew:     int(e.GetItemsNew()),
-			ItemsRemoved: int(e.GetItemsRemoved()),
-			Error:        e.GetError(),
-			StartedAt:    e.GetStartedAt(),
-			CompletedAt:  e.GetCompletedAt(),
+			ID:          e.GetId(),
+			SourceName:  e.GetSourceName(),
+			Status:      e.GetStatus(),
+			ItemsFound:  int(e.GetItemsFound()),
+			ItemsNew:    int(e.GetItemsNew()),
+			Error:       e.GetError(),
+			StartedAt:   e.GetStartedAt(),
+			CompletedAt: e.GetCompletedAt(),
 		})
 	}
 	h.renderListSyncHistory(w, r, data)
@@ -317,7 +313,7 @@ func (h *Handler) ListSyncNow(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/list-sync?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
-	msg := fmt.Sprintf("Sync complete: %d found, %d new, %d removed", resp.GetItemsFound(), resp.GetItemsNew(), resp.GetItemsRemoved())
+	msg := fmt.Sprintf("Sync complete: %d found, %d new", resp.GetItemsFound(), resp.GetItemsNew())
 	http.Redirect(w, r, "/list-sync?synced="+url.QueryEscape(msg), http.StatusSeeOther)
 }
 
@@ -336,7 +332,7 @@ func (h *Handler) ListSyncSourceNow(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/list-sync?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
-	msg := fmt.Sprintf("Source sync complete: %d found, %d new, %d removed", resp.GetItemsFound(), resp.GetItemsNew(), resp.GetItemsRemoved())
+	msg := fmt.Sprintf("Source sync complete: %d found, %d new", resp.GetItemsFound(), resp.GetItemsNew())
 	http.Redirect(w, r, "/list-sync?synced="+url.QueryEscape(msg), http.StatusSeeOther)
 }
 
@@ -358,7 +354,6 @@ func (h *Handler) ListSyncAddSource(w http.ResponseWriter, r *http.Request) {
 	}
 	defer closer()
 
-	searchOnAdd := parseSearchOnAddForm(r)
 	_, err = client.AddSource(ctx, &listsyncv1.AddSourceRequest{
 		Name:                strings.TrimSpace(r.FormValue("name")),
 		Type:                strings.TrimSpace(r.FormValue("type")),
@@ -370,11 +365,6 @@ func (h *Handler) ListSyncAddSource(w http.ResponseWriter, r *http.Request) {
 		ApiKey:              strings.TrimSpace(r.FormValue("api_key")),
 		QualityProfileId:    strings.TrimSpace(r.FormValue("quality_profile_id")),
 		RootFolderPath:      strings.TrimSpace(r.FormValue("root_folder_path")),
-		CleanLibraryLevel:   strings.TrimSpace(r.FormValue("clean_library_level")),
-		TagIds:              strings.TrimSpace(r.FormValue("tag_ids")),
-		MonitorMode:         strings.TrimSpace(r.FormValue("monitor_mode")),
-		MinimumAvailability: strings.TrimSpace(r.FormValue("minimum_availability")),
-		SearchOnAdd:         searchOnAdd,
 	})
 	if err != nil {
 		http.Redirect(w, r, "/list-sync?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
@@ -430,23 +420,11 @@ func (h *Handler) ListSyncToggleSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// UpdateSource is a partial update: only the enabled flag changes.
 	enabled := !existing.GetEnabled()
 	_, err = client.UpdateSource(ctx, &listsyncv1.UpdateSourceRequest{
-		Id:                  id,
-		Name:                existing.GetName(),
-		Username:            existing.GetUsername(),
-		ClientId:            existing.GetClientId(),
-		ListUrl:             existing.GetListUrl(),
-		SyncIntervalMinutes: existing.GetSyncIntervalMinutes(),
-		BaseUrl:             existing.GetBaseUrl(),
-		QualityProfileId:    existing.GetQualityProfileId(),
-		RootFolderPath:      existing.GetRootFolderPath(),
-		CleanLibraryLevel:   existing.GetCleanLibraryLevel(),
-		TagIds:              existing.GetTagIds(),
-		MonitorMode:         existing.GetMonitorMode(),
-		MinimumAvailability: existing.GetMinimumAvailability(),
-		SearchOnAdd:         boolPtr(existing.GetSearchOnAdd()),
-		Enabled:             boolPtr(enabled),
+		Id:      id,
+		Enabled: boolPtr(enabled),
 	})
 	if err != nil {
 		http.Redirect(w, r, "/list-sync?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)

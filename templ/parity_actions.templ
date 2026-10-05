@@ -168,7 +168,6 @@ templ BackupsLivePage(rows []BackupRow, errMsg, flash string, sched BackupSchedu
 		if errMsg != "" {
 			<div class="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-2 text-sm text-amber-200" role="alert">{ errMsg }</div>
 		}
-		@backupScheduleSection(sched)
 		if len(rows) == 0 && errMsg == "" {
 			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-500" role="status" data-testid="backups-empty">
 				No backups yet. Create one above or wait for the scheduled run.
@@ -211,7 +210,22 @@ templ BackupsLivePage(rows []BackupRow, errMsg, flash string, sched BackupSchedu
 // When SoftEmpty is true the card shows an offline notice instead of the form.
 templ BackupsScheduleSection(data BackupScheduleData) {
 	<section aria-labelledby="backup-schedule-heading" data-testid="backup-schedule-section">
-		<h2 id="backup-schedule-heading" class="text-lg font-semibold mb-3">Backup schedule</h2>
+		<div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+			<h2 id="backup-schedule-heading" class="text-lg font-semibold">Backup schedule</h2>
+			if !data.SoftEmpty {
+				if data.Enabled {
+					<span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-800/60 bg-emerald-950/30 px-2.5 py-0.5 text-xs font-medium text-emerald-300" data-testid="backup-schedule-status-enabled">
+						<span class="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true"></span>
+						Enabled
+					</span>
+				} else {
+					<span class="inline-flex items-center gap-1.5 rounded-full border border-gray-700 bg-gray-900 px-2.5 py-0.5 text-xs font-medium text-gray-500" data-testid="backup-schedule-status-disabled">
+						<span class="h-1.5 w-1.5 rounded-full bg-gray-600" aria-hidden="true"></span>
+						Disabled
+					</span>
+				}
+			}
+		</div>
 		if data.Saved {
 			<div class="rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300 mb-3" role="status" data-testid="backup-schedule-saved">Schedule saved.</div>
 		}
@@ -220,11 +234,11 @@ templ BackupsScheduleSection(data BackupScheduleData) {
 		}
 		if data.SoftEmpty {
 			<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400" data-testid="backup-schedule-soft-empty">
-				backup-local not registered — schedule settings will appear when the module is online.
+				backup-local is not registered — schedule settings will appear when the module is online.
 			</div>
 		}
 		if !data.SoftEmpty {
-			<form method="POST" action="/backups/schedule" class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 space-y-4" data-testid="backup-schedule-form">
+			<form method="POST" action="/backups/schedule" class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 space-y-4" aria-label="Backup schedule configuration" data-testid="backup-schedule-form">
 				<label class="flex items-center gap-2 text-sm text-gray-300">
 					<input type="checkbox" name="enabled" value="1" checked?={ data.Enabled } class="rounded border-gray-600" data-testid="backup-schedule-enabled"/>
 					<span>Enable automatic backup schedule</span>
@@ -233,6 +247,7 @@ templ BackupsScheduleSection(data BackupScheduleData) {
 					<span class="text-gray-400">Cron expression (e.g. daily at 03:00 UTC)</span>
 					<input
 						name="cron_expr"
+						aria-label="Cron expression"
 						value={ data.CronExpr }
 						placeholder="0 3 * * *"
 						class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm font-mono"
@@ -244,6 +259,7 @@ templ BackupsScheduleSection(data BackupScheduleData) {
 						<span class="text-gray-400">Retain last N backups (0 = unlimited)</span>
 						<input
 							name="retention_count"
+							aria-label="Retention count"
 							value={ data.RetentionCount }
 							placeholder="7"
 							class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm"
@@ -254,6 +270,7 @@ templ BackupsScheduleSection(data BackupScheduleData) {
 						<span class="text-gray-400">Retain backups for N days (0 = unlimited)</span>
 						<input
 							name="retention_days"
+							aria-label="Retention days"
 							value={ data.RetentionDays }
 							placeholder="30"
 							class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm"
@@ -261,7 +278,7 @@ templ BackupsScheduleSection(data BackupScheduleData) {
 						/>
 					</label>
 				</div>
-				<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+				<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500" data-testid="backup-schedule-save">
 					Save schedule
 				</button>
 			</form>

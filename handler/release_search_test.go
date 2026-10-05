@@ -93,7 +93,7 @@ func (fixtureSearchAutomation) SearchItem(_ context.Context, req *automationv1.S
 		return &automationv1.SearchItemResponse{}, nil
 	}
 	return &automationv1.SearchItemResponse{
-		Matches: []*automationv1.SearchMatch{
+		Matches: []*automationv1.ReleaseMatch{
 			{
 				Guid:             "guid-1",
 				Title:            "Fight.Club.1999.1080p.BluRay.x264",

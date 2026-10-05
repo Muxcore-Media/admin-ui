@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -159,7 +160,11 @@ func TestLibraryScanPostWatchScan(t *testing.T) {
 	if stub.scanCalls != 1 {
 		t.Fatalf("scanCalls=%d", stub.scanCalls)
 	}
-	if !strings.Contains(w.Header().Get("Location"), "found=5") {
+	loc, err := url.Parse(w.Header().Get("Location"))
+	if err != nil {
+		t.Fatalf("parse redirect %q: %v", w.Header().Get("Location"), err)
+	}
+	if loc.Path != "/library-scan" || !strings.Contains(loc.Query().Get("ok"), "found=5") {
 		t.Fatalf("unexpected redirect %q", w.Header().Get("Location"))
 	}
 }

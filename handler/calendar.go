@@ -146,7 +146,15 @@ func (h *Handler) mediaLibraryModules(ctx context.Context) []*discoveryv1.Module
 		slog.Warn("calendar: FindByCapability failed", "error", err)
 		return nil
 	}
-	return mods
+	// Drop ID-less registry entries: they cannot be resolved or routed, and
+	// counting them would hide the "no library modules" soft-empty state.
+	out := mods[:0:0]
+	for _, m := range mods {
+		if m.GetId() != "" {
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 func (h *Handler) renderUnifiedCalendar(w http.ResponseWriter, r *http.Request, data templates.UnifiedCalendarData) {

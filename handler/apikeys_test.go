@@ -19,8 +19,8 @@ import (
 type apikeysAuthStub struct {
 	authv1.UnimplementedAuthServiceServer
 
-	users  []*authv1.UserProto
-	tokens map[string][]*authv1.APITokenProto // user_id → tokens
+	users  []*authv1.UserInfo
+	tokens map[string][]*authv1.APITokenInfo // user_id → tokens
 
 	createdUserID string
 	createdName   string
@@ -92,8 +92,8 @@ func setupAPIKeysHandler(t *testing.T, stub *apikeysAuthStub) *Handler {
 
 func TestAPIKeysPageRendersWithUsers(t *testing.T) {
 	stub := &apikeysAuthStub{
-		users: []*authv1.UserProto{{Id: "u1", Username: "alice"}},
-		tokens: map[string][]*authv1.APITokenProto{
+		users: []*authv1.UserInfo{{Id: "u1", Username: "alice"}},
+		tokens: map[string][]*authv1.APITokenInfo{
 			"u1": {{Id: "tok1", Name: "home", Prefix: "mxc_abc"}},
 		},
 	}
@@ -120,8 +120,8 @@ func TestAPIKeysPageRendersWithUsers(t *testing.T) {
 
 func TestAPIKeysPageEmptyState(t *testing.T) {
 	stub := &apikeysAuthStub{
-		users:  []*authv1.UserProto{{Id: "u1", Username: "alice"}},
-		tokens: map[string][]*authv1.APITokenProto{},
+		users:  []*authv1.UserInfo{{Id: "u1", Username: "alice"}},
+		tokens: map[string][]*authv1.APITokenInfo{},
 	}
 	h := setupAPIKeysHandler(t, stub)
 
@@ -136,7 +136,7 @@ func TestAPIKeysPageEmptyState(t *testing.T) {
 
 func TestAPIKeysCreateCallsAuthAndShowsCopyOnce(t *testing.T) {
 	stub := &apikeysAuthStub{
-		users: []*authv1.UserProto{{Id: "u1", Username: "alice"}},
+		users: []*authv1.UserInfo{{Id: "u1", Username: "alice"}},
 	}
 	h := setupAPIKeysHandler(t, stub)
 
@@ -181,7 +181,7 @@ func TestAPIKeysCreateMissingFieldsRejects(t *testing.T) {
 
 func TestAPIKeysRotateCreatesAndDeletesOld(t *testing.T) {
 	stub := &apikeysAuthStub{
-		users: []*authv1.UserProto{{Id: "u1", Username: "alice"}},
+		users: []*authv1.UserInfo{{Id: "u1", Username: "alice"}},
 	}
 	h := setupAPIKeysHandler(t, stub)
 

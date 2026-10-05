@@ -15,11 +15,6 @@ type ListSyncSourceRow struct {
 	BaseURL           string
 	QualityProfileID  string
 	RootFolderPath    string
-	CleanLibraryLevel   string
-	TagIDs              string
-	MonitorMode         string
-	MinimumAvailability string
-	SearchOnAdd         bool
 }
 
 type ListSyncHistoryRow struct {
@@ -28,7 +23,6 @@ type ListSyncHistoryRow struct {
 	Status       string
 	ItemsFound   int
 	ItemsNew     int
-	ItemsRemoved int
 	Error        string
 	StartedAt    string
 	CompletedAt  string
@@ -170,7 +164,7 @@ templ ListSyncPage(data ListSyncPageData) {
 		</section>
 		<section class="max-w-xl" aria-labelledby="list-sync-add-heading">
 			<h2 id="list-sync-add-heading" class="text-lg font-semibold mb-3">Add source</h2>
-			@listSyncSourceForm("/list-sync/sources", "", ListSyncSourceRow{IntervalMin: 60, SearchOnAdd: true}, false, "", data.Profiles, data.Roots)
+			@listSyncSourceForm("/list-sync/sources", "", ListSyncSourceRow{IntervalMin: 60}, false, "", data.Profiles, data.Roots)
 		</section>
 	</div>
 }
@@ -285,43 +279,6 @@ templ listSyncSourceForm(action, method string, s ListSyncSourceRow, showEnabled
 					<input type="text" name="root_folder_path" value={ s.RootFolderPath } class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
 				</div>
 			}
-			<div class="sm:col-span-2">
-				<label class="block text-xs text-gray-500 mb-1">Clean library level</label>
-				<select name="clean_library_level" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
-					<option value="keep" selected?={ s.CleanLibraryLevel == "" || s.CleanLibraryLevel == "keep" }>keep (do nothing)</option>
-					<option value="unmonitor" selected?={ s.CleanLibraryLevel == "unmonitor" }>unmonitor when item leaves list</option>
-					<option value="remove" selected?={ s.CleanLibraryLevel == "remove" }>remove from library, keep files</option>
-					<option value="remove_and_delete" selected?={ s.CleanLibraryLevel == "remove_and_delete" }>remove and delete files</option>
-				</select>
-			</div>
-			<div>
-				<label class="block text-xs text-gray-500 mb-1">Tag IDs (comma-separated)</label>
-				<input type="text" name="tag_ids" value={ s.TagIDs } placeholder="tag_abc, tag_def" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"/>
-			</div>
-			<div>
-				<label class="block text-xs text-gray-500 mb-1">Monitor mode</label>
-				<select name="monitor_mode" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
-					<option value="all" selected?={ s.MonitorMode == "" || s.MonitorMode == "all" }>all</option>
-					<option value="future" selected?={ s.MonitorMode == "future" }>future episodes only (TV)</option>
-					<option value="none" selected?={ s.MonitorMode == "none" }>none</option>
-				</select>
-			</div>
-			<div class="sm:col-span-2">
-				<label class="block text-xs text-gray-500 mb-1">Minimum availability</label>
-				<select name="minimum_availability" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm">
-					<option value="announced" selected?={ s.MinimumAvailability == "" || s.MinimumAvailability == "announced" }>announced</option>
-					<option value="incinemas" selected?={ s.MinimumAvailability == "incinemas" }>in cinemas / airing soon</option>
-					<option value="released" selected?={ s.MinimumAvailability == "released" }>released</option>
-					<option value="predb" selected?={ s.MinimumAvailability == "predb" }>preDB (TV)</option>
-				</select>
-			</div>
-			<div class="sm:col-span-2">
-				<label class="inline-flex items-center gap-2 text-sm text-gray-300">
-					<input type="hidden" name="search_on_add" value="0"/>
-					<input type="checkbox" name="search_on_add" value="1" checked?={ s.SearchOnAdd } class="rounded border-gray-600"/>
-					Search on add (queue automation after import)
-				</label>
-			</div>
 		</div>
 		<div class="flex flex-wrap gap-2">
 			<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">{ submitLabel }</button>
@@ -427,7 +384,6 @@ templ ListSyncHistoryPage(data ListSyncHistoryPageData) {
 							<th class="px-4 py-2 text-left text-xs text-gray-500">Status</th>
 							<th class="px-4 py-2 text-left text-xs text-gray-500">Found</th>
 							<th class="px-4 py-2 text-left text-xs text-gray-500">New</th>
-							<th class="px-4 py-2 text-left text-xs text-gray-500">Removed</th>
 							<th class="px-4 py-2 text-left text-xs text-gray-500">Started</th>
 							<th class="px-4 py-2 text-left text-xs text-gray-500">Error</th>
 						</tr>
@@ -439,7 +395,6 @@ templ ListSyncHistoryPage(data ListSyncHistoryPageData) {
 								<td class="px-4 py-2 text-gray-300">{ e.Status }</td>
 								<td class="px-4 py-2 text-gray-400">{ fmt.Sprintf("%d", e.ItemsFound) }</td>
 								<td class="px-4 py-2 text-gray-400">{ fmt.Sprintf("%d", e.ItemsNew) }</td>
-								<td class="px-4 py-2 text-gray-400">{ fmt.Sprintf("%d", e.ItemsRemoved) }</td>
 								<td class="px-4 py-2 text-gray-400">{ e.StartedAt }</td>
 								<td class="px-4 py-2 text-red-400 text-xs max-w-xs truncate">{ e.Error }</td>
 							</tr>

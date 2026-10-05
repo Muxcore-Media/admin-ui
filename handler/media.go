@@ -123,7 +123,7 @@ func (h *Handler) MediaLibraryList(w http.ResponseWriter, r *http.Request) {
 		Page:     int32(page),
 		PageSize: int32(pageSize),
 		Search:   search,
-		SortBy:   r.URL.Query().Get("sort"),
+		SortBy:   sortFieldFromString(r.URL.Query().Get("sort")),
 		TagId:    tagID,
 	})
 	readCancel()
@@ -188,7 +188,7 @@ func (h *Handler) MediaLibraryItem(w http.ResponseWriter, r *http.Request) {
 		for _, rec := range hist.GetRecords() {
 			history = append(history, templates.ActivityEntry{
 				ID:          rec.GetId(),
-				EventType:   rec.GetEventType(),
+				EventType:   historyEventTypeString(rec.GetEventType()),
 				ItemID:      rec.GetItemId(),
 				Title:       rec.GetTitle(),
 				SourceTitle: rec.GetSourceTitle(),
@@ -218,7 +218,10 @@ func (h *Handler) MediaLibraryItem(w http.ResponseWriter, r *http.Request) {
 	seasons := h.loadTVSeasons(ctx, moduleID, itemID, displayName)
 	files := h.loadMovieFiles(ctx, moduleID, itemID, displayName)
 	titles := h.loadAlternateTitles(ctx, moduleID, itemID, displayName)
-	trailers := h.loadTrailers(ctx, moduleID, itemID, displayName, item.GetItem())
+	// media-movies v0.1.13 no longer exposes a ListTrailers RPC (and
+	// contracts-media-admin has no trailer surface), so the "Trailers & extras"
+	// section is not populated; the template hides it when the list is empty.
+	var trailers []templates.TrailerView
 
 	content := templates.MediaDetailPage(
 		item.GetItem(), moduleID, history, profiles, roots, features, displayName,

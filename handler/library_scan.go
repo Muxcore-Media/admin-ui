@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	scannerv1 "github.com/Muxcore-Media/contracts-scanner/muxcore/scanner/v1"
 

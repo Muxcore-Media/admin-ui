@@ -73,7 +73,7 @@ func (h *Handler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 		resp, err := client.ListHistory(readCtx, &mediaadminv1.ListHistoryRequest{
 			Page:      1,
 			PageSize:  200,
-			EventType: eventType,
+			EventType: historyEventTypeFromString(eventType),
 		})
 		readCancel()
 		_ = conn.Close()
@@ -120,7 +120,7 @@ func (h *Handler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 	for _, row := range rows[start:end] {
 		items = append(items, templates.ActivityEntry{
 			ID:          row.Record.GetId(),
-			EventType:   row.Record.GetEventType(),
+			EventType:   historyEventTypeString(row.Record.GetEventType()),
 			ItemID:      row.Record.GetItemId(),
 			Title:       row.Record.GetTitle(),
 			SourceTitle: row.Record.GetSourceTitle(),

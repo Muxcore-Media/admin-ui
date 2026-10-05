@@ -137,9 +137,10 @@ func (h *Handler) fetchUnifiedMissing(ctx context.Context, mods []*discoveryv1.M
 			}
 			items = append(items, row)
 			summary.Total++
-			if kind == "movie" {
+			switch kind {
+			case "movie":
 				summary.Movies++
-			} else if kind == "tv" {
+			case "tv":
 				summary.Episodes++
 			}
 		}
