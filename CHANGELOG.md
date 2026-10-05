@@ -12,14 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Durable JSON state under `ADMIN_UI_DATA_DIR` (branding, networking, parental, livetv, playback, password-reset, sessions) with per-file overrides
 - File-backed session store (`ADMIN_UI_SESSION_FILE`) so restarts keep operator sessions
 - Parental controls sync to userdata-local `prefs.parental` for consumer playback enforcement
-- Forgejo CI `golangci-lint` job; optional `ADMIN_UI_METRICS_TOKEN` gate on `/metrics`
+- CI `golangci-lint` job; optional `ADMIN_UI_METRICS_TOKEN` gate on `/metrics`
 
 ### Changed
 
 - `NetworkingSave` applies `public_url` and `trusted_proxies` to the running handler without restart
 - CSRF tokens are per-browser cookie (random, 24h) instead of daily UTC hash
 - SSE routes (`/cluster/sse`, `/streams/events`) clear write deadlines so streams survive the 15s server timeout
-- README / `.env.example` document auth-internal, public URL, health monitor, data-dir, and file paths; CI badge points at Forgejo
+- README / `.env.example` document auth-internal, public URL, health monitor, data-dir, and file paths; CI badge points at the GitHub Actions workflow
 
 ### Fixed
 
