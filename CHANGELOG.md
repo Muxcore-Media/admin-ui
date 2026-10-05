@@ -5,6 +5,13 @@ All notable changes to the MuxCore Admin UI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.18] - 2026-10-05
+
+
+### Fixed
+
+- Audit log writes (`admin.login`, etc.) no longer fail with `context canceled`: they ran asynchronously on the HTTP request context, which is cancelled once the response is written. They now use a detached context (`context.WithoutCancel`) with a 5s timeout.
+
 ## [0.1.17] - 2026-10-05
 
 

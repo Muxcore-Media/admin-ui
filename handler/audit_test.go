@@ -205,3 +205,29 @@ func TestAuditLogNoopWithoutCore(t *testing.T) {
 	h := testHandler(nil)
 	h.auditLog(context.Background(), "a", "admin.test", "r", "id", nil)
 }
+
+func TestAuditLogSurvivesRequestContextCancel(t *testing.T) {
+	srv := &recordingAuditServer{logCh: make(chan struct{}, 1)}
+	core, cleanup := startRecordingAudit(t, srv)
+	defer cleanup()
+
+	h := testHandler(core)
+	ctx, cancel := context.WithCancel(context.WithValue(context.Background(), "trace_id", "trace-42")) //nolint:staticcheck // matches production key
+	h.auditLog(ctx, "actor-1", "admin.login", "session", "", nil)
+	// Simulates net/http cancelling the request context once the handler returns.
+	cancel()
+
+	select {
+	case <-srv.logCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("audit entry not delivered after request context cancel")
+	}
+	srv.mu.Lock()
+	defer srv.mu.Unlock()
+	if len(srv.logs) != 1 || srv.logs[0].GetAction() != "admin.login" {
+		t.Fatalf("unexpected logs: %+v", srv.logs)
+	}
+	if srv.logs[0].GetTraceId() != "trace-42" {
+		t.Fatalf("trace id not preserved: %q", srv.logs[0].GetTraceId())
+	}
+}
