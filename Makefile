@@ -10,7 +10,7 @@ TAILWIND_VERSION ?= v4.1.6
 TAILWIND_BIN ?= ./tailwindcss
 
 build: css templ
-	$(GO) build -ldflags="$(LDFLAGS)" -o admin-ui .
+	$(GO) build -ldflags="$(LDFLAGS)" -o admin-ui ./cmd/module
 
 templ:
 	$(TEMPL) generate
@@ -48,7 +48,7 @@ run: build
 	./admin-ui
 
 dev: css templ
-	$(GO) run .
+	$(GO) run ./cmd/module
 
 clean:
 	rm -f admin-ui admin-ui.exe
