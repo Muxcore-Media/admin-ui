@@ -1,4 +1,4 @@
-package main
+package adminui
 
 import (
 	"context"
@@ -103,7 +103,10 @@ func looksLikeInternalAuthURL(addr string) bool {
 	return false
 }
 
-func main() {
+// Main runs the admin UI server with the given build version. It is the entry
+// point used by cmd/module.
+func Main(v string) {
+	version = v
 	cfg := loadConfig()
 
 	var logLevel slog.Level

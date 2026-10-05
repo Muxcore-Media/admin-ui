@@ -20,7 +20,7 @@ COPY . .
 COPY --from=css /styles.css assets/dist/styles.css
 
 RUN templ generate
-RUN go build -ldflags="-s -w -X main.version=$(git describe --tags --always --dirty 2>/dev/null || echo '0.0.0-dev')" -o admin-ui .
+RUN go build -ldflags="-s -w -X main.version=$(git describe --tags --always --dirty 2>/dev/null || echo '0.0.0-dev')" -o admin-ui ./cmd/module
 
 # Stage 3: Minimal runtime image
 FROM alpine:3.21
