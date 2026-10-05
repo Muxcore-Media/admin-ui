@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/Muxcore-Media/core/sdk/go/client"
+	modulesdk "github.com/Muxcore-Media/core/sdk/go/module"
 
 	"github.com/Muxcore-Media/admin-ui/handler"
 	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
@@ -30,7 +31,13 @@ import (
 //go:embed assets/dist/* assets/branding/* assets/htmx.min.js assets/sse.js assets/csrf.js assets/webauthn.js assets/nav.js assets/streams-map.js assets/streams-live.js assets/transcode-flow.js
 var staticAssets embed.FS
 
-var version = "0.0.0-dev"
+// ManifestJSON is the embedded muxcore.json, the single source of this
+// module's version (ADR-0021).
+//
+//go:embed muxcore.json
+var ManifestJSON []byte
+
+var version = modulesdk.ManifestVersion(ManifestJSON)
 
 type Config struct {
 	Addr             string
@@ -108,7 +115,10 @@ func looksLikeInternalAuthURL(addr string) bool {
 // Main runs the admin UI server with the given build version. It is the entry
 // point used by cmd/module.
 func Main(v string) {
-	version = v
+	// -X main.version is an override only; empty or "dev" keeps muxcore.json.
+	if v != "" && v != "dev" && v != "0.0.0-dev" {
+		version = strings.TrimPrefix(v, "v")
+	}
 	cfg := loadConfig()
 
 	var logLevel slog.Level

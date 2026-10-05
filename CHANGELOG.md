@@ -5,6 +5,14 @@ All notable changes to the MuxCore Admin UI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.17] - 2026-10-05
+
+
+### Changed
+
+- Bump core v0.6.12, sdk/go/client v0.6.1 and all sibling module requires to their latest tags (T-M3-03f).
+- The reported version (`/health`, `/version`, About/config page, startup log) now comes from the embedded `muxcore.json` via `modulesdk.ManifestVersion` (core sdk/go/module v0.6.3, ADR-0021). `-X main.version` remains an override only when set to a non-empty, non-dev value.
+
 ## [0.1.16] - 2026-10-05
 
 
