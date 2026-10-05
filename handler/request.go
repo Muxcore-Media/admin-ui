@@ -96,18 +96,32 @@ func (h *Handler) requestGET(ctx context.Context, base, path string) ([]byte, in
 	return body, resp.StatusCode, err
 }
 
-// applyCallerHeader sets X-Caller-Id from the authenticated session so
-// downstream modules (e.g. request-media) can enforce per-caller authz.
+// callerID returns the identity request-media authorizes against: the
+// auth-local user ID (auth-local Can looks users up by ID, not username).
+// Username is only a fallback for sessions that lack an ID.
+func callerID(sess *session.Session) string {
+	if sess == nil {
+		return ""
+	}
+	if id := strings.TrimSpace(sess.UserID); id != "" {
+		return id
+	}
+	return strings.TrimSpace(sess.Username)
+}
+
+// applyCallerHeader forwards the signed-in user's identity to downstream
+// modules (e.g. request-media): the auth-local bearer token (authoritative,
+// ADR-0019) plus X-Caller-Id=<user id>, kept for one release for
+// compatibility. Tokens are never logged.
 func (h *Handler) applyCallerHeader(req *http.Request, sess *session.Session) {
 	if req == nil || sess == nil {
 		return
 	}
-	caller := sess.Username
-	if caller == "" {
-		caller = sess.UserID
+	if id := callerID(sess); id != "" {
+		req.Header.Set("X-Caller-Id", id)
 	}
-	if caller != "" {
-		req.Header.Set("X-Caller-Id", caller)
+	if tok := strings.TrimSpace(sess.AuthLocalToken); tok != "" {
+		req.Header.Set("Authorization", "Bearer "+tok)
 	}
 }
 
@@ -240,10 +254,7 @@ func (h *Handler) RequestCreate(w http.ResponseWriter, r *http.Request) {
 	requestedBy := ""
 	isAdmin := true // admin-ui operators are admins; still send identity
 	if sess != nil {
-		requestedBy = sess.Username
-		if requestedBy == "" {
-			requestedBy = sess.UserID
-		}
+		requestedBy = callerID(sess)
 		isAdmin = false
 		for _, role := range sess.Roles {
 			if strings.EqualFold(role, "admin") {
@@ -265,6 +276,7 @@ func (h *Handler) RequestCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	h.applyTenantHeaders(req, sess)
+	h.applyCallerHeader(req, sess)
 	if requestedBy != "" {
 		req.Header.Set("X-MuxCore-User", requestedBy)
 	}
@@ -311,9 +323,9 @@ func (h *Handler) requestDecide(w http.ResponseWriter, r *http.Request, action s
 	by := "admin"
 	var sess *session.Session
 	if sess = SessionFromContext(r.Context()); sess != nil {
-		by = sess.Username
+		by = callerID(sess)
 		if by == "" {
-			by = sess.UserID
+			by = "admin"
 		}
 	}
 	payload, _ := json.Marshal(map[string]string{"by": by})

@@ -12,6 +12,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	"github.com/Muxcore-Media/admin-ui/session"
@@ -27,12 +28,15 @@ type recordingAuditServer struct {
 	logs     []*auditv1.LogRequest
 	entries  []*auditv1.AuditEntryProto
 	queryErr error
+	queryMD  []metadata.MD
 	logCh    chan struct{}
 }
 
-func (s *recordingAuditServer) Query(_ context.Context, req *auditv1.AuditQueryRequest) (*auditv1.AuditQueryResponse, error) {
+func (s *recordingAuditServer) Query(ctx context.Context, req *auditv1.AuditQueryRequest) (*auditv1.AuditQueryResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	md, _ := metadata.FromIncomingContext(ctx)
+	s.queryMD = append(s.queryMD, md)
 	s.queries = append(s.queries, req)
 	if s.queryErr != nil {
 		return nil, s.queryErr

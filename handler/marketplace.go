@@ -25,6 +25,13 @@ const (
 	marketplacePageTimeout = marketplaceDialTimeout + 3*marketplaceReadTimeout + time.Second
 )
 
+// setUserBearer forwards the signed-in user's auth-local token to api-rest.
+func setUserBearer(ctx context.Context, req *http.Request) {
+	if sess := SessionFromContext(ctx); sess != nil && strings.TrimSpace(sess.AuthLocalToken) != "" {
+		req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(sess.AuthLocalToken))
+	}
+}
+
 func marketplaceHTTPDo(_ context.Context, req *http.Request) (*http.Response, error) {
 	return (&http.Client{Timeout: marketplaceReadTimeout}).Do(req)
 }
@@ -42,7 +49,7 @@ type grpcSpoolAPI struct {
 }
 
 func (g *grpcSpoolAPI) ListSpools(ctx context.Context) ([]*spoolv1.SpoolInfo, error) {
-	resp, err := g.client.ListSpools(ctx, &spoolv1.ListSpoolsRequest{})
+	resp, err := g.client.ListSpools(withUserAuth(ctx), &spoolv1.ListSpoolsRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +57,7 @@ func (g *grpcSpoolAPI) ListSpools(ctx context.Context) ([]*spoolv1.SpoolInfo, er
 }
 
 func (g *grpcSpoolAPI) ListTags(ctx context.Context, spoolURL string) ([]*spoolv1.TagSummary, error) {
-	resp, err := g.client.ListTags(ctx, &spoolv1.ListTagsRequest{SpoolUrl: spoolURL})
+	resp, err := g.client.ListTags(withUserAuth(ctx), &spoolv1.ListTagsRequest{SpoolUrl: spoolURL})
 	if err != nil {
 		return nil, err
 	}
@@ -58,11 +65,11 @@ func (g *grpcSpoolAPI) ListTags(ctx context.Context, spoolURL string) ([]*spoolv
 }
 
 func (g *grpcSpoolAPI) FetchTag(ctx context.Context, spoolURL, tagName string) (*spoolv1.FetchTagResponse, error) {
-	return g.client.FetchTag(ctx, &spoolv1.FetchTagRequest{SpoolUrl: spoolURL, TagName: tagName})
+	return g.client.FetchTag(withUserAuth(ctx), &spoolv1.FetchTagRequest{SpoolUrl: spoolURL, TagName: tagName})
 }
 
 func (g *grpcSpoolAPI) DeployTag(ctx context.Context, spoolURL, tagName string) (*spoolv1.DeployTagResponse, error) {
-	return g.client.DeployTag(ctx, &spoolv1.DeployTagRequest{SpoolUrl: spoolURL, TagName: tagName})
+	return g.client.DeployTag(withUserAuth(ctx), &spoolv1.DeployTagRequest{SpoolUrl: spoolURL, TagName: tagName})
 }
 
 // httpSpoolAPI proxies through api-rest HTTP routes.
@@ -106,6 +113,7 @@ func (h *httpSpoolAPI) DeployTag(ctx context.Context, spoolURL, tagName string) 
 	if err != nil {
 		return nil, err
 	}
+	setUserBearer(ctx, req)
 	resp, err := marketplaceHTTPDo(ctx, req)
 	if err != nil {
 		return nil, err
@@ -127,6 +135,7 @@ func (h *httpSpoolAPI) get(ctx context.Context, path string, dest any) error {
 	if err != nil {
 		return err
 	}
+	setUserBearer(ctx, req)
 	resp, err := marketplaceHTTPDo(ctx, req)
 	if err != nil {
 		return err

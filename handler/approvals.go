@@ -29,10 +29,7 @@ func (h *Handler) approvalsHTTPPost(ctx context.Context, base, path string, payl
 	h.applyTenantHeaders(req, sess)
 	h.applyCallerHeader(req, sess)
 	if sess != nil {
-		by := sess.Username
-		if by == "" {
-			by = sess.UserID
-		}
+		by := callerID(sess)
 		if by != "" {
 			req.Header.Set("X-MuxCore-User", by)
 		}

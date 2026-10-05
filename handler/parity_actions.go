@@ -43,7 +43,20 @@ const (
 	moduleListPageTimeout = moduleListDialTimeout + moduleListReadTimeout + time.Second
 )
 
+// schedulerToken returns the bearer token for scheduler-cron's HTTP API
+// (required off-loopback since v0.1.7): ADMIN_UI_SCHEDULER_TOKEN, falling
+// back to SCHEDULER_HTTP_TOKEN. Empty when unset.
+func schedulerToken() string {
+	if t := strings.TrimSpace(os.Getenv("ADMIN_UI_SCHEDULER_TOKEN")); t != "" {
+		return t
+	}
+	return strings.TrimSpace(os.Getenv("SCHEDULER_HTTP_TOKEN"))
+}
+
 func schedulerHTTPDo(_ context.Context, req *http.Request) (*http.Response, error) {
+	if tok := schedulerToken(); tok != "" {
+		req.Header.Set("Authorization", "Bearer "+tok)
+	}
 	return (&http.Client{Timeout: schedulerReadTimeout}).Do(req)
 }
 

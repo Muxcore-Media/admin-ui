@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
 
@@ -23,6 +24,18 @@ func authContextWithToken(ctx context.Context) context.Context {
 		return ctx
 	}
 	return metadata.AppendToOutgoingContext(ctx, "x-auth-token", sess.AuthLocalToken)
+}
+
+// withUserAuth attaches the signed-in user's auth-local token as
+// `authorization: Bearer <token>` outgoing gRPC metadata so core authenticates
+// the call as the user rather than as a module principal (T-M3-03a, ADR-0019).
+// It is a no-op without a session token. Tokens are never logged.
+func withUserAuth(ctx context.Context) context.Context {
+	sess := SessionFromContext(ctx)
+	if sess == nil || strings.TrimSpace(sess.AuthLocalToken) == "" {
+		return ctx
+	}
+	return metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+strings.TrimSpace(sess.AuthLocalToken))
 }
 
 func (h *Handler) authClient(ctx context.Context) (authv1.AuthServiceClient, *grpc.ClientConn, error) {

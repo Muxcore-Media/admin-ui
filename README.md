@@ -59,6 +59,8 @@ All configuration is via environment variables:
 | `ADMIN_UI_AUTH_INTERNAL_ADDR` | same as `ADMIN_UI_AUTH_ADDR` | Server-side auth base for OAuth code exchange (use LAN URL when browser uses public auth) |
 | `ADMIN_UI_PUBLIC_URL` | — | Public origin override for OAuth callbacks (e.g. `https://admin.zem.systems`) |
 | `ADMIN_UI_HEALTH_MONITOR_URL` | `http://127.0.0.1:9203` | Health-monitor HTTP base for dashboard panel |
+| `ADMIN_UI_HEALTH_MONITOR_TOKEN` | (unset) | Bearer for health-monitor `/status` (falls back to `HEALTH_MONITOR_HTTP_TOKEN`) |
+| `ADMIN_UI_SCHEDULER_TOKEN` | (unset) | Bearer for scheduler-cron HTTP API (falls back to `SCHEDULER_HTTP_TOKEN`) |
 | `ADMIN_UI_DATA_DIR` | `MEDIA_UI_USERDATA_DIR`, else `$XDG_STATE_HOME/muxcore/admin-ui`, else `~/.local/state/muxcore/admin-ui` | Root for durable JSON state (branding, networking, sessions, …) |
 | `ADMIN_UI_SESSION_KEY` | generated `session.key` (0600) next to the session file | Key protecting session bearer material at rest (32 bytes base64/hex, or any passphrase → SHA-256) |
 | `ADMIN_UI_RESTORE_ROOT` | `BACKUP_RESTORE_DIR`, else `/data/restore` | Allow-listed root for backup restore targets (paths outside → 400) |
