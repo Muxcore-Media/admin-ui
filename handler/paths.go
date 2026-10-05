@@ -20,6 +20,20 @@ func AdminDataDir() string {
 	if v := os.Getenv("MEDIA_UI_USERDATA_DIR"); v != "" {
 		return v
 	}
+	// Durable default outside temp dirs (NFR-SEC-005): $XDG_STATE_HOME, then
+	// ~/.local/state. Temp dir only when no home directory exists at all.
+	if v := os.Getenv("XDG_STATE_HOME"); v != "" {
+		return filepath.Join(v, "muxcore", "admin-ui")
+	}
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		return filepath.Join(home, ".local", "state", "muxcore", "admin-ui")
+	}
+	return LegacyTempDataDir()
+}
+
+// LegacyTempDataDir is the data dir default of earlier releases (os.TempDir).
+// Session files there held plaintext bearers and are removed at startup.
+func LegacyTempDataDir() string {
 	return filepath.Join(os.TempDir(), "muxcore-admin-ui")
 }
 

@@ -5,6 +5,17 @@ All notable changes to the MuxCore Admin UI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.15] - 2026-10-05
+
+
+### Security
+
+- Mesh gRPC dials (core and all 27 peer-module dial sites) now go through one helper (`internal/meshdial`) and use TLS by default (NFR-SEC-003). Plaintext only with `MUXCORE_INSECURE_DISABLE_TLS=true` (deprecated aliases `ADMIN_UI_INSECURE`, `MUXCORE_DEV_TLS_SKIP` still honoured with a warning), which logs one loud startup warning. TLS material: `MUXCORE_TLS_CA` (verify peers; system roots when unset), optional `MUXCORE_TLS_CERT`/`MUXCORE_TLS_KEY` client cert for mTLS.
+- Session store hardened (NFR-SEC-005): session tokens are 256-bit random values stored only as SHA-256 hashes (lookup by hash); the auth-local bearer is AES-256-GCM encrypted at rest with `ADMIN_UI_SESSION_KEY` or a generated `session.key` (0600) beside the session file; session file 0600, created dirs 0700. Legacy plaintext session files (including the old `$TMPDIR/muxcore-admin-ui/sessions.json`) are discarded/removed at startup — users sign in again.
+- Default data dir moved out of the temp dir: `ADMIN_UI_DATA_DIR` → `MEDIA_UI_USERDATA_DIR` → `$XDG_STATE_HOME/muxcore/admin-ui` → `~/.local/state/muxcore/admin-ui`.
+- `/devices` lists and revokes/renames sessions by session ID (hash) instead of rendering raw bearer tokens in the page.
+- Backup restore `target_path` is confined to the restore root (FR-BAK-003, NFR-SEC-008, RULE-VAL-1): `ADMIN_UI_RESTORE_ROOT` → `BACKUP_RESTORE_DIR` → `/data/restore`. Relative paths are joined under the root, absolute paths must already be inside it, escapes (`..`, symlinks out of the root when it exists locally) return HTTP 400.
+
 ## [0.1.14] - 2026-10-05
 
 

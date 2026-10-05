@@ -17,8 +17,9 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
+
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 	backupv1 "github.com/Muxcore-Media/backup-local/muxcore/backup/v1"
@@ -238,7 +239,7 @@ func (h *Handler) backupClient(ctx context.Context) (backupv1.BackupServiceClien
 	if addr == "" {
 		return nil, nil, fmt.Errorf("backup module has no dial address")
 	}
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := meshdial.NewClient(addr)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -491,7 +492,12 @@ func (h *Handler) BackupsDelete(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) BackupsRestore(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	_ = r.ParseForm()
-	target := r.FormValue("target_path")
+	root := restoreRoot()
+	target, perr := confinePath(root, r.FormValue("target_path"))
+	if perr != nil {
+		http.Error(w, fmt.Sprintf("invalid target_path: must be a subdirectory of the restore root %s (%v)", root, perr), http.StatusBadRequest)
+		return
+	}
 	pageCtx, cancel := context.WithTimeout(r.Context(), backupActionTimeout)
 	defer cancel()
 	dialCtx, dialCancel := context.WithTimeout(pageCtx, backupDialTimeout)

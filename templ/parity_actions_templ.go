@@ -577,7 +577,7 @@ func BackupsLivePage(rows []BackupRow, errMsg, flash string, sched BackupSchedul
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "\" class=\"flex-1 min-w-[12rem] space-y-1 text-xs text-gray-400\"><span>Restore target path</span> <input id=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "\" class=\"flex-1 min-w-[12rem] space-y-1 text-xs text-gray-400\"><span>Restore subfolder (inside the restore root; blank = root)</span> <input id=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -590,7 +590,7 @@ func BackupsLivePage(rows []BackupRow, errMsg, flash string, sched BackupSchedul
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "\" name=\"target_path\" required placeholder=\"/tmp/muxcore-restore\" class=\"w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-1.5 text-sm text-white\"></label> <button type=\"submit\" class=\"rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-800\" aria-label=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "\" name=\"target_path\" placeholder=\"restore-2026-01-01\" class=\"w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-1.5 text-sm text-white\"></label> <button type=\"submit\" class=\"rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-800\" aria-label=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

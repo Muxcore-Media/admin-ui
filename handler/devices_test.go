@@ -64,8 +64,8 @@ func TestDevicesRevokeRedirects(t *testing.T) {
 	tok, _ := ss.Create("u1", "alice", nil, nil)
 
 	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
-	r := mustRequest(http.MethodPost, "/devices/"+tok+"/revoke")
-	r.SetPathValue("token", tok)
+	r := mustRequest(http.MethodPost, "/devices/"+session.ID(tok)+"/revoke")
+	r.SetPathValue("token", session.ID(tok))
 	w := httptest.NewRecorder()
 	h.DevicesRevoke(w, r)
 
@@ -84,9 +84,9 @@ func TestDevicesRenameUpdatesLabel(t *testing.T) {
 	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
 
 	form := url.Values{"label": {"Office Laptop"}}
-	r := httptest.NewRequest(http.MethodPost, "/devices/"+tok+"/rename", strings.NewReader(form.Encode()))
+	r := httptest.NewRequest(http.MethodPost, "/devices/"+session.ID(tok)+"/rename", strings.NewReader(form.Encode()))
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	r.SetPathValue("token", tok)
+	r.SetPathValue("token", session.ID(tok))
 	w := httptest.NewRecorder()
 	h.DevicesRename(w, r)
 

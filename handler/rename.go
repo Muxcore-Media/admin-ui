@@ -9,8 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
 
 	renamev1 "github.com/Muxcore-Media/media-rename/proto/renamev1"
 
@@ -48,7 +47,7 @@ func (h *Handler) withRenameClient(ctx context.Context) (renamev1.RenameServiceC
 	if err != nil {
 		return nil, nil, err
 	}
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := meshdial.NewClient(addr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("dial %s: %w", addr, err)
 	}

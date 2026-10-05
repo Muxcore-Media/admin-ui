@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
+
 	"google.golang.org/protobuf/proto"
 
 	"github.com/Muxcore-Media/admin-ui/arrmigrate"
@@ -124,7 +124,7 @@ func (h *Handler) resolveMigrateImporters(ctx context.Context) (arrmigrate.Movie
 	addr, err := h.findCapabilityDialAddr(dialCtx, capMediaLibraryMovies)
 	dialCancel()
 	if err == nil {
-		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := meshdial.NewClient(addr)
 		if err == nil {
 			closers = append(closers, func() { _ = conn.Close() })
 			movies = movieImporterAdapter{client: mgmntv1.NewMovieManagementServiceClient(conn)}
@@ -134,7 +134,7 @@ func (h *Handler) resolveMigrateImporters(ctx context.Context) (arrmigrate.Movie
 	addr, err = h.findCapabilityDialAddr(dialCtx, capMediaLibraryTV)
 	dialCancel()
 	if err == nil {
-		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := meshdial.NewClient(addr)
 		if err == nil {
 			closers = append(closers, func() { _ = conn.Close() })
 			tv = tvImporterAdapter{client: tvmgmtv1.NewTvManagementServiceClient(conn)}
@@ -144,7 +144,7 @@ func (h *Handler) resolveMigrateImporters(ctx context.Context) (arrmigrate.Movie
 	addr, err = h.findCapabilityDialAddr(dialCtx, capMediaLibraryMusic)
 	dialCancel()
 	if err == nil {
-		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := meshdial.NewClient(addr)
 		if err == nil {
 			closers = append(closers, func() { _ = conn.Close() })
 			music = musicImporterAdapter{client: musicv1.NewMusicManagementServiceClient(conn)}

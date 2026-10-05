@@ -75,9 +75,9 @@ func DevicesLivePage(sessions []session.SessionInfo, errMsg string) templ.Compon
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var3 string
-				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue("session-row-" + shortToken(s.Token))
+				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue("session-row-" + shortToken(s.ID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_live.templ`, Line: 29, Col: 88}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_live.templ`, Line: 29, Col: 85}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 				if templ_7745c5c3_Err != nil {
@@ -143,9 +143,9 @@ func DevicesLivePage(sessions []session.SessionInfo, errMsg string) templ.Compon
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var8 string
-				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(shortToken(s.Token))
+				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(shortToken(s.ID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_live.templ`, Line: 41, Col: 46}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_live.templ`, Line: 41, Col: 43}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -182,9 +182,9 @@ func DevicesLivePage(sessions []session.SessionInfo, errMsg string) templ.Compon
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var11 templ.SafeURL
-				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/devices/%s/revoke", s.Token)))
+				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/devices/%s/revoke", s.ID)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_live.templ`, Line: 47, Col: 93}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_live.templ`, Line: 47, Col: 90}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 				if templ_7745c5c3_Err != nil {
@@ -208,9 +208,9 @@ func DevicesLivePage(sessions []session.SessionInfo, errMsg string) templ.Compon
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var13 templ.SafeURL
-				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/devices/%s/rename", s.Token)))
+				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/devices/%s/rename", s.ID)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_live.templ`, Line: 53, Col: 92}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/parity_live.templ`, Line: 53, Col: 89}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 				if templ_7745c5c3_Err != nil {

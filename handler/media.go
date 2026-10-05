@@ -10,8 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
+
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
 
@@ -65,7 +66,7 @@ func (h *Handler) mediaModuleAddr(ctx context.Context, moduleID string) (string,
 }
 
 func (h *Handler) dialMediaModule(addr string) (*grpc.ClientConn, mediaadminv1.MediaAdminServiceClient, error) {
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := meshdial.NewClient(addr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("dial %s: %w", addr, err)
 	}

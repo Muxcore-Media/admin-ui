@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/grpc"
+	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
+
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
 	automationv1 "github.com/Muxcore-Media/contracts-automation/muxcore/automation/v1"
@@ -76,7 +76,7 @@ func (h *Handler) withAutomationClient(ctx context.Context) (automationv1.Automa
 	if err != nil {
 		return nil, nil, err
 	}
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := meshdial.NewClient(addr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("dial %s: %w", addr, err)
 	}

@@ -193,8 +193,8 @@ templ BackupsLivePage(rows []BackupRow, errMsg, flash string, sched BackupSchedu
 						</div>
 						<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/backups/%s/restore", b.ID)) } class="flex flex-wrap gap-2 items-end" aria-label={ fmt.Sprintf("Restore backup %s", b.ID) }>
 							<label for={ "backup-restore-path-" + b.ID } class="flex-1 min-w-[12rem] space-y-1 text-xs text-gray-400">
-								<span>Restore target path</span>
-								<input id={ "backup-restore-path-" + b.ID } name="target_path" required placeholder="/tmp/muxcore-restore" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-1.5 text-sm text-white"/>
+								<span>Restore subfolder (inside the restore root; blank = root)</span>
+								<input id={ "backup-restore-path-" + b.ID } name="target_path" placeholder="restore-2026-01-01" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-1.5 text-sm text-white"/>
 							</label>
 							<button type="submit" class="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-800" aria-label={ fmt.Sprintf("Restore backup %s", b.ID) }>Restore</button>
 						</form>

@@ -9,8 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
 
 	transcodev1 "github.com/Muxcore-Media/media-transcoder/proto/transcodev1"
 
@@ -42,7 +41,7 @@ func (h *Handler) withTranscoderClient(ctx context.Context) (transcodev1.Transco
 		if addr == "" {
 			return nil, nil, fmt.Errorf("transcoder module has no dial address")
 		}
-		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := meshdial.NewClient(addr)
 		if err != nil {
 			return nil, nil, fmt.Errorf("dial %s: %w", addr, err)
 		}
