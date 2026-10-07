@@ -42,7 +42,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Go DOM accessibility regression checks, axe-core scans of 15 rendered journey
+- Provider-backed session list and revoke using core v0.6.16, with per-user
+  filtering, opaque pagination and caller-bound administrative RPCs. The explicit
+  local admin-panel view retains local revoke and rename. Upstream bearer
+  revalidation and live provider acceptance remain outstanding (FR-AUTH-007).
+- Go DOM accessibility regression checks, axe-core scans of 20 rendered journey
   documents, and six responsive-navigation keyboard tests (T-M4-05). A dedicated
   GitHub Accessibility workflow runs the Node checks. Contrast and browser-level
   WCAG validation remain outstanding; see README for the exact limits.

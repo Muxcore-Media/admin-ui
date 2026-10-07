@@ -7,7 +7,9 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/Muxcore-Media/admin-ui/session"
 	mediaadminv1 "github.com/Muxcore-Media/contracts-media-admin/gen/muxcore/media/admin/v1"
 	authv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/auth/v1"
 	"github.com/a-h/templ"
@@ -35,6 +37,19 @@ func TestAccessibilityCoreJourneys(t *testing.T) {
 		name string
 		page templ.Component
 	}{
+		{"devices-provider", ProviderSessionsPage(ProviderSessionsData{
+			Sessions: []ProviderSessionRow{
+				{ID: "opaque-session-one", UserID: "alice", Username: "Alice", Kind: "full", CreatedAt: "2026-10-07T00:00:00Z", ExpiresAt: "2026-10-08T00:00:00Z"},
+				{ID: "opaque-session-two", UserID: "bob", Username: "Bob", Kind: "api-token"},
+			}, NextPageURL: ProviderSessionListURL("", "opaque-cursor"),
+		})},
+		{"devices-provider-empty", ProviderSessionsPage(ProviderSessionsData{})},
+		{"devices-provider-error", ProviderSessionsPage(ProviderSessionsData{FilterUserID: "alice", Error: "Your identity session is no longer authenticated. Sign in again."})},
+		{"devices-provider-unsupported", ProviderSessionsPage(ProviderSessionsData{Unsupported: true})},
+		{"devices-local", DevicesLivePage([]session.SessionInfo{
+			{ID: "local-management-id-one", UserID: "alice", Username: "Alice", Label: "Desk", CreatedAt: time.Unix(0, 0), ExpiresAt: time.Unix(3600, 0)},
+			{ID: "local-management-id-two", UserID: "bob", Username: "Bob", Label: "Laptop", CreatedAt: time.Unix(0, 0), ExpiresAt: time.Unix(3600, 0)},
+		}, "")},
 		{"identity-unsupported", IdentityUnavailablePage("Users", "user management")},
 		{"rotation-incomplete", APIKeyRotationIncomplete("alice", "laptop", "fixture-token", "Revocation of the old token was not confirmed.")},
 		{"dashboard", DashboardPage(DashboardData{WantedQueueCount: 2, QueueFailureCount: 1})},
