@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Identity administration now explains unsupported user, TOTP, API token and
+  invite operations using the provider's `Unimplemented` response, suppresses
+  their controls, and distinguishes provider failures from empty results. Direct
+  passkey endpoints and live OIDC browser acceptance remain outstanding.
+- API token revocation failures no longer produce success redirects. Incomplete
+  rotations retain the one-time new token and explain whether old-token
+  revocation is unsupported or unconfirmed.
+
 - Mobile navigation no longer leaves offscreen links keyboard-focusable. Opening
   the menu moves focus inside; Tab cycles through its controls, Escape restores
   focus, and viewport changes keep focused controls reachable. HTMX page changes
@@ -21,12 +29,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Invite administration uses existing AuthService RPCs with the signed-in token,
+  preserving unlimited-use, expiry and tenant form semantics. Redemption keeps
+  its existing HTTP flow; creator attribution is owned by the provider.
+
 - Align the local test timeout with CI (15 minutes): the existing handler suite
   includes sequential timeout tests and takes longer than the old 60-second cap.
 
 ### Added
 
-- Go DOM accessibility regression checks, axe-core scans of 13 rendered journey
+- Go DOM accessibility regression checks, axe-core scans of 15 rendered journey
   documents, and six responsive-navigation keyboard tests (T-M4-05). A dedicated
   GitHub Accessibility workflow runs the Node checks. Contrast and browser-level
   WCAG validation remain outstanding; see README for the exact limits.
