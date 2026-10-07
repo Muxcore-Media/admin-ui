@@ -34,7 +34,7 @@ require (
 require github.com/Muxcore-Media/core/pkg/contracts v0.6.0 // indirect
 
 require (
-	github.com/Muxcore-Media/core/sdk/go/module v0.6.5
+	github.com/Muxcore-Media/core/sdk/go/module v0.6.6
 	github.com/Muxcore-Media/media-rename v0.2.11
 	github.com/Muxcore-Media/media-root-folders v0.1.11
 	github.com/Muxcore-Media/media-tvshows v0.1.18
