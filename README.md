@@ -156,6 +156,31 @@ make clean      # Remove build artifacts
 make fmt        # Format Go + Templ files
 ```
 
+### Accessibility validation
+
+For T-M4-05 / NFR-A11Y-001, the ordinary Go template suite checks rendered DOM
+relationships (labels, unique IDs, ARIA references, names and landmarks),
+including settings with identical keys in different modules. The Accessibility
+GitHub workflow adds axe-core checks over 13 Go-rendered core-journey documents
+and keyboard interaction tests for the responsive sidebar and HTMX navigation.
+
+```bash
+go test ./templ
+npm ci                  # Node 24; test dependencies only
+npm test                # Sidebar focus, Escape, Tab, resize and HTMX behaviour
+npm run test:a11y       # Renders fixtures with Go, then runs axe in jsdom
+npm run css            # Rebuild embedded CSS after changing Tailwind classes
+```
+
+`test:a11y` needs the same private Go-module access as `go test`; it does not
+connect to a running stack. Both the Go audit and axe have deliberately broken
+control fixtures to check that failures are detected. The axe `color-contrast`
+rule is disabled because jsdom has no layout/paint engine; region checks remain
+on. These checks do not certify WCAG 2.1 AA. Browser verification of contrast,
+visible focus, reduced motion, responsive layout and assistive-technology
+behaviour remains outstanding. The existing `templ/a11y_test.go` assertions are
+retained alongside the DOM audit in `templ/accessibility_audit_test.go`.
+
 ---
 
 ## License

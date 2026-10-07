@@ -120,9 +120,9 @@ func TestSettingsFieldForm_LinksDescriptionToInput(t *testing.T) {
 	}, "test-module"))
 
 	for _, want := range []string{
-		`id="desc-timeout"`,
-		`aria-describedby="desc-timeout"`,
-		`aria-label="Request timeout"`,
+		`id="desc-` + settingControlID("test-module", "timeout") + `"`,
+		`aria-describedby="desc-` + settingControlID("test-module", "timeout") + `"`,
+		`aria-label="Request timeout (test-module)"`,
 		`role="status"`,
 		`(required)`,
 	} {

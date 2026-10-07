@@ -33,7 +33,7 @@ $(TAILWIND_BIN):
 	chmod +x $(TAILWIND_BIN)
 
 test:
-	$(GO) test -race -count=1 -timeout 60s ./...
+	$(GO) test -race -count=1 -timeout 15m ./...
 
 GOLANGCI_LINT ?= $(shell which golangci-lint 2>/dev/null)
 

@@ -4,7 +4,9 @@
   "description": "[![CI](https://github.com/Muxcore-Media/admin-ui/actions/workflows/ci.yml/badge.svg)](https://github.com/Muxcore-Media/admin-ui/actions) [![Go Version](https://img.shields.io/badge/Go-1.26-blue)](https://go.dev/) [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)",
   "main": "tailwind.config.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test tests/nav.test.mjs",
+    "test:a11y": "node --test tests/a11y.test.mjs",
+    "css": "tailwindcss -i input.css -o assets/dist/styles.css --minify"
   },
   "repository": {
     "type": "git",
@@ -19,6 +21,8 @@
   "homepage": "https://github.com/Muxcore-Media/admin-ui#readme",
   "devDependencies": {
     "@tailwindcss/cli": "^4.1.6",
+    "axe-core": "^4.10.3",
+    "jsdom": "^26.1.0",
     "tailwindcss": "^4.1.6"
   }
 }

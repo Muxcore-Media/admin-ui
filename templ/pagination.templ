@@ -6,7 +6,7 @@ templ Pagination(current int, total int, baseURL string) {
 	if total <= 1 {
 		return
 	}
-	<nav class="flex items-center justify-center gap-1">
+	<nav aria-label="Pagination" class="flex items-center justify-center gap-1">
 		if current > 1 {
 			<a
 				href={ templ.SafeURL(fmt.Sprintf("%s?page=%d", baseURL, current-1)) }
@@ -36,7 +36,7 @@ templ PageNumbers(current int, total int, baseURL string) {
 templ PageRange(current int, total int, baseURL string) {
 	for i := 1; i <= total; i++ {
 		if i == current {
-			<span class="rounded-[var(--radius-md)] bg-[var(--accent-color)] px-3 py-1.5 text-sm font-medium text-black">{ fmt.Sprint(i) }</span>
+			<span aria-current="page" class="rounded-[var(--radius-md)] bg-[var(--accent-color)] px-3 py-1.5 text-sm font-medium text-black">{ fmt.Sprint(i) }</span>
 		} else {
 			<a
 				href={ templ.SafeURL(fmt.Sprintf("%s?page=%d", baseURL, i)) }
