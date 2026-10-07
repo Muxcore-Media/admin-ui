@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Arr migration uses the SDK Integration SSRF guard with checked-address dialing.
+  Intentional localhost/LAN endpoints remain supported; metadata/link-local
+  targets and redirects are refused, preventing redirected API-key forwarding.
+  Arr connections now bypass environment HTTP proxies and retain TLS verification.
 - Identity administration now explains unsupported user, TOTP, API token and
   invite operations using the provider's `Unimplemented` response, suppresses
   their controls, and distinguishes provider failures from empty results. Direct
