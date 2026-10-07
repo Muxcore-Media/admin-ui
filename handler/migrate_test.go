@@ -47,7 +47,6 @@ func TestMigrateDryRunFixture(t *testing.T) {
 
 	ss := session.NewStore(0)
 	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
-	h.ArrHTTPClient = srv.Client()
 
 	form := "service=radarr&base_url=" + srv.URL + "&api_key=k&dry_run=1"
 	r := httptest.NewRequest(http.MethodPost, "/migrate", strings.NewReader(form))
@@ -83,7 +82,6 @@ func TestMigrateImportFixture(t *testing.T) {
 	stub := &migrateMoviesStub{}
 	ss := session.NewStore(0)
 	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
-	h.ArrHTTPClient = srv.Client()
 	h.MigrateMovies = stub
 	h.ResolveProfileID = func(context.Context, string) string { return "qp_hd" }
 
@@ -125,7 +123,6 @@ func TestMigrateImportTriggersLibraryScan(t *testing.T) {
 	scan := &scannerStub{}
 	ss := session.NewStore(0)
 	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
-	h.ArrHTTPClient = srv.Client()
 	h.MigrateMovies = movies
 	h.MigrateScanner = scan
 	h.ResolveProfileID = func(context.Context, string) string { return "qp_hd" }

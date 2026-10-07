@@ -178,6 +178,22 @@ incomplete. It does not retry either mutation automatically.
 Direct passkey endpoints and live OIDC browser acceptance remain outside this
 checkpoint; FR-AUTH-009 is still partial.
 
+### Arr migration connections
+
+The `/migrate` page uses the existing admin authorization and connects directly
+to the operator's Radarr, Sonarr or Lidarr endpoint. HTTP and HTTPS endpoints on
+localhost or private LANs remain supported, including reverse-proxy path prefixes.
+The SDK Integration guard checks resolved addresses at connection time and denies
+cloud metadata, link-local, multicast and other blocked special-use destinations.
+HTTPS still verifies the server certificate.
+
+Redirects are refused, including redirects within the same host, so the Arr
+`X-Api-Key` is sent only to the configured endpoint. Enter the final base URL if
+the old address redirects. Arr requests do not use environment HTTP proxies:
+direct connections keep DNS resolution and destination checks in the same client.
+Requests retain the 30-second timeout; a failed fetch produces an error before
+any catalog import or library scan.
+
 ### Accessibility validation
 
 For T-M4-05 / NFR-A11Y-001, the ordinary Go template suite checks rendered DOM
