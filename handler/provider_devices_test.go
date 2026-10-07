@@ -322,7 +322,12 @@ func TestProviderDevicesRouteAuthorization(t *testing.T) {
 	for _, method := range []string{"GET", "POST"} {
 		for _, role := range []string{"anonymous", "denied", "admin"} {
 			t.Run(method+"/"+role, func(t *testing.T) {
-				stub := &identityRPCStub{allowAdmin: role == "admin"}
+				stub := &identityRPCStub{
+					allowAdmin: role == "admin",
+					validateResp: &authv1.ValidateResponse{
+						Valid: true, UserId: "admin", Username: "Admin", Roles: []string{"admin"},
+					},
+				}
 				h := setupIdentityHandler(t, stub)
 				mux := http.NewServeMux()
 				h.RegisterRoutes(mux)

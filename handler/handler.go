@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -493,20 +494,27 @@ func (h *Handler) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		sess, ok := h.Sessions.Get(cookie.Value)
+		snap, ok := h.Sessions.Snapshot(cookie.Value)
 		if !ok {
 			redirectToLogin(w, r)
 			return
 		}
+		if strings.TrimSpace(snap.AuthLocalToken) != "" {
+			revalidated, proceed := h.revalidateBoundSession(w, r, cookie.Value, snap)
+			if !proceed {
+				return
+			}
+			snap = revalidated
+		}
 
-		if err := h.checkAuthorized(r.Context(), sess); err != nil {
-			slog.Warn("authorization denied", "user", sess.Username, "path", r.URL.Path, "error", err)
+		if err := h.checkAuthorized(r.Context(), &snap); err != nil {
+			slog.Warn("authorization denied", "user", snap.Username, "path", r.URL.Path, "error", err)
 			component := templates.Forbidden()
 			h.render(w, r, component)
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), ctxSessionKey, sess)
+		ctx := context.WithValue(r.Context(), ctxSessionKey, &snap)
 		next(w, r.WithContext(ctx))
 	}
 }

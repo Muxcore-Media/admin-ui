@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Admin requests bound to an identity-provider bearer revalidate it before the
+  page runs. A missing, revoked, expired or different user signs the operator
+  out. Provider outages and unexpected statuses return 503 and keep the cookie.
+  Handlers receive a deep copy of the current public claims, so a revoke during
+  validation cannot resurrect the local session or apply a replaced bearer.
+  Local-only sessions, the BFF and Quick Connect are unchanged.
 - Arr migration uses the SDK Integration SSRF guard with checked-address dialing.
   Intentional localhost/LAN endpoints remain supported; metadata/link-local
   targets and redirects are refused, preventing redirected API-key forwarding.

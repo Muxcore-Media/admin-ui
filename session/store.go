@@ -114,6 +114,98 @@ func (s *Store) Get(token string) (*Session, bool) {
 	return sess, true
 }
 
+// CommitResult reports whether current provider claims were stored on the
+// local session that was validated.
+type CommitResult int
+
+const (
+	// CommitApplied means the stored session still matched the validated bearer
+	// and user, and its public claims were replaced.
+	CommitApplied CommitResult = iota
+	// CommitGone means the local session disappeared or expired during validation.
+	CommitGone
+	// CommitRebound means the stored provider bearer changed during validation.
+	CommitRebound
+	// CommitIdentityMismatch means the stored user is not the validated user.
+	// Claims are left unchanged.
+	CommitIdentityMismatch
+)
+
+func (sess *Session) clone() Session {
+	if sess == nil {
+		return Session{}
+	}
+	out := *sess
+	out.Roles = append([]string(nil), sess.Roles...)
+	out.Permissions = append([]string(nil), sess.Permissions...)
+	return out
+}
+
+// Snapshot returns a deep copy of the live session. Callers can retain it for
+// the rest of a request without observing later store mutations, and mutating
+// the copy does not change the store. An expired session is removed.
+func (s *Store) Snapshot(token string) (Session, bool) {
+	if s == nil || token == "" {
+		return Session{}, false
+	}
+	id := ID(token)
+	s.mu.Lock()
+	sess, ok := s.sessions[id]
+	expired := ok && time.Now().After(sess.ExpiresAt)
+	if expired {
+		delete(s.sessions, id)
+	}
+	var snap Session
+	if ok && !expired {
+		snap = sess.clone()
+	}
+	s.mu.Unlock()
+	if expired {
+		_ = s.persist()
+	}
+	if !ok || expired {
+		return Session{}, false
+	}
+	return snap, true
+}
+
+// CommitValidatedClaims records current public claims for a provider bearer.
+// It does not recreate a session revoked while validation was in flight, does
+// not apply claims when the stored bearer was replaced, and does not rebind a
+// session to a different user. Permissions and the provider bearer are kept.
+func (s *Store) CommitValidatedClaims(adminToken, bearer, userID, username, tenantID string, roles []string) CommitResult {
+	if s == nil || adminToken == "" {
+		return CommitGone
+	}
+	id := ID(adminToken)
+	s.mu.Lock()
+	sess, ok := s.sessions[id]
+	if !ok || time.Now().After(sess.ExpiresAt) {
+		if ok {
+			delete(s.sessions, id)
+		}
+		s.mu.Unlock()
+		if ok {
+			_ = s.persist()
+		}
+		return CommitGone
+	}
+	if sess.AuthLocalToken != bearer {
+		s.mu.Unlock()
+		return CommitRebound
+	}
+	if userID == "" || sess.UserID != userID {
+		s.mu.Unlock()
+		return CommitIdentityMismatch
+	}
+	sess.Username = username
+	sess.TenantID = tenantID
+	sess.Roles = append([]string(nil), roles...)
+	s.mu.Unlock()
+	_ = s.persist()
+	return CommitApplied
+}
+
 func (s *Store) BindAuthLocalToken(adminSessionToken, authLocalToken string) {
 	authLocalToken = strings.TrimSpace(authLocalToken)
 	if authLocalToken == "" {

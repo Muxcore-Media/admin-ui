@@ -210,6 +210,85 @@ func TestListExposesIDNotToken(t *testing.T) {
 	}
 }
 
+func TestSnapshotIsIndependentOfStore(t *testing.T) {
+	s := NewStore(time.Hour)
+	tok, err := s.CreateWithTenant("u1", "alice", "tenant-a", []string{"viewer"}, []string{"keep"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.BindAuthLocalToken(tok, "bearer-a")
+	snap, ok := s.Snapshot(tok)
+	if !ok {
+		t.Fatal("expected snapshot")
+	}
+	snap.Roles[0] = "mutated"
+	snap.Permissions[0] = "mutated"
+	snap.Username = "mutated"
+	snap.AuthLocalToken = "mutated"
+	stored, ok := s.Get(tok)
+	if !ok || stored.Username != "alice" || stored.Roles[0] != "viewer" || stored.Permissions[0] != "keep" || stored.AuthLocalToken != "bearer-a" {
+		t.Fatalf("store changed with snapshot: %+v", stored)
+	}
+	stored.Roles[0] = "store-mutated"
+	if snap.Roles[0] != "mutated" {
+		t.Fatal("snapshot shares the store role slice")
+	}
+}
+
+func TestCommitValidatedClaims(t *testing.T) {
+	s := NewStore(time.Hour)
+	tok, _ := s.CreateWithTenant("u1", "alice", "old-tenant", []string{"viewer"}, []string{"keep"})
+	s.BindAuthLocalToken(tok, "bearer-a")
+	roles := []string{"admin"}
+	if got := s.CommitValidatedClaims(tok, "bearer-a", "u1", "alice-new", "tenant-b", roles); got != CommitApplied {
+		t.Fatalf("commit = %v", got)
+	}
+	roles[0] = "mutated"
+	stored, ok := s.Get(tok)
+	if !ok || stored.Username != "alice-new" || stored.TenantID != "tenant-b" || stored.UserID != "u1" || stored.Roles[0] != "admin" || stored.Permissions[0] != "keep" || stored.AuthLocalToken != "bearer-a" {
+		t.Fatalf("claims = %+v", stored)
+	}
+
+	if got := s.CommitValidatedClaims(tok, "other-bearer", "u1", "nope", "nope", []string{"nope"}); got != CommitRebound {
+		t.Fatalf("rebind commit = %v", got)
+	}
+	if stored, _ = s.Get(tok); stored.Username != "alice-new" {
+		t.Fatal("rebound commit wrote claims")
+	}
+	if got := s.CommitValidatedClaims(tok, "bearer-a", "u2", "other", "t", nil); got != CommitIdentityMismatch {
+		t.Fatalf("mismatch commit = %v", got)
+	}
+	if got := s.CommitValidatedClaims(tok, "bearer-a", "", "other", "t", nil); got != CommitIdentityMismatch {
+		t.Fatalf("empty user commit = %v", got)
+	}
+	s.Revoke(tok)
+	if got := s.CommitValidatedClaims(tok, "bearer-a", "u1", "alice", "t", nil); got != CommitGone {
+		t.Fatalf("revoked commit = %v", got)
+	}
+	if s.Count() != 0 {
+		t.Fatal("commit recreated a revoked session")
+	}
+}
+
+func TestCommitValidatedClaimsPersists(t *testing.T) {
+	t.Setenv(EnvSessionKey, "claims-key")
+	path := filepath.Join(t.TempDir(), "sessions.json")
+	s1 := NewFileStore(path, time.Hour)
+	tok, err := s1.CreateWithTenant("u1", "alice", "old", []string{"viewer"}, []string{"keep"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s1.BindAuthLocalToken(tok, "bearer-a")
+	if got := s1.CommitValidatedClaims(tok, "bearer-a", "u1", "alice-new", "tenant-b", []string{"admin"}); got != CommitApplied {
+		t.Fatalf("commit = %v", got)
+	}
+	s2 := NewFileStore(path, time.Hour)
+	stored, ok := s2.Get(tok)
+	if !ok || stored.Username != "alice-new" || stored.TenantID != "tenant-b" || len(stored.Roles) != 1 || stored.Roles[0] != "admin" || stored.Permissions[0] != "keep" || stored.AuthLocalToken != "bearer-a" {
+		t.Fatalf("reloaded claims = %+v ok=%v", stored, ok)
+	}
+}
+
 func TestParseKey(t *testing.T) {
 	k32 := strings.Repeat("ab", 32)
 	if b, err := ParseKey(k32); err != nil || len(b) != 32 || b[0] != 0xab {
