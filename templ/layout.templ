@@ -46,6 +46,7 @@ templ Layout(title string, nav templ.Component, content templ.Component) {
 				<div id="sidebar-overlay" class="fixed inset-0 z-30 hidden bg-black/50 lg:hidden" aria-hidden="true"></div>
 				<main
 					id="main-content"
+					hx-history-elt="true"
 					tabindex="-1"
 					class="flex-1 overflow-y-auto p-4 pt-16 sm:p-6 lg:pt-6 htmx-settling:hidden"
 					hx-disinherit="hx-select"

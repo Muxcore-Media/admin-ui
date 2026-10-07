@@ -35,6 +35,7 @@ templ loginHeader() {
 templ LoginForm(errorMsg string) {
 	<form
 		id="login-form"
+		tabindex="-1"
 		class="space-y-4"
 		method="POST"
 		action="/login"

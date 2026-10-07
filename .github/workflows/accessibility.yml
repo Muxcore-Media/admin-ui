@@ -1,0 +1,61 @@
+# Admin UI DOM and keyboard checks complement the canonical Go workflow.
+name: Accessibility
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'templ/**'
+      - 'assets/**'
+      - 'tests/**'
+      - 'input.css'
+      - 'package*.json'
+      - 'go.*'
+      - '.github/workflows/accessibility.yml'
+  pull_request:
+    paths:
+      - 'templ/**'
+      - 'assets/**'
+      - 'tests/**'
+      - 'input.css'
+      - 'package*.json'
+      - 'go.*'
+      - '.github/workflows/accessibility.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: accessibility-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  GOPRIVATE: github.com/Muxcore-Media/*
+  GONOSUMDB: github.com/Muxcore-Media/*
+  GOFLAGS: -mod=readonly
+
+jobs:
+  accessibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Private module access
+        env:
+          TOKEN: ${{ secrets.MUXCORE_CI_TOKEN }}
+        run: |
+          if [ -n "$TOKEN" ]; then
+            git config --global url."https://x-access-token:${TOKEN}@github.com/Muxcore-Media/".insteadOf "https://github.com/Muxcore-Media/"
+          fi
+      - run: npm ci
+      - run: npm test
+      - run: npm run test:a11y

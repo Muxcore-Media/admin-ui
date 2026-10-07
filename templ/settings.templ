@@ -69,15 +69,15 @@ templ SettingFieldForm(f SettingField, moduleID string) {
 	<div class="rounded-lg border border-gray-800 bg-gray-900/30 p-4">
 		<form
 			hx-post={ templ.SafeURL(fmt.Sprintf("/settings/%s/%s", moduleID, f.Key)) }
-			hx-target={ templ.SafeURL(fmt.Sprintf("#msg-%s", f.Key)) }
+			hx-target={ templ.SafeURL("#msg-" + settingControlID(moduleID, f.Key)) }
 			hx-swap="innerHTML"
 			class="space-y-3"
-			aria-label={ f.Label }
+			aria-label={ f.Label + " (" + moduleID + ")" }
 		>
 			<input type="hidden" name="key" value={ f.Key }/>
 			<div class="flex items-start justify-between">
 				<div>
-					<label for={ templ.SafeURL(f.Key) } class="text-sm font-medium text-gray-200">
+					<label for={ settingControlID(moduleID, f.Key) } class="text-sm font-medium text-gray-200">
 						{ f.Label }
 						if f.Required {
 							<span class="text-red-400 ml-0.5" aria-hidden="true">*</span>
@@ -85,23 +85,27 @@ templ SettingFieldForm(f SettingField, moduleID string) {
 						}
 					</label>
 					if f.Description != "" {
-						<p id={ templ.SafeURL(fmt.Sprintf("desc-%s", f.Key)) } class="text-xs text-gray-500 mt-0.5">{ f.Description }</p>
+						<p id={ templ.SafeURL("desc-" + settingControlID(moduleID, f.Key)) } class="text-xs text-gray-500 mt-0.5">{ f.Description }</p>
 					}
 				</div>
 			</div>
-			@SettingInput(f)
-			<div id={ templ.SafeURL(fmt.Sprintf("msg-%s", f.Key)) } role="status" aria-live="polite"></div>
+			@SettingInput(f, moduleID)
+			<div id={ templ.SafeURL("msg-" + settingControlID(moduleID, f.Key)) } role="status" aria-live="polite"></div>
 		</form>
 	</div>
 }
 
-templ SettingInput(f SettingField) {
+templ SettingInput(f SettingField, moduleID string) {
 	switch f.Type {
 		case "bool":
 			<div class="flex items-center gap-3">
 				<label class="relative inline-flex cursor-pointer items-center">
 					<input
 						type="checkbox"
+						id={ settingControlID(moduleID, f.Key) }
+						if f.Description != "" {
+							aria-describedby={ "desc-" + settingControlID(moduleID, f.Key) }
+						}
 						name="value"
 						class="peer sr-only"
 						aria-label={ f.Label }
@@ -110,17 +114,17 @@ templ SettingInput(f SettingField) {
 						}
 						onchange="this.closest('form').requestSubmit()"
 					/>
-					<div class="h-5 w-9 rounded-full bg-gray-700 after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-indigo-600 peer-checked:after:translate-x-full" aria-hidden="true"></div>
+					<div class="h-5 w-9 rounded-full bg-gray-700 after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-indigo-600 peer-checked:after:translate-x-full peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--accent-color)]" aria-hidden="true"></div>
 				</label>
 				<span class="text-xs text-gray-400" aria-hidden="true">{ boolLabel(f.Value == "true" || f.Default == "true") }</span>
 			</div>
 		case "select":
 			<select
-				id={ templ.SafeURL(f.Key) }
+				id={ settingControlID(moduleID, f.Key) }
 				name="value"
 				class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
 				if f.Description != "" {
-					aria-describedby={ templ.SafeURL(fmt.Sprintf("desc-%s", f.Key)) }
+					aria-describedby={ templ.SafeURL("desc-" + settingControlID(moduleID, f.Key)) }
 				}
 			>
 				for _, opt := range f.Options {
@@ -136,13 +140,13 @@ templ SettingInput(f SettingField) {
 			<div class="relative">
 				<input
 					type="password"
-					id={ templ.SafeURL(f.Key) }
+					id={ settingControlID(moduleID, f.Key) }
 					name="value"
 					value={ f.Value }
 					class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 pr-12 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
 					placeholder={ "Enter " + f.Label }
 					if f.Description != "" {
-						aria-describedby={ templ.SafeURL(fmt.Sprintf("desc-%s", f.Key)) }
+						aria-describedby={ templ.SafeURL("desc-" + settingControlID(moduleID, f.Key)) }
 					}
 				/>
 				<button
@@ -157,25 +161,25 @@ templ SettingInput(f SettingField) {
 		case "int":
 			<input
 				type="number"
-				id={ templ.SafeURL(f.Key) }
+				id={ settingControlID(moduleID, f.Key) }
 				name="value"
 				value={ f.Value }
 				class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
 				placeholder={ f.Default }
 				if f.Description != "" {
-					aria-describedby={ templ.SafeURL(fmt.Sprintf("desc-%s", f.Key)) }
+					aria-describedby={ templ.SafeURL("desc-" + settingControlID(moduleID, f.Key)) }
 				}
 			/>
 		default:
 			<input
 				type="text"
-				id={ templ.SafeURL(f.Key) }
+				id={ settingControlID(moduleID, f.Key) }
 				name="value"
 				value={ f.Value }
 				class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
 				placeholder={ f.Default }
 				if f.Description != "" {
-					aria-describedby={ templ.SafeURL(fmt.Sprintf("desc-%s", f.Key)) }
+					aria-describedby={ templ.SafeURL("desc-" + settingControlID(moduleID, f.Key)) }
 				}
 			/>
 	}
@@ -186,4 +190,10 @@ func boolLabel(v bool) string {
 		return "Enabled"
 	}
 	return "Disabled"
+}
+
+// Encode each segment separately so identical keys across modules (or punctuation
+// in a key) cannot create duplicate IDs or change the HTMX CSS selector.
+func settingControlID(moduleID, key string) string {
+	return fmt.Sprintf("setting-%x-%x", moduleID, key)
 }
