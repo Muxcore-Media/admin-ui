@@ -5,6 +5,32 @@ All notable changes to the MuxCore Admin UI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Mobile navigation no longer leaves offscreen links keyboard-focusable. Opening
+  the menu moves focus inside; Tab cycles through its controls, Escape restores
+  focus, and viewport changes keep focused controls reachable. HTMX page changes
+  focus the main landmark; background polling preserves the open menu.
+- Module settings use unique control, description and status IDs per module/key,
+  with linked checkbox labels and visible keyboard focus on switches. Repeated
+  setting names have distinguishable form landmarks.
+- Server-rendered navigation and pagination expose the current page. The login
+  skip target is focusable and shared dialogs have a title and named close button.
+
+### Changed
+
+- Align the local test timeout with CI (15 minutes): the existing handler suite
+  includes sequential timeout tests and takes longer than the old 60-second cap.
+
+### Added
+
+- Go DOM accessibility regression checks, axe-core scans of 13 rendered journey
+  documents, and six responsive-navigation keyboard tests (T-M4-05). A dedicated
+  GitHub Accessibility workflow runs the Node checks. Contrast and browser-level
+  WCAG validation remain outstanding; see README for the exact limits.
+
 ## [0.1.20] - 2026-10-05
 
 

@@ -32,6 +32,9 @@ templ Nav(links []NavLink, activePath string) {
 									<a
 										href={ templ.SafeURL(link.Path) }
 										data-nav-link="true"
+										if activePath == link.Path {
+											aria-current="page"
+										}
 										class={
 											"flex items-center gap-2.5 rounded-[var(--radius-md)] px-3 py-1.5 text-sm font-medium transition-colors",
 											templ.KV("bg-[var(--accent-color)] text-black", activePath == link.Path),

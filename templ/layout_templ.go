@@ -50,7 +50,7 @@ func Layout(title string, nav templ.Component, content templ.Component) templ.Co
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</aside><div id=\"sidebar-overlay\" class=\"fixed inset-0 z-30 hidden bg-black/50 lg:hidden\" aria-hidden=\"true\"></div><main id=\"main-content\" tabindex=\"-1\" class=\"flex-1 overflow-y-auto p-4 pt-16 sm:p-6 lg:pt-6 htmx-settling:hidden\" hx-disinherit=\"hx-select\"><div class=\"mx-auto max-w-[1600px]\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</aside><div id=\"sidebar-overlay\" class=\"fixed inset-0 z-30 hidden bg-black/50 lg:hidden\" aria-hidden=\"true\"></div><main id=\"main-content\" hx-history-elt=\"true\" tabindex=\"-1\" class=\"flex-1 overflow-y-auto p-4 pt-16 sm:p-6 lg:pt-6 htmx-settling:hidden\" hx-disinherit=\"hx-select\"><div class=\"mx-auto max-w-[1600px]\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -94,7 +94,7 @@ func ErrorLayout(title string, content templ.Component) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/layout.templ`, Line: 68, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/layout.templ`, Line: 69, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
