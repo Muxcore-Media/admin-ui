@@ -6,13 +6,15 @@ templ Modal(id string, title string, children ...templ.Component) {
 		class="fixed inset-0 z-50 hidden"
 		role="dialog"
 		aria-modal="true"
+		aria-labelledby={ id + "-title" }
 	>
 		<div class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick={ modalCloseJS(id) }></div>
 		<div class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-[var(--radius-lg)] border border-gray-800 bg-gray-900 p-6 shadow-2xl">
 			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-lg font-semibold text-gray-200">{ title }</h3>
+				<h3 id={ id + "-title" } class="text-lg font-semibold text-gray-200">{ title }</h3>
 				<button
 					type="button"
+					aria-label="Close dialog"
 					class="text-gray-500 hover:text-gray-300 transition-colors"
 					onclick={ modalCloseJS(id) }
 				>

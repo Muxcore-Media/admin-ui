@@ -38,7 +38,7 @@ require (
 	github.com/Muxcore-Media/media-rename v0.2.11
 	github.com/Muxcore-Media/media-root-folders v0.1.11
 	github.com/Muxcore-Media/media-tvshows v0.1.18
-	golang.org/x/net v0.58.0 // indirect
+	golang.org/x/net v0.58.0
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260610212136-7ab31c22f7ad // indirect
