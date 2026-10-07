@@ -7,46 +7,10 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/Muxcore-Media/admin-ui/session"
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
 
 var brandingMu sync.Mutex
-
-func (h *Handler) DevicesPage(w http.ResponseWriter, r *http.Request) {
-	var sessions []session.SessionInfo
-	var errMsg string
-	if h.Sessions == nil {
-		errMsg = "session store unavailable"
-	} else {
-		sessions = h.Sessions.List()
-	}
-	content := templates.DevicesLivePage(sessions, errMsg)
-	nav := h.nav(r.URL.Path)
-	component := templates.Layout("Active Sessions", nav, content)
-	h.render(w, r, component)
-}
-
-func (h *Handler) DevicesRevoke(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("token") // session ID (hash), not the bearer
-	if id != "" && h.Sessions != nil {
-		h.Sessions.RevokeByID(id)
-	}
-	http.Redirect(w, r, "/devices", http.StatusSeeOther)
-}
-
-func (h *Handler) DevicesRename(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("token") // session ID (hash), not the bearer
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	label := r.FormValue("label")
-	if id != "" && h.Sessions != nil {
-		h.Sessions.RenameByID(id, label)
-	}
-	http.Redirect(w, r, "/devices", http.StatusSeeOther)
-}
 
 // LogsPage / LogsPartial live in logs.go (file viewer + event ring).
 

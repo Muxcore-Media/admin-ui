@@ -1,0 +1,115 @@
+package templates
+
+import (
+	"fmt"
+	"net/url"
+)
+
+type ProviderSessionRow struct {
+	ID, UserID, Username, Kind, CreatedAt, ExpiresAt string
+}
+
+type ProviderSessionsData struct {
+	Sessions                                  []ProviderSessionRow
+	FilterUserID, NextPageURL, Error, Message string
+	Unsupported                               bool
+}
+
+func ProviderSessionListURL(userID, token string) string {
+	query := url.Values{}
+	if userID != "" {
+		query.Set("user_id", userID)
+	}
+	if token != "" {
+		query.Set("page_token", token)
+	}
+	if len(query) == 0 {
+		return "/devices"
+	}
+	return "/devices?" + query.Encode()
+}
+
+templ DeviceScopeLinks(local bool) {
+	<nav aria-label="Session scope" class="flex flex-wrap gap-4 text-sm text-blue-400">
+		<a
+			href="/devices"
+			if !local {
+				aria-current="page"
+			}
+		>Identity-provider sessions</a>
+		<a
+			href="/devices?scope=local"
+			if local {
+				aria-current="page"
+			}
+		>Local admin-panel sessions</a>
+	</nav>
+}
+
+templ ProviderSessionsPage(data ProviderSessionsData) {
+	<div class="space-y-6 max-w-4xl" data-testid="provider-sessions-page">
+		<div>
+			<h1 class="text-2xl font-bold">Identity-provider sessions</h1>
+			<p class="text-gray-400 text-sm mt-1">Active signed-in and API-token sessions reported by the identity provider. Apps with their own sign-ins apply revocation when they next validate the provider session.</p>
+			<p class="text-gray-400 text-sm mt-1">Revoking an API-token session does not revoke the API key that created it. Local admin-panel sign-ins can be ended separately in the local session view.</p>
+		</div>
+		@DeviceScopeLinks(false)
+		if data.Unsupported {
+			@IdentityUnavailable("session management")
+		} else {
+			<form method="GET" action="/devices" aria-label="Filter provider sessions" class="flex flex-wrap items-end gap-3">
+				<div>
+					<label for="session-user-filter" class="block text-sm text-gray-400">User ID (blank for all users)</label>
+					<input id="session-user-filter" name="user_id" value={ data.FilterUserID } class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white"/>
+				</div>
+				<button type="submit" class="rounded-lg bg-blue-600 px-3 py-2 text-sm text-white">Filter</button>
+				<a href="/devices" class="text-sm text-blue-400">All users</a>
+			</form>
+			if data.Error != "" {
+				<div role="alert" data-testid="provider-sessions-error" class="rounded-lg border border-amber-800 bg-amber-950/30 p-4 text-sm text-amber-200">{ data.Error }</div>
+			} else {
+				if data.Message != "" {
+					<p role="status" class="text-sm text-green-300">{ data.Message }</p>
+				}
+				if len(data.Sessions) == 0 {
+					<p role="status" data-testid="provider-sessions-empty" class="text-sm text-gray-400">No active provider sessions on this page.</p>
+				} else {
+					<section aria-labelledby="provider-session-list-heading" class="rounded-xl border border-gray-800 divide-y divide-gray-800">
+						<h2 id="provider-session-list-heading" class="sr-only">Provider sessions</h2>
+						for _, s := range data.Sessions {
+							<div class="p-4 space-y-2" data-testid="provider-session-row">
+								<p class="text-sm font-medium">{ s.Username } <span class="text-gray-400">({ s.UserID })</span></p>
+								<p class="text-xs text-gray-400">
+									if s.Kind == "full" {
+										Signed-in session
+									} else if s.Kind == "api-token" {
+										API-token session
+									} else {
+										{ s.Kind }
+									}
+									· { shortToken(s.ID) }
+								</p>
+								<p class="text-xs text-gray-400">Created { s.CreatedAt } · expires { s.ExpiresAt }</p>
+								<a href={ templ.SafeURL(ProviderSessionListURL(s.UserID, "")) } class="text-sm text-blue-400" aria-label={ fmt.Sprintf("Sessions for %s (%s)", s.Username, s.UserID) }>Sessions for this user</a>
+								if s.ID != "" && s.UserID != "" {
+									<form method="POST" action="/devices/provider/revoke">
+										<input type="hidden" name="session_id" value={ s.ID }/>
+										<input type="hidden" name="user_id" value={ s.UserID }/>
+										<input type="hidden" name="filter_user_id" value={ data.FilterUserID }/>
+										<button type="submit" class="rounded-lg border border-red-800 bg-red-950/40 px-3 py-1.5 text-sm text-red-300" aria-label={ fmt.Sprintf("Revoke provider session %s for %s", shortToken(s.ID), s.Username) }>Revoke provider session</button>
+									</form>
+								}
+							</div>
+						}
+					</section>
+				}
+			}
+			<nav aria-label="Provider session pages" class="flex gap-4 text-sm text-blue-400">
+				<a href={ templ.SafeURL(ProviderSessionListURL(data.FilterUserID, "")) }>First page</a>
+				if data.Error == "" && data.NextPageURL != "" {
+					<a href={ templ.SafeURL(data.NextPageURL) } rel="next">Next page</a>
+				}
+			</nav>
+		}
+	</div>
+}

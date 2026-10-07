@@ -327,6 +327,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/auth/passkey/register/{id}/complete", h.requireAuth(h.PasskeyCompleteRegister))
 
 	mux.HandleFunc("GET /devices", h.requireAuth(h.DevicesPage))
+	mux.HandleFunc("POST /devices/provider/revoke", h.requireAuth(h.DevicesProviderRevoke))
 	mux.HandleFunc("POST /devices/{token}/revoke", h.requireAuth(h.DevicesRevoke))
 	mux.HandleFunc("POST /devices/{token}/rename", h.requireAuth(h.DevicesRename))
 	mux.HandleFunc("GET /logs", h.requireAuth(h.LogsPage))

@@ -194,12 +194,37 @@ direct connections keep DNS resolution and destination checks in the same client
 Requests retain the 30-second timeout; a failed fetch produces an error before
 any catalog import or library scan.
 
+### Provider and local sessions
+
+`/devices` lists active sessions from the identity provider using core v0.6.16's
+administrative session contract. The list includes signed-in and API-token
+sessions for all users, with an optional user-ID filter and 100-entry pages.
+Changing the filter starts a new page sequence; continuation tokens are opaque,
+and each page reflects current provider state rather than a fixed snapshot.
+
+List and revoke calls forward exactly the signed-in user's provider bearer.
+Missing bearers require signing in again; the provider independently enforces
+current authentication and the admin role. Unsupported providers get an
+explanation without provider controls. Authentication, permission, pagination
+and availability failures remain errors, not empty lists or successful revokes.
+
+Revocation targets the exact user ID and independent provider session ID. It
+invalidates that provider session on its next validation; it does not revoke the
+API key that minted an API-token session. Applications that keep local sign-ins
+must revalidate the upstream bearer to enforce this. Global app revalidation and
+live provider acceptance remain separate work, so FR-AUTH-007 is still partial.
+
+The **Local admin-panel sessions** view (`/devices?scope=local`) keeps the existing
+local revoke and rename controls. Labels apply only to admin-ui sessions. Local
+cookie hashes never stand in for provider management IDs, and provider actions
+do not automatically remove or rename local sessions.
+
 ### Accessibility validation
 
 For T-M4-05 / NFR-A11Y-001, the ordinary Go template suite checks rendered DOM
 relationships (labels, unique IDs, ARIA references, names and landmarks),
 including settings with identical keys in different modules. The Accessibility
-GitHub workflow adds axe-core checks over 15 Go-rendered core-journey documents
+GitHub workflow adds axe-core checks over 20 Go-rendered core-journey documents
 and keyboard interaction tests for the responsive sidebar and HTMX navigation.
 
 ```bash

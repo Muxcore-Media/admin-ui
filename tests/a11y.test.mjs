@@ -34,7 +34,7 @@ test('axe checks actual Go-rendered core journeys', async t => {
   });
   assert.equal(result.status, 0, `Go template fixtures failed: ${result.error || ''}\n${result.stdout}\n${result.stderr}`);
   const fixtures = readdirSync(dir).filter(name => name.endsWith('.html')).sort();
-  assert.equal(fixtures.length, 15, 'render every core journey, including errors and repeated module setting keys');
+  assert.equal(fixtures.length, 20, 'render every core journey, including errors and repeated module setting keys');
   for (const fixture of fixtures) {
     await t.test(fixture, async () => {
       const results = await scan(readFileSync(join(dir, fixture), 'utf8'));

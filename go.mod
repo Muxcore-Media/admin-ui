@@ -8,7 +8,7 @@ require (
 	github.com/Muxcore-Media/contracts-media-admin v0.1.1
 	github.com/Muxcore-Media/contracts-playback v0.2.0
 	github.com/Muxcore-Media/contracts-scanner v0.2.0
-	github.com/Muxcore-Media/core v0.6.15
+	github.com/Muxcore-Media/core v0.6.16
 	github.com/Muxcore-Media/core/sdk/go/client v0.6.1
 	github.com/Muxcore-Media/jellyfin v0.3.5
 	github.com/Muxcore-Media/media-custom-formats v0.1.15
