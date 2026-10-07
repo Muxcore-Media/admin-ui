@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/Muxcore-Media/core/sdk/go/module/netguard"
 )
 
 // Item is one movie, series, or artist row from an Arr API.
@@ -53,6 +55,7 @@ type MusicImporter interface {
 
 // Client talks to Radarr/Sonarr HTTP APIs.
 type Client struct {
+	// HTTP overrides the guarded production client for tests.
 	HTTP *http.Client
 }
 
@@ -60,7 +63,11 @@ func (c *Client) httpClient() *http.Client {
 	if c != nil && c.HTTP != nil {
 		return c.HTTP
 	}
-	return &http.Client{Timeout: 30 * time.Second}
+	// Arr endpoints are operator-owned integrations and may use localhost or
+	// the LAN. Never follow redirects carrying their X-Api-Key credential.
+	return netguard.NewClient(netguard.Integration, netguard.Options{
+		Timeout: 30 * time.Second, AllowPrivate: true, AllowLoopback: true, MaxRedirects: -1,
+	})
 }
 
 // FetchRadarr loads /api/v3/movie (+ quality profiles for names).
