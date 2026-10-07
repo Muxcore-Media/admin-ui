@@ -24,14 +24,17 @@ import (
 
 type identityRPCStub struct {
 	authv1.UnimplementedAuthServiceServer
-	fail          map[string]codes.Code
-	bodyError     map[string]string
-	totpEnabled   bool
-	discoveryFail codes.Code
-	mu            sync.Mutex
-	calls         map[string]int
-	requests      map[string]proto.Message
-	tokens        map[string][]string
+	fail            map[string]codes.Code
+	bodyError       map[string]string
+	totpEnabled     bool
+	discoveryFail   codes.Code
+	allowAdmin      bool
+	sessionRows     []*authv1.SessionInfo
+	nextSessionPage string
+	mu              sync.Mutex
+	calls           map[string]int
+	requests        map[string]proto.Message
+	tokens          map[string][]string
 }
 
 func (s *identityRPCStub) intercept(ctx context.Context, req any, info *grpc.UnaryServerInfo, next grpc.UnaryHandler) (any, error) {
@@ -78,7 +81,11 @@ func (s *identityRPCStub) intercept(ctx context.Context, req any, info *grpc.Una
 	case "RevokeInvite":
 		return &authv1.RevokeInviteResponse{Error: s.bodyError[method]}, nil
 	case "Can":
-		return &authv1.CanResponse{Allowed: false}, nil
+		return &authv1.CanResponse{Allowed: s.allowAdmin}, nil
+	case "ListSessions":
+		return &authv1.ListSessionsResponse{Sessions: s.sessionRows, NextPageToken: s.nextSessionPage}, nil
+	case "RevokeSession":
+		return &authv1.RevokeSessionResponse{}, nil
 	}
 	return next(ctx, req)
 }

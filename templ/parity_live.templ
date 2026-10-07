@@ -10,11 +10,12 @@ import (
 templ DevicesLivePage(sessions []session.SessionInfo, errMsg string) {
 	<div class="space-y-6 max-w-4xl" data-testid="devices-page">
 		<div>
-			<h1 class="text-2xl font-bold">Active Sessions</h1>
+			<h1 class="text-2xl font-bold">Local admin-panel sessions</h1>
 			<p class="text-gray-400 text-sm mt-1">
-				Admin-panel sessions currently signed in. Revoke ends that session immediately; rename lets you label a device for easy identification.
+				These sign-ins belong only to this admin panel. Revoke ends the local sign-in immediately; labels are stored only here and do not rename identity-provider sessions.
 			</p>
 		</div>
+		@DeviceScopeLinks(true)
 		if errMsg != "" {
 			<div class="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-2 text-sm text-amber-200" role="alert">{ errMsg }</div>
 		}
@@ -45,12 +46,12 @@ templ DevicesLivePage(sessions []session.SessionInfo, errMsg string) {
 								</div>
 							</div>
 							<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/devices/%s/revoke", s.ID)) }>
-								<button type="submit" class="rounded-lg border border-red-800/60 bg-red-950/40 px-3 py-1.5 text-xs font-medium text-red-300 hover:bg-red-900/40" aria-label={ fmt.Sprintf("Revoke session for %s", s.Username) }>
+								<button type="submit" class="rounded-lg border border-red-800/60 bg-red-950/40 px-3 py-1.5 text-xs font-medium text-red-300 hover:bg-red-900/40" aria-label={ fmt.Sprintf("Revoke local admin session for %s", s.Username) }>
 									Revoke
 								</button>
 							</form>
 						</div>
-						<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/devices/%s/rename", s.ID)) } class="flex gap-2 items-center" aria-label="Rename device">
+						<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/devices/%s/rename", s.ID)) } class="flex gap-2 items-center" aria-label={ fmt.Sprintf("Rename local session %s for %s", shortToken(s.ID), s.Username) }>
 							<input
 								name="label"
 								value={ s.Label }

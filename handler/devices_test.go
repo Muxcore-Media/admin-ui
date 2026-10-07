@@ -15,7 +15,7 @@ func TestDevicesPageRendersEmpty(t *testing.T) {
 	ss := session.NewStore(0)
 	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
 
-	r := mustRequest(http.MethodGet, "/devices")
+	r := mustRequest(http.MethodGet, "/devices?scope=local")
 	w := httptest.NewRecorder()
 	h.DevicesPage(w, r)
 
@@ -33,7 +33,7 @@ func TestDevicesPageRendersActiveSessions(t *testing.T) {
 	_, _ = ss.Create("u1", "alice", nil, nil)
 
 	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
-	r := mustRequest(http.MethodGet, "/devices")
+	r := mustRequest(http.MethodGet, "/devices?scope=local")
 	w := httptest.NewRecorder()
 	h.DevicesPage(w, r)
 
@@ -47,7 +47,7 @@ func TestDevicesPageRendersActiveSessions(t *testing.T) {
 
 func TestDevicesPageNilStoreShowsError(t *testing.T) {
 	h := New(nil, nil, false, "test", nil, false, "", nil, nil)
-	r := mustRequest(http.MethodGet, "/devices")
+	r := mustRequest(http.MethodGet, "/devices?scope=local")
 	w := httptest.NewRecorder()
 	h.DevicesPage(w, r)
 
@@ -123,7 +123,7 @@ func TestDevicesPageShowsLabel(t *testing.T) {
 	ss.RenameSession(tok, "Living Room TV")
 
 	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
-	r := mustRequest(http.MethodGet, "/devices")
+	r := mustRequest(http.MethodGet, "/devices?scope=local")
 	w := httptest.NewRecorder()
 	h.DevicesPage(w, r)
 
