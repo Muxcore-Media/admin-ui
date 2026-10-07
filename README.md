@@ -156,12 +156,34 @@ make clean      # Remove build artifacts
 make fmt        # Format Go + Templ files
 ```
 
+### Identity provider capabilities
+
+User, TOTP, token and invite administration use the discovered identity provider.
+If an operation returns `Unimplemented`, its page or panel explains that the
+feature is unavailable and omits its controls. Providers are not identified by
+name, and capability results are not cached across requests. Connection and
+permission failures remain errors rather than appearing as unsupported features
+or empty lists.
+
+Invite administration uses the existing AuthService list/create/revoke RPCs,
+forwarding the signed-in session token. The form keeps `0` as unlimited uses;
+its hours-based lifetime and tenant selection are preserved. Invite redemption
+continues through the provider's HTTP flow. Creator attribution comes from the
+provider; auth-local can report the calling module when mesh TLS is in use.
+
+If API key rotation creates a token but cannot confirm revocation of the old
+one, the page retains the new token for copying and warns that rotation is
+incomplete. It does not retry either mutation automatically.
+
+Direct passkey endpoints and live OIDC browser acceptance remain outside this
+checkpoint; FR-AUTH-009 is still partial.
+
 ### Accessibility validation
 
 For T-M4-05 / NFR-A11Y-001, the ordinary Go template suite checks rendered DOM
 relationships (labels, unique IDs, ARIA references, names and landmarks),
 including settings with identical keys in different modules. The Accessibility
-GitHub workflow adds axe-core checks over 13 Go-rendered core-journey documents
+GitHub workflow adds axe-core checks over 15 Go-rendered core-journey documents
 and keyboard interaction tests for the responsive sidebar and HTMX navigation.
 
 ```bash

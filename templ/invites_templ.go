@@ -77,7 +77,7 @@ func InvitesPage(data InvitesPageData) templ.Component {
 			}
 		}
 		if data.SoftEmpty {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400\" role=\"status\" data-testid=\"invites-soft-empty\">auth-local HTTP unavailable — set ADMIN_UI_AUTH_INTERNAL_URL / AuthAddr.</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400\" role=\"status\" data-testid=\"invites-soft-empty\">Invite controls are currently unavailable.</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

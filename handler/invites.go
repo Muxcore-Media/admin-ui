@@ -1,11 +1,7 @@
 package handler
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -13,6 +9,7 @@ import (
 	"time"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
+	authv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/auth/v1"
 )
 
 const (
@@ -21,10 +18,7 @@ const (
 	invitesPageTimeout = invitesDialTimeout + invitesReadTimeout + time.Second
 )
 
-func invitesHTTPDo(_ context.Context, req *http.Request) (*http.Response, error) {
-	return (&http.Client{Timeout: invitesReadTimeout}).Do(req)
-}
-
+// Redemption still uses the provider's existing public HTTP flow.
 func (h *Handler) authHTTPBase() string {
 	if h.AuthInternalAddr != "" {
 		return strings.TrimRight(h.AuthInternalAddr, "/")
@@ -35,159 +29,131 @@ func (h *Handler) authHTTPBase() string {
 func (h *Handler) InvitesPage(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), invitesPageTimeout)
 	defer cancel()
-
 	data := templates.InvitesPageData{
-		AuthBase:    h.authHTTPBase(),
 		CreatedLink: strings.TrimSpace(r.URL.Query().Get("created")),
 		Message:     strings.TrimSpace(r.URL.Query().Get("msg")),
 	}
-	base := h.authHTTPBase()
-	if base == "" {
-		data.SoftEmpty = true
-		data.Error = "auth HTTP base not configured"
-		h.renderInvites(w, r, data)
-		return
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/invites", nil)
-	if err != nil {
-		data.Error = err.Error()
-		h.renderInvites(w, r, data)
-		return
-	}
-	if sess := SessionFromContext(r.Context()); sess != nil && sess.AuthLocalToken != "" {
-		req.Header.Set("Authorization", "Bearer "+sess.AuthLocalToken)
-	}
-	resp, err := invitesHTTPDo(ctx, req)
+	client, conn, err := h.authClient(ctx)
 	if err != nil {
 		data.SoftEmpty = true
-		data.Error = "auth-local unreachable: " + err.Error()
+		data.Error = "Identity provider unavailable. Try again later."
 		h.renderInvites(w, r, data)
 		return
 	}
-	defer func() { _ = resp.Body.Close() }()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if resp.StatusCode >= 300 {
-		data.Error = fmt.Sprintf("list invites HTTP %d", resp.StatusCode)
+	defer func() { _ = conn.Close() }()
+	resp, err := client.ListInvites(authContextWithToken(ctx), &authv1.ListInvitesRequest{})
+	if h.renderIdentityUnsupported(w, r, "Invite links", identityInvites, err) {
+		return
+	}
+	if err != nil {
+		data.SoftEmpty = true
+		data.Error = identityReadError("load invites", err)
 		h.renderInvites(w, r, data)
 		return
 	}
-	var payload struct {
-		Invites []struct {
-			ID        string `json:"id"`
-			Prefix    string `json:"prefix"`
-			CreatedBy string `json:"created_by"`
-			Role      string `json:"role"`
-			MaxUses   int    `json:"max_uses"`
-			UseCount  int    `json:"use_count"`
-			ExpiresAt string `json:"expires_at"`
-			RevokedAt string `json:"revoked_at"`
-			CreatedAt string `json:"created_at"`
-		} `json:"invites"`
-	}
-	if err := json.Unmarshal(body, &payload); err != nil {
-		data.Error = "invalid invites JSON"
-		h.renderInvites(w, r, data)
-		return
-	}
-	for _, inv := range payload.Invites {
+	for _, inv := range resp.GetInvites() {
 		data.Invites = append(data.Invites, templates.InviteRow{
-			ID: inv.ID, Prefix: inv.Prefix, CreatedBy: inv.CreatedBy, Role: inv.Role,
-			MaxUses: inv.MaxUses, UseCount: inv.UseCount, ExpiresAt: inv.ExpiresAt,
-			CreatedAt: inv.CreatedAt, Revoked: strings.TrimSpace(inv.RevokedAt) != "" && inv.RevokedAt != "0001-01-01T00:00:00Z",
+			ID: inv.GetId(), Prefix: inv.GetPrefix(), CreatedBy: inv.GetCreatedBy(), Role: inv.GetRole(),
+			MaxUses: int(inv.GetMaxUses()), UseCount: int(inv.GetUseCount()), ExpiresAt: inv.GetExpiresAt(),
+			CreatedAt: inv.GetCreatedAt(), Revoked: strings.TrimSpace(inv.GetRevokedAt()) != "" && inv.GetRevokedAt() != "0001-01-01T00:00:00Z",
 		})
 	}
 	h.renderInvites(w, r, data)
 }
 
 func (h *Handler) InvitesCreate(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form data", http.StatusBadRequest)
+		return
+	}
+	var maxUses int64
+	if value := strings.TrimSpace(r.FormValue("max_uses")); value != "" {
+		var err error
+		maxUses, err = strconv.ParseInt(value, 10, 32)
+		if err != nil {
+			http.Error(w, "invalid maximum uses", http.StatusBadRequest)
+			return
+		}
+	}
+	// The form/HTTP convention is <=0 unlimited; the RPC reserves 0 for its
+	// single-use default and represents unlimited with a negative value.
+	if maxUses <= 0 {
+		maxUses = -1
+	}
+	var ttlHours int64
+	if value := strings.TrimSpace(r.FormValue("ttl_hours")); value != "" {
+		var err error
+		ttlHours, err = strconv.ParseInt(value, 10, 64)
+		if err != nil || ttlHours > int64((1<<63-1)/time.Hour) {
+			http.Error(w, "invalid invite lifetime", http.StatusBadRequest)
+			return
+		}
+	}
+	var ttlSeconds int64
+	if ttlHours > 0 {
+		ttlSeconds = ttlHours * 3600
+	}
+	tenantID := strings.TrimSpace(r.FormValue("tenant_id"))
+	if sess := SessionFromContext(r.Context()); sess != nil && tenantID == "" {
+		tenantID = strings.TrimSpace(sess.TenantID)
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), invitesPageTimeout)
 	defer cancel()
-	if err := r.ParseForm(); err != nil {
-		http.Redirect(w, r, "/invites", http.StatusSeeOther)
+	client, conn, err := h.authClient(ctx)
+	if err != nil {
+		http.Error(w, "identity provider unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	base := h.authHTTPBase()
-	if base == "" {
-		http.Redirect(w, r, "/invites", http.StatusSeeOther)
-		return
-	}
-	maxUses, _ := strconv.Atoi(r.FormValue("max_uses"))
-	ttl, _ := strconv.Atoi(r.FormValue("ttl_hours"))
-	createdBy := "admin"
-	tenantID := strings.TrimSpace(r.FormValue("tenant_id"))
-	if sess := SessionFromContext(r.Context()); sess != nil {
-		createdBy = sess.Username
-		if createdBy == "" {
-			createdBy = sess.UserID
-		}
-		if tenantID == "" {
-			tenantID = strings.TrimSpace(sess.TenantID)
-		}
-	}
-	payload, _ := json.Marshal(map[string]any{
-		"createdBy": createdBy,
-		"role":      r.FormValue("role"),
-		"maxUses":   maxUses,
-		"ttlHours":  ttl,
-		"tenantId":  tenantID,
+	defer func() { _ = conn.Close() }()
+	resp, err := client.CreateInvite(authContextWithToken(ctx), &authv1.CreateInviteRequest{
+		Role: strings.TrimSpace(r.FormValue("role")), TenantId: tenantID,
+		MaxUses: int32(maxUses), TtlSeconds: ttlSeconds,
 	})
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/invites", bytes.NewReader(payload))
+	if h.renderIdentityUnsupported(w, r, "Invite links", identityInvites, err) {
+		return
+	}
 	if err != nil {
-		http.Redirect(w, r, "/invites", http.StatusSeeOther)
+		http.Error(w, "could not create invite", identityErrorStatus(err))
 		return
 	}
-	req.Header.Set("Content-Type", "application/json")
-	if sess := SessionFromContext(r.Context()); sess != nil && sess.AuthLocalToken != "" {
-		req.Header.Set("Authorization", "Bearer "+sess.AuthLocalToken)
-	}
-	if tenantID != "" {
-		req.Header.Set("X-Tenant-ID", tenantID)
-		req.Header.Set("X-Auth-Claims-Tenant", tenantID)
-	}
-	resp, err := invitesHTTPDo(ctx, req)
-	if err != nil {
-		http.Redirect(w, r, "/invites?msg="+url.QueryEscape("create failed"), http.StatusSeeOther)
+	if resp.GetError() != "" {
+		http.Error(w, resp.GetError(), http.StatusBadRequest)
 		return
 	}
-	defer func() { _ = resp.Body.Close() }()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if resp.StatusCode >= 300 {
-		http.Redirect(w, r, "/invites?msg="+url.QueryEscape(string(body)), http.StatusSeeOther)
+	if resp.GetToken() == "" {
+		http.Error(w, "identity provider returned no invite token", http.StatusBadGateway)
 		return
 	}
-	var inv struct {
-		Token string `json:"token"`
-	}
-	_ = json.Unmarshal(body, &inv)
-	link := h.publicOrigin(r) + "/invite/redeem?token=" + url.QueryEscape(inv.Token)
+	link := h.publicOrigin(r) + "/invite/redeem?token=" + url.QueryEscape(resp.GetToken())
 	http.Redirect(w, r, "/invites?created="+url.QueryEscape(link), http.StatusSeeOther)
 }
 
 func (h *Handler) InvitesRevoke(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		http.Error(w, "invite id required", http.StatusBadRequest)
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), invitesPageTimeout)
 	defer cancel()
-	id := r.PathValue("id")
-	base := h.authHTTPBase()
-	if base == "" || id == "" {
-		http.Redirect(w, r, "/invites", http.StatusSeeOther)
-		return
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, base+"/api/invites/"+url.PathEscape(id), nil)
+	client, conn, err := h.authClient(ctx)
 	if err != nil {
-		http.Redirect(w, r, "/invites", http.StatusSeeOther)
+		http.Error(w, "identity provider unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	if sess := SessionFromContext(r.Context()); sess != nil && sess.AuthLocalToken != "" {
-		req.Header.Set("Authorization", "Bearer "+sess.AuthLocalToken)
+	defer func() { _ = conn.Close() }()
+	resp, err := client.RevokeInvite(authContextWithToken(ctx), &authv1.RevokeInviteRequest{InviteId: id})
+	if h.renderIdentityUnsupported(w, r, "Invite links", identityInvites, err) {
+		return
 	}
-	resp, err := invitesHTTPDo(ctx, req)
 	if err != nil {
-		http.Redirect(w, r, "/invites", http.StatusSeeOther)
+		http.Error(w, "could not revoke invite", identityErrorStatus(err))
 		return
 	}
-	defer func() { _ = resp.Body.Close() }()
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
+	if resp.GetError() != "" {
+		http.Error(w, resp.GetError(), http.StatusBadRequest)
+		return
+	}
 	http.Redirect(w, r, "/invites?msg=revoked", http.StatusSeeOther)
 }
 
