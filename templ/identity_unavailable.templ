@@ -1,0 +1,14 @@
+package templates
+
+templ IdentityUnavailable(feature string) {
+	<div class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-300" role="status" data-testid="identity-unsupported" data-feature={ feature }>
+		Your identity provider does not support { feature } here. Manage this feature through your identity provider.
+	</div>
+}
+
+templ IdentityUnavailablePage(title, feature string) {
+	<div class="space-y-6">
+		<h1 class="text-2xl font-bold">{ title }</h1>
+		@IdentityUnavailable(feature)
+	</div>
+}

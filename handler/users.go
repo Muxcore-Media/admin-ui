@@ -18,8 +18,23 @@ const (
 )
 
 func (h *Handler) UsersCreateForm(w http.ResponseWriter, r *http.Request) {
-	component := templates.UserCreateForm()
-	h.render(w, r, component)
+	ctx, cancel := context.WithTimeout(r.Context(), usersDialTimeout+usersReadTimeout)
+	defer cancel()
+	client, conn, err := h.authClient(ctx)
+	if err != nil {
+		http.Error(w, "auth unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	defer func() { _ = conn.Close() }()
+	_, err = client.ListUsers(authContextWithToken(ctx), &authv1.ListUsersRequest{})
+	if h.renderIdentityUnsupported(w, r, "", identityUsers, err) {
+		return
+	}
+	if err != nil {
+		http.Error(w, "could not load user management", http.StatusBadGateway)
+		return
+	}
+	h.render(w, r, templates.UserCreateForm())
 }
 
 func (h *Handler) UsersDetail(w http.ResponseWriter, r *http.Request) {
@@ -39,6 +54,9 @@ func (h *Handler) UsersDetail(w http.ResponseWriter, r *http.Request) {
 	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
 	resp, err := client.ListUsers(readCtx, &authv1.ListUsersRequest{})
 	readCancel()
+	if h.renderIdentityUnsupported(w, r, "", identityUsers, err) {
+		return
+	}
 	if err != nil {
 		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">list users failed</div>`))
 		return
@@ -72,15 +90,14 @@ func (h *Handler) UsersTOTPStatus(w http.ResponseWriter, r *http.Request) {
 	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
 	status, err := client.TOTPStatus(readCtx, &authv1.TOTPStatusRequest{UserId: userID})
 	readCancel()
+	if h.renderIdentityUnsupported(w, r, "", identityTOTP, err) {
+		return
+	}
 	if err != nil {
 		_, _ = w.Write([]byte(`<span class="text-xs text-red-400">totp status failed</span>`))
 		return
 	}
-	if status.GetEnabled() {
-		_, _ = w.Write([]byte(`<span class="text-xs text-green-400">TOTP is enabled</span>`))
-	} else {
-		_, _ = w.Write([]byte(`<span class="text-xs text-gray-400">TOTP is disabled</span>`))
-	}
+	h.render(w, r, templates.UserTOTPControls(status.GetEnabled(), userID))
 }
 
 func (h *Handler) UsersPage(w http.ResponseWriter, r *http.Request) {
@@ -93,7 +110,7 @@ func (h *Handler) UsersPage(w http.ResponseWriter, r *http.Request) {
 	dialCancel()
 	if err != nil {
 		slog.Warn("users: auth client failed", "error", err)
-		content := templates.UsersPage(nil, "", pendingResets)
+		content := templates.UsersPage(nil, identityReadError("load users", err), pendingResets)
 		nav := h.nav(r.URL.Path)
 		component := templates.Layout("Users", nav, content)
 		h.render(w, r, component)
@@ -104,9 +121,12 @@ func (h *Handler) UsersPage(w http.ResponseWriter, r *http.Request) {
 	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
 	resp, err := client.ListUsers(readCtx, &authv1.ListUsersRequest{})
 	readCancel()
+	if h.renderIdentityUnsupported(w, r, "Users", identityUsers, err) {
+		return
+	}
 	if err != nil {
 		slog.Warn("users: ListUsers failed", "error", err)
-		content := templates.UsersPage(nil, "", pendingResets)
+		content := templates.UsersPage(nil, identityReadError("load users", err), pendingResets)
 		nav := h.nav(r.URL.Path)
 		component := templates.Layout("Users", nav, content)
 		h.render(w, r, component)
@@ -150,6 +170,9 @@ func (h *Handler) UsersCreate(w http.ResponseWriter, r *http.Request) {
 		Password: password,
 	})
 	readCancel()
+	if h.renderIdentityUnsupported(w, r, "", identityUsers, err) {
+		return
+	}
 	if err != nil {
 		slog.Warn("users: CreateUser failed", "error", err)
 		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">create failed</div>`))
@@ -187,6 +210,9 @@ func (h *Handler) UsersDelete(w http.ResponseWriter, r *http.Request) {
 	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
 	resp, err := client.DeleteUser(readCtx, &authv1.DeleteUserRequest{UserId: userID})
 	readCancel()
+	if h.renderIdentityUnsupported(w, r, "", identityUsers, err) {
+		return
+	}
 	if err != nil {
 		slog.Warn("users: DeleteUser failed", "error", err)
 		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">delete failed</div>`))
@@ -236,6 +262,9 @@ func (h *Handler) UsersSetPassword(w http.ResponseWriter, r *http.Request) {
 		Password: password,
 	})
 	readCancel()
+	if h.renderIdentityUnsupported(w, r, "", identityUsers, err) {
+		return
+	}
 	if err != nil {
 		slog.Warn("users: SetPassword failed", "error", err)
 		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">set password failed</div>`))
@@ -293,6 +322,9 @@ func (h *Handler) UsersSetRoles(w http.ResponseWriter, r *http.Request) {
 		Roles:  roles,
 	})
 	readCancel()
+	if h.renderIdentityUnsupported(w, r, "", identityUsers, err) {
+		return
+	}
 	if err != nil {
 		slog.Warn("users: SetRoles failed", "error", err)
 		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">set roles failed</div>`))
@@ -329,6 +361,9 @@ func (h *Handler) UsersTOTP(w http.ResponseWriter, r *http.Request) {
 	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
 	status, err := client.TOTPStatus(readCtx, &authv1.TOTPStatusRequest{UserId: userID})
 	readCancel()
+	if h.renderIdentityUnsupported(w, r, "", identityTOTP, err) {
+		return
+	}
 	if err != nil {
 		_, _ = w.Write([]byte(`<div class="text-xs text-red-400">totp status failed</div>`))
 		return
@@ -338,6 +373,9 @@ func (h *Handler) UsersTOTP(w http.ResponseWriter, r *http.Request) {
 		readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
 		resp, err := client.DisableTOTP(readCtx, &authv1.DisableTOTPRequest{UserId: userID})
 		readCancel()
+		if h.renderIdentityUnsupported(w, r, "", identityTOTP, err) {
+			return
+		}
 		if err != nil {
 			_, _ = w.Write([]byte(`<div class="text-xs text-red-400">disable totp failed</div>`))
 			return
@@ -354,6 +392,9 @@ func (h *Handler) UsersTOTP(w http.ResponseWriter, r *http.Request) {
 		readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
 		resp, err := client.EnableTOTP(readCtx, &authv1.EnableTOTPRequest{UserId: userID})
 		readCancel()
+		if h.renderIdentityUnsupported(w, r, "", identityTOTP, err) {
+			return
+		}
 		if err != nil {
 			_, _ = w.Write([]byte(`<div class="text-xs text-red-400">enable totp failed</div>`))
 			return
@@ -389,6 +430,9 @@ func (h *Handler) UsersTokens(w http.ResponseWriter, r *http.Request) {
 		readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
 		resp, err := client.ListAPITokens(readCtx, &authv1.ListAPITokensRequest{UserId: userID})
 		readCancel()
+		if h.renderIdentityUnsupported(w, r, "", identityTokens, err) {
+			return
+		}
 		if err != nil {
 			_, _ = w.Write([]byte(`<div class="text-xs text-red-400">list tokens failed</div>`))
 			return
@@ -412,6 +456,9 @@ func (h *Handler) UsersTokens(w http.ResponseWriter, r *http.Request) {
 			Name:   name,
 		})
 		readCancel()
+		if h.renderIdentityUnsupported(w, r, "", identityTokens, err) {
+			return
+		}
 		if err != nil {
 			_, _ = w.Write([]byte(`<div class="text-xs text-red-400">create token failed</div>`))
 			return
@@ -430,10 +477,17 @@ func (h *Handler) UsersTokens(w http.ResponseWriter, r *http.Request) {
 	case http.MethodDelete:
 		tokenID := r.PathValue("tokenId")
 		readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
-		_, err := client.DeleteAPIToken(readCtx, &authv1.DeleteAPITokenRequest{TokenId: tokenID})
+		resp, err := client.DeleteAPIToken(readCtx, &authv1.DeleteAPITokenRequest{TokenId: tokenID})
 		readCancel()
+		if h.renderIdentityUnsupported(w, r, "", identityTokens, err) {
+			return
+		}
 		if err != nil {
 			_, _ = w.Write([]byte(`<div class="text-xs text-red-400">delete token failed</div>`))
+			return
+		}
+		if resp.GetError() != "" {
+			http.Error(w, resp.GetError(), http.StatusBadRequest)
 			return
 		}
 		if sess := SessionFromContext(r.Context()); sess != nil {

@@ -789,3 +789,11 @@ templ AuthSSOPage(data AuthSSOData) {
 		}
 	</div>
 }
+
+templ APIKeyRotationIncomplete(username, name, secret, warning string) {
+	<div class="space-y-4">
+		<h1 class="text-2xl font-bold">API key rotation incomplete</h1>
+		<p class="rounded-lg border border-amber-800/50 bg-amber-950/30 p-4 text-sm text-amber-200" role="alert" data-testid="rotation-incomplete">{ warning }</p>
+		@APIKeyCopyOnce(username, name, secret)
+	</div>
+}
