@@ -35,6 +35,8 @@ func TestAccessibilityCoreJourneys(t *testing.T) {
 		name string
 		page templ.Component
 	}{
+		{"identity-unsupported", IdentityUnavailablePage("Users", "user management")},
+		{"rotation-incomplete", APIKeyRotationIncomplete("alice", "laptop", "fixture-token", "Revocation of the old token was not confirmed.")},
 		{"dashboard", DashboardPage(DashboardData{WantedQueueCount: 2, QueueFailureCount: 1})},
 		{"dashboard-disconnected", DashboardPage(DashboardData{Disconnected: true})},
 		{"users", UsersPage([]*authv1.UserInfo{{Id: "alice", Username: "Alice"}}, "User service unavailable", 1)},

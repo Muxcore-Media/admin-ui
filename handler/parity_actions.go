@@ -20,6 +20,8 @@ import (
 	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 	backupv1 "github.com/Muxcore-Media/backup-local/muxcore/backup/v1"
@@ -71,7 +73,14 @@ var (
 func (h *Handler) APIKeysPage(w http.ResponseWriter, r *http.Request) {
 	pageCtx, pageCancel := context.WithTimeout(r.Context(), usersDialTimeout+usersReadTimeout+time.Second)
 	defer pageCancel()
-	rows, users, errMsg := h.collectAPIKeysAndUsers(pageCtx)
+	rows, users, err := h.collectAPIKeysAndUsers(pageCtx)
+	if h.renderIdentityUnsupported(w, r, "API Keys", identityTokens, err) {
+		return
+	}
+	errMsg := ""
+	if err != nil {
+		errMsg = identityReadError("load API keys", err)
+	}
 	content := templates.APIKeysLivePage(rows, users, errMsg)
 	nav := h.nav(r.URL.Path)
 	h.render(w, r, templates.Layout("API Keys", nav, content))
@@ -101,12 +110,19 @@ func (h *Handler) APIKeysCreate(w http.ResponseWriter, r *http.Request) {
 	readCtx, readCancel := context.WithTimeout(pageCtx, usersReadTimeout)
 	resp, err := client.CreateAPIToken(readCtx, &authv1.CreateAPITokenRequest{UserId: userID, Name: name})
 	readCancel()
+	if h.renderIdentityUnsupported(w, r, "API Keys", identityTokens, err) {
+		return
+	}
 	if err != nil {
-		http.Error(w, "create token: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "create token: "+err.Error(), identityErrorStatus(err))
 		return
 	}
 	if resp.GetError() != "" {
 		http.Error(w, resp.GetError(), http.StatusBadRequest)
+		return
+	}
+	if resp.GetToken() == "" {
+		http.Error(w, "identity provider returned no API token", http.StatusBadGateway)
 		return
 	}
 	if sess := SessionFromContext(r.Context()); sess != nil {
@@ -139,17 +155,36 @@ func (h *Handler) APIKeysRotate(w http.ResponseWriter, r *http.Request) {
 	createCtx, createCancel := context.WithTimeout(pageCtx, usersReadTimeout)
 	resp, err := client.CreateAPIToken(createCtx, &authv1.CreateAPITokenRequest{UserId: userID, Name: name})
 	createCancel()
+	if h.renderIdentityUnsupported(w, r, "API Keys", identityTokens, err) {
+		return
+	}
 	if err != nil {
-		http.Error(w, "create token: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "create token: "+err.Error(), identityErrorStatus(err))
 		return
 	}
 	if resp.GetError() != "" {
 		http.Error(w, resp.GetError(), http.StatusBadRequest)
 		return
 	}
+	if resp.GetToken() == "" {
+		http.Error(w, "identity provider returned no API token", http.StatusBadGateway)
+		return
+	}
 	deleteCtx, deleteCancel := context.WithTimeout(pageCtx, usersReadTimeout)
-	_, _ = client.DeleteAPIToken(deleteCtx, &authv1.DeleteAPITokenRequest{TokenId: oldTokenID})
+	deleted, deleteErr := client.DeleteAPIToken(deleteCtx, &authv1.DeleteAPITokenRequest{TokenId: oldTokenID})
 	deleteCancel()
+	if deleteErr != nil || deleted.GetError() != "" {
+		warning := "The new token was created, but revocation of the old token was not confirmed. Keep the new token and check the old token with your identity provider."
+		if status.Code(deleteErr) == codes.Unimplemented {
+			warning = "The new token was created, but your identity provider does not support revoking the old token here. The old token remains active. Keep the new token and revoke the old token through your identity provider."
+		}
+		if sess := SessionFromContext(r.Context()); sess != nil {
+			h.auditLog(r.Context(), sess.UserID, "admin.apikey.rotate_incomplete", "old_token", oldTokenID, map[string]string{"user_id": userID, "token_name": name})
+		}
+		username := h.resolveUsername(pageCtx, client, userID)
+		h.render(w, r, templates.Layout("API key rotation incomplete", h.nav("/keys"), templates.APIKeyRotationIncomplete(username, name, resp.GetToken(), warning)))
+		return
+	}
 	if sess := SessionFromContext(r.Context()); sess != nil {
 		h.auditLog(r.Context(), sess.UserID, "admin.apikey.rotate", "old_token", oldTokenID, map[string]string{
 			"user_id": userID, "token_name": name,
@@ -172,26 +207,38 @@ func (h *Handler) APIKeysRevoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() { _ = conn.Close() }()
-	_, _ = client.DeleteAPIToken(pageCtx, &authv1.DeleteAPITokenRequest{TokenId: tokenID})
+	resp, err := client.DeleteAPIToken(pageCtx, &authv1.DeleteAPITokenRequest{TokenId: tokenID})
+	if h.renderIdentityUnsupported(w, r, "API Keys", identityTokens, err) {
+		return
+	}
+	if err != nil {
+		http.Error(w, "could not revoke API key", identityErrorStatus(err))
+		return
+	}
+	if resp.GetError() != "" {
+		http.Error(w, resp.GetError(), http.StatusBadRequest)
+		return
+	}
 	if sess := SessionFromContext(r.Context()); sess != nil {
 		h.auditLog(r.Context(), sess.UserID, "admin.apikey.revoke", "token", tokenID, map[string]string{"user_id": userID})
 	}
 	http.Redirect(w, r, "/keys", http.StatusSeeOther)
 }
 
-func (h *Handler) collectAPIKeysAndUsers(ctx context.Context) ([]templates.APIKeyRow, []templates.APIKeyUserOption, string) {
+func (h *Handler) collectAPIKeysAndUsers(ctx context.Context) ([]templates.APIKeyRow, []templates.APIKeyUserOption, error) {
 	dialCtx, dialCancel := context.WithTimeout(ctx, usersDialTimeout)
 	client, conn, err := h.authClient(dialCtx)
 	dialCancel()
 	if err != nil {
-		return nil, nil, "auth unavailable: " + err.Error()
+		// Discovery failures do not establish which AuthService operations exist.
+		return nil, nil, fmt.Errorf("auth discovery unavailable: %v", err)
 	}
 	defer func() { _ = conn.Close() }()
 	readCtx, readCancel := context.WithTimeout(ctx, usersReadTimeout)
 	listResp, err := client.ListUsers(readCtx, &authv1.ListUsersRequest{})
 	readCancel()
 	if err != nil {
-		return nil, nil, "list users: " + err.Error()
+		return nil, nil, fmt.Errorf("list users: %w", err)
 	}
 	var rows []templates.APIKeyRow
 	var users []templates.APIKeyUserOption
@@ -201,7 +248,7 @@ func (h *Handler) collectAPIKeysAndUsers(ctx context.Context) ([]templates.APIKe
 		tok, err := client.ListAPITokens(readCtx, &authv1.ListAPITokensRequest{UserId: u.GetId()})
 		readCancel()
 		if err != nil {
-			continue
+			return nil, nil, fmt.Errorf("list API tokens: %w", err)
 		}
 		for _, t := range tok.GetTokens() {
 			rows = append(rows, templates.APIKeyRow{
@@ -214,7 +261,7 @@ func (h *Handler) collectAPIKeysAndUsers(ctx context.Context) ([]templates.APIKe
 			})
 		}
 	}
-	return rows, users, ""
+	return rows, users, nil
 }
 
 // resolveUsername looks up the username for userID from the auth service.

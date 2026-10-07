@@ -64,7 +64,13 @@ templ UsersPage(users []*authv1.UserInfo, errorMsg string, pendingResetCount int
 				<tbody class="divide-y divide-gray-800">
 					if users == nil || len(users) == 0 {
 						<tr>
-							<td colspan="4" class="px-4 py-8 text-center text-gray-500">No users found. Add one above.</td>
+							<td colspan="4" class="px-4 py-8 text-center text-gray-500">
+								if errorMsg != "" {
+									User list unavailable.
+								} else {
+									No users found. Add one above.
+								}
+							</td>
 						</tr>
 					} else {
 						for _, u := range users {
@@ -196,6 +202,7 @@ templ UserDetailPage(user *authv1.UserInfo) {
 				<div>
 					<h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">TOTP</h4>
 					<div
+						data-totp-panel
 						hx-get={ templ.SafeURL(fmt.Sprintf("/users/%s/totp", user.GetId())) }
 						hx-trigger="load"
 						hx-swap="innerHTML"
@@ -203,12 +210,6 @@ templ UserDetailPage(user *authv1.UserInfo) {
 					>
 						<span class="text-gray-500">Loading...</span>
 					</div>
-					<button
-						hx-post={ templ.SafeURL(fmt.Sprintf("/users/%s/totp", user.GetId())) }
-						hx-target="body"
-						hx-swap="innerHTML"
-						class="text-xs text-indigo-400 hover:text-indigo-300 mt-2"
-					>Toggle TOTP</button>
 				</div>
 				<div>
 					<h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Passkeys</h4>
@@ -376,5 +377,17 @@ templ UserTokens(tokens []*authv1.APITokenInfo, userID string) {
 				>Create</button>
 			</form>
 		</div>
+	</div>
+}
+
+// Loading the status also establishes support before exposing a mutation.
+templ UserTOTPControls(enabled bool, userID string) {
+	<div class="space-y-2">
+		if enabled {
+			<p class="text-xs text-green-400">TOTP is enabled</p>
+		} else {
+			<p class="text-xs text-gray-400">TOTP is disabled</p>
+		}
+		<button type="button" hx-post={ templ.SafeURL(fmt.Sprintf("/users/%s/totp", userID)) } hx-target="closest [data-totp-panel]" hx-swap="innerHTML" class="text-xs text-indigo-400 hover:text-indigo-300 mt-2">Toggle TOTP</button>
 	</div>
 }
