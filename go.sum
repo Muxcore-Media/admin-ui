@@ -26,6 +26,8 @@ github.com/Muxcore-Media/media-list-sync v0.1.12 h1:f/I3/GjU3j5Xwd0PCqMvVZHDvcIG
 github.com/Muxcore-Media/media-list-sync v0.1.12/go.mod h1:3gsItXMeAvzGhoHw80xcL1CDIEp8g6YVfe2k5NHx/kk=
 github.com/Muxcore-Media/media-movies v0.1.20 h1:vyZnCWkCS323H6pIdYSGBRWK/znEc0GRZU4rd2YrtcQ=
 github.com/Muxcore-Media/media-movies v0.1.20/go.mod h1:PLWShVWzHTApTqs8ibys/nHzIez8GwC4qZWp5xRhyYc=
+github.com/Muxcore-Media/media-movies v0.1.23 h1:T+vqSfl68WlVKelIJ5TakLTWwq1Vh/nyKSu9QKX70TU=
+github.com/Muxcore-Media/media-movies v0.1.23/go.mod h1:1/41OmDjL6naOBDea0LdchCCBOFNG3lbGkAiStRMlOA=
 github.com/Muxcore-Media/media-music v0.3.2 h1:yuOxCooAm5Rorq2Fj5AOZLrr/uq+SVSx3COw75EIUxw=
 github.com/Muxcore-Media/media-music v0.3.2/go.mod h1:Be4ceYQpDFtnzTSX9OKBz0K09R3LT+hjRxu6EGTqwbc=
 github.com/Muxcore-Media/media-rename v0.2.11 h1:ToriQMh+k/TKCb5N72dHDniNpvy++CEvYT/M/Gt5oLk=
@@ -38,6 +40,8 @@ github.com/Muxcore-Media/media-transcoder v0.3.10 h1:BDTmxK7mRJQCpAXfiVzSLFUVf/1
 github.com/Muxcore-Media/media-transcoder v0.3.10/go.mod h1:bbQCnQfiAHC5YMhe/iMgHxlHZq0ihNrSufMt5au+D7k=
 github.com/Muxcore-Media/media-tvshows v0.1.18 h1:Cv+rOuHkchHNgfSGtbpjMMKZw13F4JN8pvZHA/z0aJw=
 github.com/Muxcore-Media/media-tvshows v0.1.18/go.mod h1:JX/cIARPJZdfLuJOOoLLGNnrwkrfovxE63oEPs8FI4U=
+github.com/Muxcore-Media/media-tvshows v0.1.23 h1:Gybid1Ptep0X2oq13mnNpQOJ0LmZCB+AXQfuGJ9/mJ4=
+github.com/Muxcore-Media/media-tvshows v0.1.23/go.mod h1:b00685O5xGpMVDt8mpc0A0Kr9P275OdoA0kFm2Ao8kU=
 github.com/Muxcore-Media/playback-guard v0.1.2 h1:CqKCSVkVtHf4pVW+jXpgQVNxEwHvTcen5MyWA4SWTSg=
 github.com/Muxcore-Media/playback-guard v0.1.2/go.mod h1:9cpeEEoekOcXjhkP7mqnV9Lq5fAQRtVKDVorMmhNbNM=
 github.com/Muxcore-Media/playback-monitor v0.1.5 h1:Zex0f7aGGPhF0YTRi4wX1QHtBFrrxcSnQLMcj0ug77k=

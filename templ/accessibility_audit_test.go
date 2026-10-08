@@ -64,6 +64,11 @@ func TestAccessibilityCoreJourneys(t *testing.T) {
 		})},
 		{"request-unavailable", RequestPage(RequestPageData{Error: "Request service unavailable", SoftEmpty: true})},
 		{"library", MediaListPage("Movies", []*mediaadminv1.MediaItem{{Id: "movie-1", Title: "Dune"}}, 2, 3, 24, "movies", nil, "", "")},
+		{"content-rating-movie", ContentRatingPage(ContentRatingData{ModuleID: "media-movies", ItemID: "fixture", Title: "Fixture", Loaded: true, CanEdit: true, State: "Rated by an operator", Rating: "PG", Source: "operator", Selected: "PG", Options: []string{"G", "PG", "R"}})},
+		{"content-rating-series-unrated", ContentRatingPage(ContentRatingData{ModuleID: "media-tvshows", ItemID: "fixture", Title: "Fixture", Loaded: true, CanEdit: true, State: "Explicit unrated", Rating: "NR", Source: "operator", Selected: "unrated", Saved: true, Options: []string{"TV-Y", "TV-14", "TV-MA"}})},
+		{"content-rating-unavailable", ContentRatingPage(ContentRatingData{ModuleID: "media-movies", ItemID: "fixture", Loaded: true, CanEdit: true, State: "Unavailable", Selected: "clear", Options: []string{"G", "PG"}})},
+		{"content-rating-read-only", ContentRatingPage(ContentRatingData{ModuleID: "media-tvshows", ItemID: "fixture", Loaded: true, State: "Unavailable"})},
+		{"content-rating-error", ContentRatingPage(ContentRatingData{ModuleID: "media-movies", ItemID: "fixture", CanEdit: true, Error: "The change may have been saved. Reload and check before saving again."})},
 		{"queue", UnifiedQueuePage(UnifiedQueueData{
 			Wanted:       []UnifiedQueueWanted{{ID: "wanted-1", Title: "Dune"}},
 			Failures:     []UnifiedQueueHistory{{ID: "failed-1", Title: "Arrival", Stuck: true}},

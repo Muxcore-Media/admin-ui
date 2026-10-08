@@ -316,12 +316,42 @@ Deploying enforcement first leaves every account unconfigured, which the BFF
 denies. `muxcorectl users parental set` (muxcorectl-cli) still writes the legacy
 file until slice S7, so its changes are **not** seen by the provider; use the admin form until then.
 
+### Operator content ratings
+
+Movie and TV-series library detail pages link to **Content rating**. The page
+reads the owning media module's typed classification (media-movies and
+media-tvshows v0.1.23). The existing `admin.access` check remains required; saves
+also require the current, revalidated `admin` role and a bound provider bearer.
+Manager accounts can view this page when authorized, but cannot save ratings.
+
+Choose a supported rating, **Explicit unrated (NR)**, or **Clear rating —
+unavailable**. NR is allowed only by policies that allow unrated items. Clearing
+leaves restricted accounts denied even if they allow unrated items. Unknown
+values and sources also display as unavailable; no rating is inferred from
+votes, filenames or editable metadata. All TV seasons and episodes inherit the
+series classification. The page explains that restrictions on admin/manager
+accounts are not a security boundary because these roles can change ratings or
+tags.
+
+Writes use `SetContentRating` with exactly the current session's provider bearer,
+then read the owning item back before displaying confirmation. The module RPCs
+delegate caller authorization, so the admin route's role check is essential.
+These contracts have no revision comparison: saves replace the operator value;
+reload first if another admin may have edited it. Failed writes are never
+retried automatically. Timeouts or failed/mismatched readback say to reload and
+check, because the save may already have happened. Error responses remain
+visible through the existing HTMX opt-in error handling and are not cached.
+
+This source workflow is fixture-tested; it does not establish deployment,
+authenticated parental-policy HTTP transport (S9), or a live restricted-account
+journey. FR-PLAY-007 remains partial.
+
 ### Accessibility validation
 
 For T-M4-05 / NFR-A11Y-001, the ordinary Go template suite checks rendered DOM
 relationships (labels, unique IDs, ARIA references, names and landmarks),
 including settings with identical keys in different modules. The Accessibility
-GitHub workflow adds axe-core checks over 29 Go-rendered core-journey documents
+GitHub workflow adds axe-core checks over Go-rendered core-journey documents
 and keyboard interaction tests for the responsive sidebar and HTMX navigation.
 
 ```bash
