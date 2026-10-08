@@ -1,0 +1,167 @@
+package templates
+
+import "fmt"
+
+// ParentalMigrateRow is one listed account in the legacy-to-provider migration.
+type ParentalMigrateRow struct {
+	UserID       string
+	Username     string
+	Mapped       string
+	Outcome      string
+	OutcomeLabel string
+	Detail       string
+	Reason       string // why the mapping chose this policy, shown under it
+	Note         string
+	Revision     int64
+}
+
+// ParentalMigrateData drives the dry-run and applied views. Phase is
+// "dry-run" or "applied"; with neither, only Error is shown.
+type ParentalMigrateData struct {
+	Phase      string
+	Digest     string
+	Rows       []ParentalMigrateRow
+	Orphans    []string
+	OptInCount int
+	OptIn      bool
+	Created    int
+	Error      string
+	// SourceMissing is set when parental.json does not exist at SourcePath.
+	SourceMissing bool
+	SourcePath    string
+}
+
+templ ParentalMigratePage() {
+	<div class="space-y-6 max-w-5xl" data-testid="parental-migrate-page">
+		<div>
+			<h1 class="text-2xl font-bold">Parental policy migration</h1>
+			<p class="text-gray-400 text-sm mt-1">
+				Copy the legacy admin parental settings (parental.json) into the authoritative per-account policy
+				held by the user data service. Start with a dry run: it lists every account with the policy it
+				would receive and what would happen, and writes nothing.
+			</p>
+		</div>
+		<ul class="list-disc pl-5 text-sm text-gray-400 space-y-1">
+			<li>Only accounts with no policy yet are written. A different policy that is already configured is reported and never overwritten.</li>
+			<li>Accounts whose legacy rating is not supported are skipped and stay unconfigured (blocked once enforcement is on).</li>
+			<li>Accounts with no restriction are set to unrestricted only if you tick the explicit option after the dry run.</li>
+			<li>PIN hashes are never copied. parental.json is kept as history and is never deleted. Running it again is safe.</li>
+		</ul>
+		<form
+			hx-post="/users/parental/migrate"
+			hx-target="#parental-migrate-result"
+			hx-swap="outerHTML"
+			aria-label="Parental migration dry run"
+		>
+			<input type="hidden" name="phase" value="dry-run"/>
+			<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">Run dry run</button>
+		</form>
+		<div id="parental-migrate-result" data-testid="parental-migrate-result"></div>
+	</div>
+}
+
+templ ParentalMigrateResult(data ParentalMigrateData) {
+	<div id="parental-migrate-result" class="space-y-4" data-testid="parental-migrate-result" data-phase={ data.Phase }>
+		if data.Error != "" {
+			<p class="rounded-lg border border-red-700 bg-red-950/40 p-3 text-sm text-red-200" role="alert" data-testid="parental-migrate-error">{ data.Error }</p>
+		}
+		if data.SourceMissing {
+			<p class="rounded-lg border border-amber-700 bg-amber-950/40 p-3 text-sm text-amber-200" role="alert" data-testid="parental-migrate-source-missing">
+				parental.json not found at { data.SourcePath }. Every account below therefore has no legacy entry. If you expected existing settings, check the admin data directory (ADMIN_UI_DATA_DIR / ADMIN_UI_PARENTAL_FILE) before continuing.
+			</p>
+		}
+		if data.Phase == "applied" {
+			<p class="text-sm text-emerald-400" role="status" data-testid="parental-migrate-summary">
+				Migration run finished: { fmt.Sprint(data.Created) } policies created. Outcomes are in the table, the audit log and parental-migration.json.
+			</p>
+		} else if data.Phase == "dry-run" {
+			<p class="text-sm text-gray-300" role="status" data-testid="parental-migrate-summary">Dry run only: nothing has been written.</p>
+		}
+		if data.Phase != "" {
+			<div class="overflow-x-auto">
+				<table class="w-full text-sm text-left">
+					<caption class="sr-only">Accounts and their migration outcome</caption>
+					<thead class="text-xs uppercase text-gray-500">
+						<tr>
+							<th scope="col" class="px-3 py-2">Account</th>
+							<th scope="col" class="px-3 py-2">Mapped policy</th>
+							<th scope="col" class="px-3 py-2">Outcome</th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, row := range data.Rows {
+							<tr class="border-t border-gray-800 align-top" data-testid="parental-migrate-row" data-user={ row.UserID } data-outcome={ row.Outcome }>
+								<th scope="row" class="px-3 py-2 font-normal text-gray-200">
+									{ row.Username }
+									<span class="block text-xs text-gray-500">{ row.UserID }</span>
+								</th>
+								<td class="px-3 py-2 text-gray-300">
+									{ row.Mapped }
+									if row.Reason != "" {
+										<span class="block text-xs text-gray-400" data-testid="parental-migrate-reason">{ row.Reason }</span>
+									}
+								</td>
+								<td class="px-3 py-2 text-gray-300">
+									<strong>{ row.OutcomeLabel }</strong>
+									if row.Revision > 0 {
+										<span class="text-gray-500"> (revision { fmt.Sprint(row.Revision) })</span>
+									}
+									if row.Detail != "" {
+										<span class="block text-xs text-gray-400">{ row.Detail }</span>
+									}
+									if row.Note != "" {
+										<span class="block text-xs text-amber-300">{ row.Note }</span>
+									}
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			if len(data.Rows) == 0 {
+				<p class="text-sm text-gray-400">The identity provider lists no accounts.</p>
+			}
+			if len(data.Orphans) > 0 {
+				<p class="text-xs text-gray-400" data-testid="parental-migrate-orphans">
+					Legacy entries for accounts that are not listed were ignored and nothing was sent for them:
+					for i, id := range data.Orphans {
+						if i > 0 {
+							,&nbsp;
+						}
+						<code>{ id }</code>
+					}
+				</p>
+			}
+		}
+		if data.Phase == "dry-run" && len(data.Rows) > 0 {
+			<form
+				hx-post="/users/parental/migrate"
+				hx-target="#parental-migrate-result"
+				hx-swap="outerHTML"
+				class="space-y-3 rounded-lg border border-gray-700 p-4"
+				aria-label="Apply parental migration"
+			>
+				<input type="hidden" name="phase" value="apply"/>
+				<input type="hidden" name="digest" value={ data.Digest }/>
+				if data.OptInCount > 0 {
+					<label class="flex items-center gap-2 text-sm text-gray-300">
+						<input type="checkbox" name="optin_unrestricted" value="1" class="rounded border-gray-600"/>
+						<span>Set unrestricted for { fmt.Sprint(data.OptInCount) } listed accounts</span>
+					</label>
+					if data.SourceMissing {
+						<p class="text-xs text-amber-300" data-testid="parental-migrate-optin-help">
+							These accounts have no legacy entry because parental.json was not found. Leave this unticked unless you are sure none of them should be restricted.
+							Ticking it is your decision that they have no parental limits.
+						</p>
+					} else {
+						<p class="text-xs text-gray-400" data-testid="parental-migrate-optin-help">
+							These accounts have no legacy restriction. Leave this unticked to leave them unconfigured.
+							Ticking it is your decision that they have no parental limits.
+						</p>
+					}
+				}
+				<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">Apply migration</button>
+			</form>
+		}
+	</div>
+}

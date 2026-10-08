@@ -42,6 +42,8 @@ github.com/Muxcore-Media/playback-guard v0.1.2 h1:CqKCSVkVtHf4pVW+jXpgQVNxEwHvTc
 github.com/Muxcore-Media/playback-guard v0.1.2/go.mod h1:9cpeEEoekOcXjhkP7mqnV9Lq5fAQRtVKDVorMmhNbNM=
 github.com/Muxcore-Media/playback-monitor v0.1.5 h1:Zex0f7aGGPhF0YTRi4wX1QHtBFrrxcSnQLMcj0ug77k=
 github.com/Muxcore-Media/playback-monitor v0.1.5/go.mod h1:/ISP52y33zadtdpe68EzhbFLF66dtg3Wpr23lxrC4aM=
+github.com/Muxcore-Media/userdata-local v0.1.5 h1:ebFvjvvi1QU9JLSYE/df6RXTENDs0tc545OdMPYrb4o=
+github.com/Muxcore-Media/userdata-local v0.1.5/go.mod h1:dYq3AyPmIz98+uukYk/ZFhGLLfJO1o1e98qS9wkrNQw=
 github.com/a-h/templ v0.3.1020 h1:ypAT/L5ySWEnZ6Zft/5yfoWXYYkhFNvEFOeeqecg4tw=
 github.com/a-h/templ v0.3.1020/go.mod h1:A2DlK61v+K+NRoGnhmYbNYVmtYHcFO5/AisMvBdDxTM=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=

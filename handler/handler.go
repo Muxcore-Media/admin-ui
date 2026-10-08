@@ -52,7 +52,7 @@ type Handler struct {
 	// HealthMonitorURL is the health-monitor HTTP base (e.g. http://127.0.0.1:9203).
 	// Empty disables the dashboard monitor panel.
 	HealthMonitorURL string
-	// UserdataURL is optional HTTP base for userdata-local (parental sync).
+	// UserdataURL is optional HTTP base for userdata-local (parental policy and PIN sync).
 	UserdataURL string
 	// RequestMediaURL is optional HTTP base for request-media (empty = mesh only).
 	RequestMediaURL string
@@ -390,6 +390,9 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /livetv", h.requireAuth(h.LiveTVAdminSave))
 	mux.HandleFunc("GET /users/{id}/parental", h.requireAuth(h.UsersParental))
 	mux.HandleFunc("POST /users/{id}/parental", h.requireAuth(h.UsersParental))
+	mux.HandleFunc("POST /users/{id}/parental/pin", h.requireAuth(h.UsersParentalPIN))
+	mux.HandleFunc("GET /users/parental/migrate", h.requireAuth(h.ParentalMigratePage))
+	mux.HandleFunc("POST /users/parental/migrate", h.requireAuth(h.ParentalMigrate))
 
 	mux.HandleFunc("GET /auth/callback", h.AuthCallback)
 	mux.HandleFunc("GET /auth/status", h.AuthStatus)

@@ -193,7 +193,9 @@ func TestBrandingSavePersistsFile(t *testing.T) {
 	}
 }
 
-func TestSyncParentalToUserdata(t *testing.T) {
+// The only parental field still mirrored into the writable blob is the PIN hash
+// (ADR-0031 §5.5); restriction fields live only in the provider policy.
+func TestSyncParentalPINToUserdata(t *testing.T) {
 	var gotPut bool
 	var gotPath string
 	var gotUserHeader string
@@ -208,17 +210,21 @@ func TestSyncParentalToUserdata(t *testing.T) {
 		}
 		switch r.Method {
 		case http.MethodGet:
-			_ = json.NewEncoder(w).Encode(userdataBlob{Progress: map[string]json.RawMessage{}, Favorites: map[string]json.RawMessage{}})
+			_ = json.NewEncoder(w).Encode(userdataBlob{
+				Progress:  map[string]json.RawMessage{},
+				Favorites: map[string]json.RawMessage{},
+				Prefs:     json.RawMessage(`{"theme":"dark","parental":{"kids_mode":true,"other":"kept"}}`),
+			})
 		case http.MethodPut:
 			gotPut = true
 			var blob userdataBlob
 			_ = json.NewDecoder(r.Body).Decode(&blob)
 			var prefs map[string]json.RawMessage
 			_ = json.Unmarshal(blob.Prefs, &prefs)
-			var p parentalSettings
-			_ = json.Unmarshal(prefs["parental"], &p)
-			if p.BlockedTags != "horror" {
-				t.Fatalf("parental=%+v", p)
+			var parentalPrefs map[string]any
+			_ = json.Unmarshal(prefs["parental"], &parentalPrefs)
+			if parentalPrefs["pin_hash"] != "abc123" || parentalPrefs["other"] != "kept" || string(prefs["theme"]) != `"dark"` {
+				t.Fatalf("prefs=%s", blob.Prefs)
 			}
 			_ = json.NewEncoder(w).Encode(blob)
 		default:
@@ -231,8 +237,9 @@ func TestSyncParentalToUserdata(t *testing.T) {
 	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
 	h.UserdataURL = srv.URL
 
-	ctx := context.WithValue(context.Background(), ctxSessionKey, testAdminSession())
-	err := h.syncParentalToUserdata(ctx, "kid1", parentalSettings{BlockedTags: "horror"})
+	sess := &session.Session{UserID: "admin1", Roles: []string{"admin"}, AuthLocalToken: "test-auth-local-token"}
+	ctx := context.WithValue(context.Background(), ctxSessionKey, sess)
+	err := h.syncParentalPINToUserdata(ctx, "kid1", "abc123")
 	if err != nil {
 		t.Fatal(err)
 	}
