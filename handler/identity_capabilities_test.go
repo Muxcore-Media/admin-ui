@@ -31,6 +31,10 @@ type identityRPCStub struct {
 	allowAdmin      bool
 	sessionRows     []*authv1.SessionInfo
 	nextSessionPage string
+	validateResp    *authv1.ValidateResponse
+	validateHold    chan struct{}
+	validateStarted chan struct{}
+	validateOnce    sync.Once
 	mu              sync.Mutex
 	calls           map[string]int
 	requests        map[string]proto.Message
@@ -86,6 +90,17 @@ func (s *identityRPCStub) intercept(ctx context.Context, req any, info *grpc.Una
 		return &authv1.ListSessionsResponse{Sessions: s.sessionRows, NextPageToken: s.nextSessionPage}, nil
 	case "RevokeSession":
 		return &authv1.RevokeSessionResponse{}, nil
+	case "Validate":
+		if s.validateStarted != nil {
+			s.validateOnce.Do(func() { close(s.validateStarted) })
+		}
+		if s.validateHold != nil {
+			<-s.validateHold
+		}
+		if s.validateResp != nil {
+			return s.validateResp, nil
+		}
+		return &authv1.ValidateResponse{Valid: false, Error: "invalid or expired token"}, nil
 	}
 	return next(ctx, req)
 }

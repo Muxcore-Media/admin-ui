@@ -16,7 +16,8 @@ import (
 
 // providerSessionContext binds administrative RPCs to exactly the current
 // end-user bearer. Inherited metadata and a module identity cannot replace it.
-// This does not validate app cookies; global bearer revalidation is separate.
+// requireAuth revalidates a bound bearer before these handlers run; this
+// helper only forwards the bearer already accepted for the request.
 func providerSessionContext(ctx context.Context) (context.Context, bool) {
 	sess := SessionFromContext(ctx)
 	if sess == nil || strings.TrimSpace(sess.AuthLocalToken) == "" {
