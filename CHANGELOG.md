@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Provider-backed parental controls (T-M4-01 slice S6, ADR-0030/0031). The
+  Users parental form reads and writes the userdata-local
+  `/api/parental-policy` resource with the admin's identity-provider bearer and
+  `expected_revision`. It distinguishes not configured, unrestricted and
+  restricted; offers only the provider's rating tokens; shows a conflict screen
+  that reloads the current revision on 409; and shows an error state (never an
+  empty or unrestricted policy) for 401/403/404/5xx, unreachable or malformed
+  provider answers. Admin and manager targets get a not-a-security-boundary
+  warning.
+- `/users/parental/migrate`: admin-only, dry-run-first, digest-bound migration
+  of `parental.json` into the provider. Never overwrites a different configured
+  policy, skips unsupported ratings, sets accounts without restrictions to
+  unrestricted only on an explicit opt-in, never sends `pin_hash`, audits each
+  outcome as `admin.parental.migrate`, and records runs in
+  `parental-migration.json`. `parental.json` is retained.
+- Depends on `github.com/Muxcore-Media/userdata-local` v0.1.5 (public `parental`
+  package only).
+
+### Fixed
+
+- Parental PIN saves use the same fail-closed `parental.json` reader as the
+  migration and refuse to rewrite a damaged file. The migration dry run warns
+  when `parental.json` is missing, and its opt-in wording and per-row mapping
+  reasons follow. Unrestricted mode submitted with rule fields is rejected.
+  Migration apply continues after the browser disconnects, refuses to overwrite
+  an unreadable `parental-migration.json`, and write errors say "may not have
+  been saved" when the outcome is unknown. JSON files are written via an
+  exclusively created 0600 temporary file.
+
+### Changed
+
+- Saving parental settings no longer writes restriction fields into
+  `parental.json` or the user's writable userdata blob. Only the PIN lock still
+  uses them (`pin_hash`, unchanged until FR-AUTH-010), as a separate form.
+  Rollout order: provider, then this migration, then BFF enforcement (S5).
+  `muxcorectl users parental set` still writes the legacy file until slice S7.
+
 ### Fixed
 
 - Admin requests bound to an identity-provider bearer revalidate it before the

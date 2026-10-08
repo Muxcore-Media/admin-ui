@@ -51,7 +51,13 @@ func (h *Handler) userdataBaseURL(ctx context.Context) string {
 	return "http://" + strings.TrimRight(addr, "/")
 }
 
-func (h *Handler) syncParentalToUserdata(ctx context.Context, userID string, p parentalSettings) error {
+// syncParentalPINToUserdata mirrors the PIN hash into the user's writable
+// userdata blob (prefs.parental.pin_hash). PIN behaviour is unchanged until
+// FR-AUTH-010. This is the only field admin-ui still writes into the blob:
+// restriction fields live only in the provider-backed policy (ADR-0031 §5.5),
+// and the blob is never an authority for them. An empty pinHash removes the
+// key. Other keys already present in prefs.parental are left exactly as found.
+func (h *Handler) syncParentalPINToUserdata(ctx context.Context, userID, pinHash string) error {
 	base := h.UserdataURL
 	if base == "" {
 		base = h.userdataBaseURL(ctx)
@@ -95,11 +101,28 @@ func (h *Handler) syncParentalToUserdata(ctx context.Context, userID string, p p
 	if len(blob.Prefs) > 0 {
 		_ = json.Unmarshal(blob.Prefs, &prefs)
 	}
-	parentalRaw, err := json.Marshal(p)
-	if err != nil {
-		return err
+	parentalPrefs := map[string]json.RawMessage{}
+	if raw, ok := prefs["parental"]; ok {
+		_ = json.Unmarshal(raw, &parentalPrefs)
 	}
-	prefs["parental"] = parentalRaw
+	if pinHash == "" {
+		delete(parentalPrefs, "pin_hash")
+	} else {
+		quoted, err := json.Marshal(pinHash)
+		if err != nil {
+			return err
+		}
+		parentalPrefs["pin_hash"] = quoted
+	}
+	if len(parentalPrefs) == 0 {
+		delete(prefs, "parental")
+	} else {
+		parentalRaw, err := json.Marshal(parentalPrefs)
+		if err != nil {
+			return err
+		}
+		prefs["parental"] = parentalRaw
+	}
 	blob.Prefs, err = json.Marshal(prefs)
 	if err != nil {
 		return err

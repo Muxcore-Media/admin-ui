@@ -2,8 +2,6 @@ package handler
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,7 +13,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode"
 
 	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
 
@@ -64,7 +61,6 @@ func schedulerHTTPDo(_ context.Context, req *http.Request) (*http.Response, erro
 
 var (
 	networkingMu sync.Mutex
-	parentalMu   sync.Mutex
 	livetvMu     sync.Mutex
 )
 
@@ -768,158 +764,6 @@ func (h *Handler) NetworkingSave(w http.ResponseWriter, r *http.Request) {
 	}
 	h.ApplyNetworkingRuntime(n.PublicURL, n.TrustedProxies)
 	http.Redirect(w, r, "/networking?saved=1", http.StatusSeeOther)
-}
-
-// --- Parental controls (admin-local store until auth UserInfo grows fields) ---
-
-type parentalSettings struct {
-	MaxParentalRating string `json:"max_parental_rating"`
-	BlockedTags       string `json:"blocked_tags"`
-	AllowedTags       string `json:"allowed_tags"`
-	AllowUnrated      bool   `json:"allow_unrated"`
-	KidsMode          bool   `json:"kids_mode"`
-	// PINHash is a salted SHA-256 hex digest; empty means no PIN is set.
-	PINHash string `json:"pin_hash,omitempty"`
-}
-
-// hashParentalPIN returns a salted SHA-256 hex digest of a PIN.
-// userID is the per-user salt so hashes are not reusable across accounts.
-func hashParentalPIN(userID, pin string) string {
-	h := sha256.Sum256([]byte(userID + ":" + pin))
-	return hex.EncodeToString(h[:])
-}
-
-// validateParentalPIN returns an error if pin is not exactly 4–6 ASCII digits.
-func validateParentalPIN(pin string) error {
-	if len(pin) < 4 || len(pin) > 6 {
-		return fmt.Errorf("PIN must be 4–6 digits")
-	}
-	for _, c := range pin {
-		if c < '0' || c > '9' {
-			return fmt.Errorf("PIN must contain digits only")
-		}
-	}
-	return nil
-}
-
-// validateParentalRating returns an error for a malformed rating string.
-// An empty string (no restriction) is always accepted.
-func validateParentalRating(rating string) error {
-	if rating == "" {
-		return nil
-	}
-	if len(rating) > 20 {
-		return fmt.Errorf("rating too long (max 20 characters)")
-	}
-	for _, c := range rating {
-		if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '-' && c != '+' && c != ' ' {
-			return fmt.Errorf("invalid character %q in rating", c)
-		}
-	}
-	return nil
-}
-
-func loadParentalMap() map[string]parentalSettings {
-	parentalMu.Lock()
-	defer parentalMu.Unlock()
-	raw, err := os.ReadFile(parentalFilePath())
-	if err != nil {
-		return map[string]parentalSettings{}
-	}
-	var m map[string]parentalSettings
-	if json.Unmarshal(raw, &m) != nil || m == nil {
-		return map[string]parentalSettings{}
-	}
-	return m
-}
-
-func saveParentalMap(m map[string]parentalSettings) error {
-	parentalMu.Lock()
-	defer parentalMu.Unlock()
-	path := parentalFilePath()
-	_ = os.MkdirAll(filepath.Dir(path), 0o700)
-	raw, err := json.MarshalIndent(m, "", "  ")
-	if err != nil {
-		return err
-	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, raw, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
-}
-
-func (h *Handler) UsersParental(w http.ResponseWriter, r *http.Request) {
-	userID := r.PathValue("id")
-	m := loadParentalMap()
-	p := m[userID]
-
-	renderForm := func(saved bool, errMsg string) {
-		_ = templates.UserParentalForm(templates.ParentalData{
-			UserID:            userID,
-			MaxParentalRating: p.MaxParentalRating,
-			BlockedTags:       p.BlockedTags,
-			AllowedTags:       p.AllowedTags,
-			AllowUnrated:      p.AllowUnrated,
-			KidsMode:          p.KidsMode,
-			PINSet:            p.PINHash != "",
-			Saved:             saved,
-			Error:             errMsg,
-		}).Render(r.Context(), w)
-	}
-
-	if r.Method != http.MethodPost {
-		renderForm(false, "")
-		return
-	}
-
-	_ = r.ParseForm()
-
-	rating := strings.TrimSpace(r.FormValue("max_rating"))
-	if err := validateParentalRating(rating); err != nil {
-		renderForm(false, err.Error())
-		return
-	}
-
-	updated := parentalSettings{
-		MaxParentalRating: rating,
-		BlockedTags:       strings.TrimSpace(r.FormValue("blocked_tags")),
-		AllowedTags:       strings.TrimSpace(r.FormValue("allowed_tags")),
-		AllowUnrated:      r.FormValue("allow_unrated") == "1",
-		KidsMode:          r.FormValue("kids_mode") == "1",
-		PINHash:           p.PINHash, // preserve existing PIN by default
-	}
-
-	if r.FormValue("clear_pin") == "1" {
-		updated.PINHash = ""
-	} else if newPIN := strings.TrimSpace(r.FormValue("pin")); newPIN != "" {
-		if err := validateParentalPIN(newPIN); err != nil {
-			renderForm(false, err.Error())
-			return
-		}
-		updated.PINHash = hashParentalPIN(userID, newPIN)
-	}
-
-	p = updated
-	m[userID] = p
-	if err := saveParentalMap(m); err != nil {
-		renderForm(false, err.Error())
-		return
-	}
-	if err := h.syncParentalToUserdata(r.Context(), userID, p); err != nil {
-		renderForm(false, "userdata sync failed: "+err.Error())
-		return
-	}
-
-	if sess := SessionFromContext(r.Context()); sess != nil {
-		h.auditLog(r.Context(), sess.UserID, "admin.parental.save", "user", userID, map[string]string{
-			"max_rating": p.MaxParentalRating,
-			"kids_mode":  fmt.Sprintf("%v", p.KidsMode),
-			"pin_set":    fmt.Sprintf("%v", p.PINHash != ""),
-		})
-	}
-
-	renderForm(true, "")
 }
 
 // --- Live TV admin ---

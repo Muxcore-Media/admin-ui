@@ -48,6 +48,10 @@ templ UsersPage(users []*authv1.UserInfo, errorMsg string, pendingResetCount int
 				<span class="text-gray-500 ml-2">— review on the password reset queue</span>
 			</div>
 		}
+		<p class="text-sm" data-testid="parental-migrate-link">
+			<a href="/users/parental/migrate" class="text-indigo-400 hover:text-indigo-300 font-medium">Parental policy migration</a>
+			<span class="text-gray-500 ml-2">— copy the legacy parental settings into the authoritative per-account policy</span>
+		</p>
 		<div id="create-form"></div>
 		<section class="rounded-xl border border-gray-800 overflow-hidden" aria-labelledby="users-table-heading">
 			<h2 id="users-table-heading" class="sr-only">Registered users</h2>

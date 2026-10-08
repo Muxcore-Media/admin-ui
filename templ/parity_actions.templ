@@ -471,95 +471,207 @@ templ LiveTVAdminEditPage(data LiveTVAdminData) {
 	</div>
 }
 
+// ParentalData drives the provider-backed parental form (ADR-0030/0031).
+// LoadError means the provider answer could not be verified; the template then
+// shows an error and no form, so a failure never reads as "no restrictions".
 type ParentalData struct {
-	UserID            string
-	MaxParentalRating string
-	BlockedTags       string
-	AllowedTags       string
-	AllowUnrated      bool
-	KidsMode          bool
-	PINSet            bool
-	Saved             bool
-	Error             string
+	UserID string
+	// State is the provider state this form is based on: "unconfigured" or
+	// "configured". Revision is the stored revision the next write is based on.
+	State     string
+	Revision  int64
+	UpdatedAt string
+	// StoredMode is the stored policy mode, empty when it is not known.
+	StoredMode string
+	// Form values. Mode is "", "unrestricted" or "restricted".
+	Mode          string
+	MaxRating     string
+	RatingOptions []string
+	BlockedTags   string
+	AllowedTags   string
+	AllowUnrated  bool
+	KidsMode      bool
+
+	Saved     bool
+	Conflict  bool
+	Attempted string
+	Error     string
+	LoadError string
+	// Privileged is "yes" when the target holds the admin or manager role and
+	// "unknown" when the roles could not be read.
+	Privileged string
+
+	PINSet   bool
+	PINSaved bool
+	PINError string
+}
+
+func parentalStateLabel(d ParentalData) string {
+	switch {
+	case d.State == "unconfigured":
+		return "Not configured"
+	case d.StoredMode == "unrestricted":
+		return "Configured: unrestricted"
+	case d.StoredMode == "restricted":
+		return "Configured: restricted"
+	}
+	return "Configured"
+}
+
+func parentalStateHelp(d ParentalData) string {
+	if d.State == "unconfigured" {
+		return "No policy has been set for this account. Not configured is not the same as unrestricted: choose a mode below and save."
+	}
+	return ""
 }
 
 templ UserParentalForm(data ParentalData) {
-	<div class="space-y-3" data-testid="parental-form">
+	<div class="space-y-3" data-testid="parental-form" data-parental-user={ data.UserID }>
 		<h4 class="text-xs font-medium text-gray-500 uppercase tracking-wider">Parental controls</h4>
-		if data.Saved {
-			<p class="text-xs text-emerald-400" role="status">Parental settings saved.</p>
-		}
-		if data.Error != "" {
-			<p class="text-xs text-red-400" role="alert">{ data.Error }</p>
-		}
-		<form
-			hx-post={ templ.SafeURL(fmt.Sprintf("/users/%s/parental", data.UserID)) }
-			hx-target="closest [data-testid=parental-form]"
-			hx-swap="outerHTML"
-			class="space-y-3"
-			aria-label="Parental controls form"
-		>
-			<label class="flex items-center gap-2 text-xs text-gray-300">
-				if data.KidsMode {
-					<input type="checkbox" name="kids_mode" value="1" checked class="rounded border-gray-600"/>
-				} else {
-					<input type="checkbox" name="kids_mode" value="1" class="rounded border-gray-600"/>
+		if data.LoadError != "" {
+			if data.PINSaved {
+				<p class="text-xs text-emerald-400" role="status">PIN updated.</p>
+			}
+			if data.PINError != "" {
+				<p class="text-xs text-red-400" role="alert">{ data.PINError }</p>
+			}
+			<p class="text-xs text-red-400" role="alert" data-testid="parental-load-error">{ data.LoadError }</p>
+			<button
+				type="button"
+				hx-get={ templ.SafeURL(fmt.Sprintf("/users/%s/parental", data.UserID)) }
+				hx-target="closest [data-testid=parental-form]"
+				hx-swap="outerHTML"
+				class="rounded-lg bg-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-600"
+			>Retry</button>
+		} else {
+			<p class="text-xs text-gray-300" data-testid="parental-state" data-state={ data.State } data-mode={ data.StoredMode }>
+				<strong>{ parentalStateLabel(data) }</strong>
+				if data.State == "configured" {
+					<span class="text-gray-500"> (revision { fmt.Sprint(data.Revision) }) </span>
 				}
-				<span>Kids mode (restrict to age-appropriate content only)</span>
-			</label>
-			<label class="block space-y-1 text-xs text-gray-400">
-				<span>Max parental rating (e.g. PG-13, TV-14 — leave empty for no restriction)</span>
-				<input name="max_rating" value={ data.MaxParentalRating } autocomplete="off" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white"/>
-			</label>
-			<label class="block space-y-1 text-xs text-gray-400">
-				<span>Blocked tags (comma-separated)</span>
-				<input name="blocked_tags" value={ data.BlockedTags } autocomplete="off" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white"/>
-			</label>
-			<label class="block space-y-1 text-xs text-gray-400">
-				<span>Allowed tags (empty = all except blocked)</span>
-				<input name="allowed_tags" value={ data.AllowedTags } autocomplete="off" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white"/>
-			</label>
-			<label class="flex items-center gap-2 text-xs text-gray-300">
-				if data.AllowUnrated {
-					<input type="checkbox" name="allow_unrated" value="1" checked class="rounded border-gray-600"/>
-				} else {
-					<input type="checkbox" name="allow_unrated" value="1" class="rounded border-gray-600"/>
+				if data.UpdatedAt != "" {
+					<span class="text-gray-500"> updated { data.UpdatedAt }</span>
 				}
-				<span>Allow unrated content</span>
-			</label>
-			<fieldset class="space-y-1 rounded-lg border border-gray-700 p-3">
-				<legend class="text-xs font-medium text-gray-400 px-1">PIN lock</legend>
-				if data.PINSet {
-					<p class="text-xs text-gray-400">A PIN is currently set.</p>
-					<label class="flex items-center gap-2 text-xs text-gray-300">
-						<input type="checkbox" name="clear_pin" value="1" class="rounded border-gray-600"/>
-						<span>Clear PIN (removes lock)</span>
-					</label>
-				} else {
-					<p class="text-xs text-gray-500">No PIN set.</p>
-				}
+			</p>
+			if parentalStateHelp(data) != "" {
+				<p class="text-xs text-gray-400">{ parentalStateHelp(data) }</p>
+			}
+			if data.Privileged == "yes" {
+				<p class="rounded-lg border border-amber-700 bg-amber-950/40 p-2 text-xs text-amber-200" role="note" data-testid="parental-privileged-warning">
+					This account holds the admin or manager role. A restricted policy is applied to it, but it is not a security boundary: these roles can change item tags and ratings.
+				</p>
+			} else if data.Privileged == "unknown" {
+				<p class="rounded-lg border border-amber-700 bg-amber-950/40 p-2 text-xs text-amber-200" role="note" data-testid="parental-privileged-warning">
+					The roles of this account could not be read. If it holds the admin or manager role, a restricted policy is applied but is not a security boundary.
+				</p>
+			}
+			if data.Saved {
+				<p class="text-xs text-emerald-400" role="status" data-testid="parental-saved">Parental policy saved.</p>
+			}
+			if data.Conflict {
+				<div class="rounded-lg border border-red-700 bg-red-950/40 p-2 text-xs text-red-200" role="alert" data-testid="parental-conflict">
+					<p>The policy was changed by someone else while you were editing, so your changes were not saved. The current policy (revision { fmt.Sprint(data.Revision) }) is shown below; review it and apply your change again if it is still wanted.</p>
+					if data.Attempted != "" {
+						<p class="mt-1">Not saved: { data.Attempted }</p>
+					}
+				</div>
+			}
+			if data.Error != "" {
+				<p class="text-xs text-red-400" role="alert" data-testid="parental-error">{ data.Error }</p>
+			}
+			<form
+				hx-post={ templ.SafeURL(fmt.Sprintf("/users/%s/parental", data.UserID)) }
+				hx-target="closest [data-testid=parental-form]"
+				hx-swap="outerHTML"
+				class="space-y-3"
+				aria-label="Parental policy form"
+			>
+				<input type="hidden" name="expected_revision" value={ fmt.Sprint(data.Revision) }/>
 				<label class="block space-y-1 text-xs text-gray-400">
-					<span>
-						if data.PINSet {
-							Set new PIN (4–6 digits; leave empty to keep current)
-						} else {
-							Set PIN (4–6 digits)
-						}
-					</span>
-					<input
-						type="password"
-						name="pin"
-						inputmode="numeric"
-						pattern="[0-9]{4,6}"
-						maxlength="6"
-						autocomplete="new-password"
-						placeholder="····"
-						class="w-24 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white font-mono tracking-widest"
-					/>
+					<span>Policy mode</span>
+					<select name="mode" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white">
+						<option value="" selected?={ data.Mode == "" }>Choose a mode…</option>
+						<option value="unrestricted" selected?={ data.Mode == "unrestricted" }>Unrestricted (no parental limits)</option>
+						<option value="restricted" selected?={ data.Mode == "restricted" }>Restricted (apply the rules below)</option>
+					</select>
 				</label>
-			</fieldset>
-			<button type="submit" class="rounded-lg bg-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-600">Save parental settings</button>
-		</form>
+				<fieldset class="space-y-3 rounded-lg border border-gray-700 p-3">
+					<legend class="text-xs font-medium text-gray-400 px-1">Rules (used only in restricted mode)</legend>
+					<label class="flex items-center gap-2 text-xs text-gray-300">
+						<input type="checkbox" name="kids_mode" value="1" checked?={ data.KidsMode } class="rounded border-gray-600"/>
+						<span>Kids mode (PG ceiling when no maximum rating is chosen)</span>
+					</label>
+					<label class="block space-y-1 text-xs text-gray-400">
+						<span>Maximum rating</span>
+						<select name="max_rating" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white">
+							<option value="" selected?={ data.MaxRating == "" }>No rating ceiling</option>
+							for _, token := range data.RatingOptions {
+								<option value={ token } selected?={ data.MaxRating == token }>{ token }</option>
+							}
+						</select>
+					</label>
+					<label class="block space-y-1 text-xs text-gray-400">
+						<span>Blocked tags (comma-separated; exact match, case-insensitive; blocked wins)</span>
+						<input name="blocked_tags" value={ data.BlockedTags } autocomplete="off" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white"/>
+					</label>
+					<label class="block space-y-1 text-xs text-gray-400">
+						<span>Allowed tags (comma-separated; when set, an item needs at least one)</span>
+						<input name="allowed_tags" value={ data.AllowedTags } autocomplete="off" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white"/>
+					</label>
+					<label class="flex items-center gap-2 text-xs text-gray-300">
+						<input type="checkbox" name="allow_unrated" value="1" checked?={ data.AllowUnrated } class="rounded border-gray-600"/>
+						<span>Allow unrated content</span>
+					</label>
+				</fieldset>
+				<button type="submit" class="rounded-lg bg-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-600">Save parental policy</button>
+			</form>
+			<form
+				hx-post={ templ.SafeURL(fmt.Sprintf("/users/%s/parental/pin", data.UserID)) }
+				hx-target="closest [data-testid=parental-form]"
+				hx-swap="outerHTML"
+				class="space-y-1"
+				aria-label="Parental PIN form"
+			>
+				<fieldset class="space-y-1 rounded-lg border border-gray-700 p-3">
+					<legend class="text-xs font-medium text-gray-400 px-1">PIN lock</legend>
+					if data.PINSaved {
+						<p class="text-xs text-emerald-400" role="status">PIN updated.</p>
+					}
+					if data.PINError != "" {
+						<p class="text-xs text-red-400" role="alert">{ data.PINError }</p>
+					}
+					if data.PINSet {
+						<p class="text-xs text-gray-400">A PIN is currently set.</p>
+						<label class="flex items-center gap-2 text-xs text-gray-300">
+							<input type="checkbox" name="clear_pin" value="1" class="rounded border-gray-600"/>
+							<span>Clear PIN (removes lock)</span>
+						</label>
+					} else {
+						<p class="text-xs text-gray-500">No PIN set.</p>
+					}
+					<label class="block space-y-1 text-xs text-gray-400">
+						<span>
+							if data.PINSet {
+								Set new PIN (4–6 digits)
+							} else {
+								Set PIN (4–6 digits)
+							}
+						</span>
+						<input
+							type="password"
+							name="pin"
+							inputmode="numeric"
+							pattern="[0-9]{4,6}"
+							maxlength="6"
+							autocomplete="new-password"
+							placeholder="····"
+							class="w-24 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white font-mono tracking-widest"
+						/>
+					</label>
+					<button type="submit" class="rounded-lg bg-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-600">Save PIN</button>
+				</fieldset>
+			</form>
+		}
 	</div>
 }
 

@@ -92,7 +92,7 @@ func UsersPage(users []*authv1.UserInfo, errorMsg string, pendingResetCount int)
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div id=\"create-form\"></div><section class=\"rounded-xl border border-gray-800 overflow-hidden\" aria-labelledby=\"users-table-heading\"><h2 id=\"users-table-heading\" class=\"sr-only\">Registered users</h2><table class=\"w-full text-sm\"><caption class=\"sr-only\">Registered users</caption> <thead><tr class=\"border-b border-gray-800 bg-gray-900/50\"><th scope=\"col\" class=\"text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider\">Username</th><th scope=\"col\" class=\"text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider\">Roles</th><th scope=\"col\" class=\"text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider\">TOTP</th><th scope=\"col\" class=\"text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider\">Actions</th></tr></thead> <tbody class=\"divide-y divide-gray-800\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<p class=\"text-sm\" data-testid=\"parental-migrate-link\"><a href=\"/users/parental/migrate\" class=\"text-indigo-400 hover:text-indigo-300 font-medium\">Parental policy migration</a> <span class=\"text-gray-500 ml-2\">— copy the legacy parental settings into the authoritative per-account policy</span></p><div id=\"create-form\"></div><section class=\"rounded-xl border border-gray-800 overflow-hidden\" aria-labelledby=\"users-table-heading\"><h2 id=\"users-table-heading\" class=\"sr-only\">Registered users</h2><table class=\"w-full text-sm\"><caption class=\"sr-only\">Registered users</caption> <thead><tr class=\"border-b border-gray-800 bg-gray-900/50\"><th scope=\"col\" class=\"text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider\">Username</th><th scope=\"col\" class=\"text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider\">Roles</th><th scope=\"col\" class=\"text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider\">TOTP</th><th scope=\"col\" class=\"text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider\">Actions</th></tr></thead> <tbody class=\"divide-y divide-gray-800\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -125,7 +125,7 @@ func UsersPage(users []*authv1.UserInfo, errorMsg string, pendingResetCount int)
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(u.GetUsername())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 79, Col: 65}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 83, Col: 65}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
@@ -138,7 +138,7 @@ func UsersPage(users []*authv1.UserInfo, errorMsg string, pendingResetCount int)
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(u.GetId())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 80, Col: 55}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 84, Col: 55}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -151,7 +151,7 @@ func UsersPage(users []*authv1.UserInfo, errorMsg string, pendingResetCount int)
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(rolesDisplay(u.GetRoles()))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 82, Col: 72}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 86, Col: 72}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -172,7 +172,7 @@ func UsersPage(users []*authv1.UserInfo, errorMsg string, pendingResetCount int)
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/users/%s/detail", u.GetId())))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 89, Col: 76}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 93, Col: 76}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 				if templ_7745c5c3_Err != nil {
@@ -185,7 +185,7 @@ func UsersPage(users []*authv1.UserInfo, errorMsg string, pendingResetCount int)
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("Manage user %s", u.GetUsername()))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 93, Col: 69}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 97, Col: 69}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 				if templ_7745c5c3_Err != nil {
@@ -198,7 +198,7 @@ func UsersPage(users []*authv1.UserInfo, errorMsg string, pendingResetCount int)
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/users/%s", u.GetId())))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 98, Col: 72}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 102, Col: 72}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 				if templ_7745c5c3_Err != nil {
@@ -211,7 +211,7 @@ func UsersPage(users []*authv1.UserInfo, errorMsg string, pendingResetCount int)
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("Delete user %q?", u.GetUsername()))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 99, Col: 70}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 103, Col: 70}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 				if templ_7745c5c3_Err != nil {
@@ -224,7 +224,7 @@ func UsersPage(users []*authv1.UserInfo, errorMsg string, pendingResetCount int)
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("Delete user %s", u.GetUsername()))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 102, Col: 69}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 106, Col: 69}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 				if templ_7745c5c3_Err != nil {
@@ -301,7 +301,7 @@ func UserDetailPage(user *authv1.UserInfo) templ.Component {
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(user.GetUsername())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 158, Col: 83}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 162, Col: 83}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
@@ -314,7 +314,7 @@ func UserDetailPage(user *authv1.UserInfo) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/users/%s/password", user.GetId())))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 164, Col: 78}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 168, Col: 78}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 		if templ_7745c5c3_Err != nil {
@@ -327,7 +327,7 @@ func UserDetailPage(user *authv1.UserInfo) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/users/%s/roles", user.GetId())))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 185, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 189, Col: 75}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 		if templ_7745c5c3_Err != nil {
@@ -360,7 +360,7 @@ func UserDetailPage(user *authv1.UserInfo) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/users/%s/totp", user.GetId())))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 206, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 210, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 		if templ_7745c5c3_Err != nil {
@@ -373,7 +373,7 @@ func UserDetailPage(user *authv1.UserInfo) templ.Component {
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("passkeys-%s", user.GetId()))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 217, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 221, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 		if templ_7745c5c3_Err != nil {
@@ -386,7 +386,7 @@ func UserDetailPage(user *authv1.UserInfo) templ.Component {
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/users/%s/passkeys", user.GetId())))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 219, Col: 77}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 223, Col: 77}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 		if templ_7745c5c3_Err != nil {
@@ -399,7 +399,7 @@ func UserDetailPage(user *authv1.UserInfo) templ.Component {
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/users/%s/tokens", user.GetId())))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 229, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 233, Col: 75}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 		if templ_7745c5c3_Err != nil {
@@ -412,7 +412,7 @@ func UserDetailPage(user *authv1.UserInfo) templ.Component {
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/users/%s/parental", user.GetId())))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 237, Col: 76}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 241, Col: 76}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 		if templ_7745c5c3_Err != nil {
@@ -454,7 +454,7 @@ func RoleCheckbox(currentRoles []string, role, label string) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(role)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 253, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 257, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 		if templ_7745c5c3_Err != nil {
@@ -477,7 +477,7 @@ func RoleCheckbox(currentRoles []string, role, label string) templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 259, Col: 45}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 263, Col: 45}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 		if templ_7745c5c3_Err != nil {
@@ -575,7 +575,7 @@ func PasskeyList(credentials []*authv1.WebAuthnCredentialInfo, count int, userID
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(pk.GetCreatedAt())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 294, Col: 66}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 298, Col: 66}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 				if templ_7745c5c3_Err != nil {
@@ -588,7 +588,7 @@ func PasskeyList(credentials []*authv1.WebAuthnCredentialInfo, count int, userID
 				var templ_7745c5c3_Var28 string
 				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/users/%s/passkeys/%s", userID, pk.GetId())))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 297, Col: 89}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 301, Col: 89}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 				if templ_7745c5c3_Err != nil {
@@ -607,7 +607,7 @@ func PasskeyList(credentials []*authv1.WebAuthnCredentialInfo, count int, userID
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/api/auth/passkey/register/%s/begin", userID)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 308, Col: 86}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 312, Col: 86}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 		if templ_7745c5c3_Err != nil {
@@ -620,7 +620,7 @@ func PasskeyList(credentials []*authv1.WebAuthnCredentialInfo, count int, userID
 		var templ_7745c5c3_Var30 string
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("#passkey-register-%s", userID)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 309, Col: 74}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 313, Col: 74}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 		if templ_7745c5c3_Err != nil {
@@ -633,7 +633,7 @@ func PasskeyList(credentials []*authv1.WebAuthnCredentialInfo, count int, userID
 		var templ_7745c5c3_Var31 string
 		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("passkey-register-%s", userID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 313, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 317, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
 		if templ_7745c5c3_Err != nil {
@@ -675,7 +675,7 @@ func PasskeyRegisterContainer(optionsJSON string, userID, challenge string) temp
 		var templ_7745c5c3_Var33 string
 		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.ResolveAttributeValue(optionsJSON)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 320, Col: 37}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 324, Col: 37}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 		if templ_7745c5c3_Err != nil {
@@ -688,7 +688,7 @@ func PasskeyRegisterContainer(optionsJSON string, userID, challenge string) temp
 		var templ_7745c5c3_Var34 string
 		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/api/auth/passkey/register/%s/complete?challenge=%s", userID, challenge)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 321, Col: 131}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 325, Col: 131}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 		if templ_7745c5c3_Err != nil {
@@ -773,7 +773,7 @@ func UserTokens(tokens []*authv1.APITokenInfo, userID string) templ.Component {
 				var templ_7745c5c3_Var37 string
 				templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(t.GetName())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 345, Col: 47}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 349, Col: 47}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 				if templ_7745c5c3_Err != nil {
@@ -786,7 +786,7 @@ func UserTokens(tokens []*authv1.APITokenInfo, userID string) templ.Component {
 				var templ_7745c5c3_Var38 string
 				templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(t.GetPrefix())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 346, Col: 54}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 350, Col: 54}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 				if templ_7745c5c3_Err != nil {
@@ -799,7 +799,7 @@ func UserTokens(tokens []*authv1.APITokenInfo, userID string) templ.Component {
 				var templ_7745c5c3_Var39 string
 				templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/users/%s/tokens/%s", userID, t.GetId())))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 349, Col: 86}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 353, Col: 86}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var39)
 				if templ_7745c5c3_Err != nil {
@@ -823,7 +823,7 @@ func UserTokens(tokens []*authv1.APITokenInfo, userID string) templ.Component {
 		var templ_7745c5c3_Var40 string
 		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/users/%s/tokens", userID)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 362, Col: 68}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 366, Col: 68}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var40)
 		if templ_7745c5c3_Err != nil {
@@ -881,7 +881,7 @@ func UserTOTPControls(enabled bool, userID string) templ.Component {
 		var templ_7745c5c3_Var42 string
 		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.SafeURL(fmt.Sprintf("/users/%s/totp", userID)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 391, Col: 86}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/users.templ`, Line: 395, Col: 86}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var42)
 		if templ_7745c5c3_Err != nil {
