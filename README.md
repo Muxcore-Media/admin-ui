@@ -242,9 +242,18 @@ to `parental.json` or the user's writable userdata blob for restrictions.
 - **Admin and manager accounts.** A restricted policy on an account holding the
   `admin` or `manager` role is applied but is not a security boundary (those
   roles can change item tags and ratings); the form says so.
+- **Invalid submissions are 400s.** Unrestricted mode combined with rule fields
+  is rejected, not silently dropped. Validation errors answer 400 with the
+  `X-Admin-Swap-Error` header so `assets/csrf.js` still shows them.
+- **Write errors are honest.** "Nothing was changed" is only said for definite
+  refusals (400/401/403/404/413). After a timeout, 5xx or a mismatched
+  acknowledgement the form says the change may not have been saved and asks you
+  to reload and check.
 - **PIN lock is unchanged** until FR-AUTH-010: it still lives in `parental.json`
   and is mirrored as `pin_hash` into the user's blob. It is a separate form and
-  is never sent to the policy provider.
+  is never sent to the policy provider. It reads `parental.json` with the same
+  fail-closed reader as the migration and refuses to save (leaving the file
+  untouched) if the file is unreadable or malformed.
 
 #### Migrating `parental.json`
 
@@ -266,6 +275,16 @@ set to `unrestricted` only if you tick *Set unrestricted for N listed
 accounts*, which is unchecked by default. Legacy entries for accounts the
 provider does not list are ignored.
 
+If `parental.json` does not exist (for example a wrong data directory) the dry
+run says "parental.json not found at <path>" and the opt-in text says the
+accounts have no legacy entry because the file was missing. A damaged file stops
+the run. Each row keeps its mapping reason ("no legacy entry" or "legacy entry
+sets no restriction"). An apply runs on its own bounded context, so closing the
+browser does not abort a half-finished run, and it refuses to start if an
+existing `parental-migration.json` cannot be read (the history is never
+replaced). Both JSON files are written through a freshly created 0600 temporary
+file.
+
 Each account is read first: unconfigured accounts are created with
 `expected_revision: 0`; an identical configured policy is skipped; a *different*
 configured policy is reported as a conflict and never overwritten; 409, 403 and
@@ -284,7 +303,7 @@ file until slice S7, so its changes are **not** seen by the provider; use the ad
 For T-M4-05 / NFR-A11Y-001, the ordinary Go template suite checks rendered DOM
 relationships (labels, unique IDs, ARIA references, names and landmarks),
 including settings with identical keys in different modules. The Accessibility
-GitHub workflow adds axe-core checks over 28 Go-rendered core-journey documents
+GitHub workflow adds axe-core checks over 29 Go-rendered core-journey documents
 and keyboard interaction tests for the responsive sidebar and HTMX navigation.
 
 ```bash

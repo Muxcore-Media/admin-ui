@@ -62,57 +62,84 @@ func validateParentalPIN(pin string) error {
 	return nil
 }
 
-func loadParentalMap() map[string]parentalSettings {
-	parentalMu.Lock()
-	defer parentalMu.Unlock()
-	raw, err := os.ReadFile(parentalFilePath())
-	if err != nil {
-		return map[string]parentalSettings{}
-	}
-	var m map[string]parentalSettings
-	if json.Unmarshal(raw, &m) != nil || m == nil {
-		return map[string]parentalSettings{}
-	}
-	return m
+// legacySource is the result of reading parental.json.
+type legacySource struct {
+	Raw     []byte
+	Entries map[string]parentalSettings
+	// Found is false when the file does not exist (a legitimately empty source,
+	// but one the operator must be told about: it may be the wrong data dir).
+	Found bool
 }
 
-// readParentalLegacy reads parental.json for the migration. Unlike
-// loadParentalMap it fails closed: an unreadable or malformed file is an
-// error, never "no entries", so a damaged file cannot turn every account into
-// an unrestricted candidate. A missing file is a legitimately empty source.
-func readParentalLegacy() ([]byte, map[string]parentalSettings, error) {
-	parentalMu.Lock()
-	defer parentalMu.Unlock()
+// readParentalLegacyLocked reads parental.json. It fails closed: an unreadable
+// or malformed file is an error, never "no entries", so a damaged file can
+// neither turn every account into an unrestricted candidate nor be rewritten
+// from an empty map. The caller holds parentalMu.
+func readParentalLegacyLocked() (legacySource, error) {
 	raw, err := os.ReadFile(parentalFilePath())
 	if errors.Is(err, os.ErrNotExist) {
-		return nil, map[string]parentalSettings{}, nil
+		return legacySource{Entries: map[string]parentalSettings{}}, nil
 	}
 	if err != nil {
-		return nil, nil, fmt.Errorf("read parental.json: %w", err)
+		return legacySource{}, fmt.Errorf("read parental.json: %w", err)
 	}
 	var m map[string]parentalSettings
 	if err := json.Unmarshal(raw, &m); err != nil || m == nil {
-		return nil, nil, errors.New("parental.json is not a JSON object of per-user entries")
+		return legacySource{}, errors.New("parental.json is not a JSON object of per-user entries")
 	}
-	return raw, m, nil
+	return legacySource{Raw: raw, Entries: m, Found: true}, nil
 }
 
-func saveParentalMap(m map[string]parentalSettings) error {
+func readParentalLegacy() (legacySource, error) {
 	parentalMu.Lock()
 	defer parentalMu.Unlock()
-	return writeFile0600(parentalFilePath(), m)
+	return readParentalLegacyLocked()
+}
+
+// updateParentalEntry applies mutate to one user's legacy entry under a single
+// lock, using the fail-closed reader. On any read or parse error nothing is
+// written, so a damaged file is left exactly as found for repair.
+func updateParentalEntry(userID string, mutate func(parentalSettings) parentalSettings) error {
+	parentalMu.Lock()
+	defer parentalMu.Unlock()
+	src, err := readParentalLegacyLocked()
+	if err != nil {
+		return err
+	}
+	src.Entries[userID] = mutate(src.Entries[userID])
+	return writeFile0600(parentalFilePath(), src.Entries)
 }
 
 // writeFile0600 atomically writes v as indented JSON with mode 0600 in a 0700
-// directory, the same discipline parental.json has always had.
+// directory. The temporary file is created exclusively with mode 0600 after
+// removing any stale one, so a leftover file with wider permissions (or a
+// symlink) can never become the published file.
 func writeFile0600(path string, v any) error {
-	_ = os.MkdirAll(filepath.Dir(path), 0o700)
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
 	raw, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return err
 	}
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, raw, 0o600); err != nil {
+	if err := os.Remove(tmp); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	_, werr := f.Write(raw)
+	if cerr := f.Close(); werr == nil {
+		werr = cerr
+	}
+	if werr != nil {
+		_ = os.Remove(tmp)
+		return werr
+	}
+	if err := os.Chmod(tmp, 0o600); err != nil {
+		_ = os.Remove(tmp)
 		return err
 	}
 	return os.Rename(tmp, path)
@@ -171,6 +198,11 @@ func parentalFormFromRequest(r *http.Request) parentalFormInput {
 func (f parentalFormInput) policy() (parental.Policy, error) {
 	switch f.Mode {
 	case "unrestricted":
+		// Rules in an unrestricted submission would be silently dropped; make
+		// the operator resolve the contradiction instead.
+		if f.KidsMode || f.MaxRating != "" || f.BlockedTags != "" || f.AllowedTags != "" || f.AllowUnrated {
+			return parental.Policy{}, formError("Unrestricted mode cannot be combined with rules. Clear the rules, or choose Restricted mode.")
+		}
 		return parental.Normalize(parental.Policy{Version: 1, Mode: "unrestricted"})
 	case "restricted":
 	default:
@@ -251,7 +283,9 @@ func (h *Handler) parentalTargetPrivilege(ctx context.Context, userID string) st
 }
 
 func (h *Handler) renderParental(w http.ResponseWriter, r *http.Request, d templates.ParentalData) {
-	d.PINSet = loadParentalMap()[d.UserID].PINHash != ""
+	if src, err := readParentalLegacy(); err == nil {
+		d.PINSet = src.Entries[d.UserID].PINHash != ""
+	}
 	if d.RatingOptions == nil {
 		d.RatingOptions = parentalRatingTokens
 	}
@@ -297,6 +331,7 @@ func (h *Handler) UsersParental(w http.ResponseWriter, r *http.Request) {
 
 	expected, err := strconv.ParseInt(strings.TrimSpace(r.FormValue("expected_revision")), 10, 64)
 	if err != nil || expected < 0 {
+		markBadRequest(w)
 		h.loadAndRenderParental(w, r, userID, func(d *templates.ParentalData) {
 			d.Error = "The form did not say which revision it was based on, so nothing was saved. The current policy is shown; make your change again."
 		})
@@ -306,6 +341,7 @@ func (h *Handler) UsersParental(w http.ResponseWriter, r *http.Request) {
 	input := parentalFormFromRequest(r)
 	policy, err := input.policy()
 	if err != nil {
+		markBadRequest(w)
 		h.renderParental(w, r, h.parentalDataFromInput(userID, expected, input, err.Error()))
 		return
 	}
@@ -339,6 +375,17 @@ func (h *Handler) UsersParental(w http.ResponseWriter, r *http.Request) {
 		d := h.parentalDataFromInput(userID, expected, input, parentalErrorMessage(err, true))
 		h.renderParental(w, r, d)
 	}
+}
+
+// swapErrorHeader tells assets/csrf.js to swap an error response into the page.
+// htmx does not swap 4xx bodies by default, which would hide the message.
+const swapErrorHeader = "X-Admin-Swap-Error"
+
+// markBadRequest answers an invalid submission with 400 and a body that the
+// page still shows.
+func markBadRequest(w http.ResponseWriter) {
+	w.Header().Set(swapErrorHeader, "1")
+	w.WriteHeader(http.StatusBadRequest)
 }
 
 // parentalDataFromInput rebuilds the form from a submission that was not
@@ -393,12 +440,10 @@ func (h *Handler) UsersParentalPIN(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
 	_ = r.ParseForm()
 
-	m := loadParentalMap()
-	p := m[userID]
-	updated := p
+	var newHash string
 	switch {
 	case r.FormValue("clear_pin") == "1":
-		updated.PINHash = ""
+		newHash = ""
 	case strings.TrimSpace(r.FormValue("pin")) != "":
 		newPIN := strings.TrimSpace(r.FormValue("pin"))
 		if err := validateParentalPIN(newPIN); err != nil {
@@ -406,7 +451,7 @@ func (h *Handler) UsersParentalPIN(w http.ResponseWriter, r *http.Request) {
 			h.loadAndRenderParental(w, r, userID, func(d *templates.ParentalData) { d.PINError = msg })
 			return
 		}
-		updated.PINHash = hashParentalPIN(userID, newPIN)
+		newHash = hashParentalPIN(userID, newPIN)
 	default:
 		h.loadAndRenderParental(w, r, userID, func(d *templates.ParentalData) {
 			d.PINError = "Enter a new PIN or choose to clear the current one."
@@ -414,20 +459,22 @@ func (h *Handler) UsersParentalPIN(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	m[userID] = updated
-	if err := saveParentalMap(m); err != nil {
-		msg := "PIN not saved: " + err.Error()
+	if err := updateParentalEntry(userID, func(p parentalSettings) parentalSettings {
+		p.PINHash = newHash
+		return p
+	}); err != nil {
+		msg := "PIN not saved: the legacy parental.json cannot be read safely (" + err.Error() + "), so nothing was written. Repair or restore the file, then try again."
 		h.loadAndRenderParental(w, r, userID, func(d *templates.ParentalData) { d.PINError = msg })
 		return
 	}
-	if err := h.syncParentalPINToUserdata(r.Context(), userID, updated.PINHash); err != nil {
+	if err := h.syncParentalPINToUserdata(r.Context(), userID, newHash); err != nil {
 		msg := "userdata sync failed: " + err.Error()
 		h.loadAndRenderParental(w, r, userID, func(d *templates.ParentalData) { d.PINError = msg })
 		return
 	}
 	if sess := SessionFromContext(r.Context()); sess != nil {
 		h.auditLog(r.Context(), sess.UserID, "admin.parental.pin", "user", userID, map[string]string{
-			"pin_set": strconv.FormatBool(updated.PINHash != ""),
+			"pin_set": strconv.FormatBool(newHash != ""),
 		})
 	}
 	h.loadAndRenderParental(w, r, userID, func(d *templates.ParentalData) { d.PINSaved = true })

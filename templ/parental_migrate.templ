@@ -10,6 +10,7 @@ type ParentalMigrateRow struct {
 	Outcome      string
 	OutcomeLabel string
 	Detail       string
+	Reason       string // why the mapping chose this policy, shown under it
 	Note         string
 	Revision     int64
 }
@@ -25,6 +26,9 @@ type ParentalMigrateData struct {
 	OptIn      bool
 	Created    int
 	Error      string
+	// SourceMissing is set when parental.json does not exist at SourcePath.
+	SourceMissing bool
+	SourcePath    string
 }
 
 templ ParentalMigratePage() {
@@ -61,6 +65,11 @@ templ ParentalMigrateResult(data ParentalMigrateData) {
 		if data.Error != "" {
 			<p class="rounded-lg border border-red-700 bg-red-950/40 p-3 text-sm text-red-200" role="alert" data-testid="parental-migrate-error">{ data.Error }</p>
 		}
+		if data.SourceMissing {
+			<p class="rounded-lg border border-amber-700 bg-amber-950/40 p-3 text-sm text-amber-200" role="alert" data-testid="parental-migrate-source-missing">
+				parental.json not found at { data.SourcePath }. Every account below therefore has no legacy entry. If you expected existing settings, check the admin data directory (ADMIN_UI_DATA_DIR / ADMIN_UI_PARENTAL_FILE) before continuing.
+			</p>
+		}
 		if data.Phase == "applied" {
 			<p class="text-sm text-emerald-400" role="status" data-testid="parental-migrate-summary">
 				Migration run finished: { fmt.Sprint(data.Created) } policies created. Outcomes are in the table, the audit log and parental-migration.json.
@@ -86,7 +95,12 @@ templ ParentalMigrateResult(data ParentalMigrateData) {
 									{ row.Username }
 									<span class="block text-xs text-gray-500">{ row.UserID }</span>
 								</th>
-								<td class="px-3 py-2 text-gray-300">{ row.Mapped }</td>
+								<td class="px-3 py-2 text-gray-300">
+									{ row.Mapped }
+									if row.Reason != "" {
+										<span class="block text-xs text-gray-400" data-testid="parental-migrate-reason">{ row.Reason }</span>
+									}
+								</td>
 								<td class="px-3 py-2 text-gray-300">
 									<strong>{ row.OutcomeLabel }</strong>
 									if row.Revision > 0 {
@@ -134,10 +148,17 @@ templ ParentalMigrateResult(data ParentalMigrateData) {
 						<input type="checkbox" name="optin_unrestricted" value="1" class="rounded border-gray-600"/>
 						<span>Set unrestricted for { fmt.Sprint(data.OptInCount) } listed accounts</span>
 					</label>
-					<p class="text-xs text-gray-400">
-						These accounts have no legacy restriction. Leave this unticked to leave them unconfigured.
-						Ticking it is your decision that they have no parental limits.
-					</p>
+					if data.SourceMissing {
+						<p class="text-xs text-amber-300" data-testid="parental-migrate-optin-help">
+							These accounts have no legacy entry because parental.json was not found. Leave this unticked unless you are sure none of them should be restricted.
+							Ticking it is your decision that they have no parental limits.
+						</p>
+					} else {
+						<p class="text-xs text-gray-400" data-testid="parental-migrate-optin-help">
+							These accounts have no legacy restriction. Leave this unticked to leave them unconfigured.
+							Ticking it is your decision that they have no parental limits.
+						</p>
+					}
 				}
 				<button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">Apply migration</button>
 			</form>

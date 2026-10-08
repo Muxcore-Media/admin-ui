@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -186,22 +187,40 @@ func parentalMigrationFilePath() string {
 	return adminDataFile("ADMIN_UI_PARENTAL_MIGRATION_FILE", "parental-migration.json")
 }
 
-func recordMigrationRun(run migrationRun) error {
-	path := parentalMigrationFilePath()
+// readMigrationRecord loads parental-migration.json. A missing file is an
+// empty history; an unreadable or malformed one is an error so the run history
+// is never silently replaced.
+func readMigrationRecord() (migrationFile, error) {
 	f := migrationFile{Version: 1}
-	if raw, err := os.ReadFile(path); err == nil && len(raw) > 0 {
-		_ = json.Unmarshal(raw, &f)
+	raw, err := os.ReadFile(parentalMigrationFilePath())
+	if errors.Is(err, os.ErrNotExist) {
+		return f, nil
+	}
+	if err != nil {
+		return migrationFile{}, fmt.Errorf("read parental-migration.json: %w", err)
+	}
+	if err := json.Unmarshal(raw, &f); err != nil {
+		return migrationFile{}, fmt.Errorf("parental-migration.json is not valid JSON: %w", err)
+	}
+	return f, nil
+}
+
+func recordMigrationRun(run migrationRun) error {
+	f, err := readMigrationRecord()
+	if err != nil {
+		return err
 	}
 	f.Version = 1
 	f.Runs = append(f.Runs, run)
 	if len(f.Runs) > parentalMigrateRuns {
 		f.Runs = f.Runs[len(f.Runs)-parentalMigrateRuns:]
 	}
-	return writeFile0600(path, f)
+	return writeFile0600(parentalMigrationFilePath(), f)
 }
 
-// outcomeFromError maps a provider error to a reportable outcome.
-func outcomeFromError(err error) (string, string) {
+// outcomeFromError maps a provider error to a reportable outcome. For a write
+// only a definite client-side refusal proves nothing was applied.
+func outcomeFromError(err error, writing bool) (string, string) {
 	switch policyStatus(err) {
 	case http.StatusUnauthorized:
 		return outUnauth, "identity provider rejected the session"
@@ -211,6 +230,9 @@ func outcomeFromError(err error) (string, string) {
 		return outNotFound, "account or policy service not found"
 	case http.StatusConflict:
 		return outStale, "the policy changed during the run; run the dry run again"
+	}
+	if writing && !writeNotApplied(err) {
+		return outError, "no definite answer from the policy service: the write may or may not have been applied; run the dry run again to check"
 	}
 	return outError, "policy service unavailable or returned an unusable answer"
 }
@@ -233,7 +255,7 @@ func (h *Handler) migrateAccount(ctx context.Context, sess *session.Session, e p
 	}
 	current, err := h.getParentalPolicy(ctx, sess, e.UserID)
 	if err != nil {
-		res.Outcome, res.Detail = outcomeFromError(err)
+		res.Outcome, res.Detail = outcomeFromError(err, false)
 		if dryRun && res.Outcome == outError {
 			res.Outcome = outPlanUnknown
 		}
@@ -258,7 +280,7 @@ func (h *Handler) migrateAccount(ctx context.Context, sess *session.Session, e p
 	}
 	saved, err := h.putParentalPolicy(ctx, sess, e.UserID, 0, *e.Policy)
 	if err != nil {
-		res.Outcome, res.Detail = outcomeFromError(err)
+		res.Outcome, res.Detail = outcomeFromError(err, true)
 		return res
 	}
 	res.Outcome, res.Revision, res.Detail = outCreated, saved.Revision, "created ("+describeParentalPolicy(*e.Policy)+")"
@@ -328,15 +350,18 @@ func (h *Handler) ParentalMigrate(w http.ResponseWriter, r *http.Request) {
 		fail(identityReadError("list accounts", err))
 		return
 	}
-	raw, legacy, err := readParentalLegacy()
+	src, err := readParentalLegacy()
 	if err != nil {
 		fail("The legacy parental.json could not be read, so nothing can be migrated: " + err.Error())
 		return
 	}
-	plan, info, orphans := buildMigrationPlan(users, legacy)
-	digest := migrationDigest(raw, plan)
+	plan, info, orphans := buildMigrationPlan(users, src.Entries)
+	digest := migrationDigest(src.Raw, plan)
 
 	data := templates.ParentalMigrateData{Digest: digest, Orphans: orphans}
+	if !src.Found {
+		data.SourceMissing, data.SourcePath = true, parentalFilePath()
+	}
 	for _, e := range plan {
 		if e.Kind == planUnrestricted {
 			data.OptInCount++
@@ -347,6 +372,19 @@ func (h *Handler) ParentalMigrate(w http.ResponseWriter, r *http.Request) {
 	if apply && strings.TrimSpace(r.FormValue("digest")) != digest {
 		data.Error = "The legacy file or the account list changed since the dry run (or no dry-run digest was supplied), so nothing was written. Review the new dry run below and apply again."
 		apply = false
+	}
+
+	if apply {
+		// Refuse before any provider write if the run history cannot be kept.
+		if _, err := readMigrationRecord(); err != nil {
+			fail("Nothing was written: the existing migration record cannot be read, and it will not be overwritten (" + err.Error() + "). Repair or move parental-migration.json, then try again.")
+			return
+		}
+		// A committed write must be recorded even if the browser goes away
+		// mid-run, so the apply runs on its own bounded context.
+		var applyCancel context.CancelFunc
+		ctx, applyCancel = context.WithTimeout(context.WithoutCancel(r.Context()), 5*time.Minute)
+		defer applyCancel()
 	}
 
 	parentalMigrateMu.Lock()
@@ -399,6 +437,9 @@ func migrationRow(res migrationResult, e planEntry, u planUser) templates.Parent
 		OutcomeLabel: migrationOutcomeLabels[res.Outcome],
 		Detail:       res.Detail,
 		Revision:     res.Revision,
+	}
+	if e.Kind == planUnrestricted {
+		row.Reason = e.Reason // "no legacy entry" vs "legacy entry sets no restriction"
 	}
 	if e.Kind == planRestricted && (hasRole(u.Roles, "admin") || hasRole(u.Roles, "manager")) {
 		row.Note = "Holds the admin or manager role: the restriction is applied but is not a security boundary."

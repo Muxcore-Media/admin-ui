@@ -233,22 +233,39 @@ func parentalPoliciesEqual(a, b parental.Policy) bool {
 	return errA == nil && errB == nil && reflect.DeepEqual(na, nb)
 }
 
+// writeNotApplied reports whether a failed write is certain not to have been
+// applied: the provider refused it with a definite client-side status. Anything
+// else (timeouts, connection loss, 5xx, an acknowledgement that does not match)
+// leaves it unknown whether the PUT committed.
+func writeNotApplied(err error) bool {
+	switch policyStatus(err) {
+	case http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusRequestEntityTooLarge:
+		return true
+	}
+	return false
+}
+
 // parentalErrorMessage is the operator-facing explanation of a provider error.
-// None of these states is ever shown as an empty or unrestricted policy.
+// None of these states is ever shown as an empty or unrestricted policy. For
+// writes it claims "nothing was changed" only when that is certain.
 func parentalErrorMessage(err error, writing bool) string {
+	tail := " Nothing was changed."
+	if writing && !writeNotApplied(err) {
+		tail = " The change may not have been saved; reload the form to check the current policy before trying again."
+	}
 	action, done := "read", "read"
 	if writing {
 		action, done = "change", "changed"
 	}
 	switch policyStatus(err) {
 	case http.StatusUnauthorized:
-		return "The identity provider no longer accepts your session. Sign in again. Nothing was changed."
+		return "The identity provider no longer accepts your session. Sign in again." + tail
 	case http.StatusForbidden:
-		return "You are not allowed to " + action + " this account's parental policy (it needs the admin role in the account's tenant). Nothing was changed."
+		return "You are not allowed to " + action + " this account's parental policy (it needs the admin role in the account's tenant)." + tail
 	case http.StatusNotFound:
-		return "The account or the parental policy service was not found. Nothing was changed."
+		return "The account or the parental policy service was not found." + tail
 	case http.StatusBadRequest, http.StatusRequestEntityTooLarge:
-		return "The parental policy service rejected the request as invalid. Nothing was changed."
+		return "The parental policy service rejected the request as invalid." + tail
 	}
-	return "The parental policy service is unavailable or returned an unusable answer, so this account's policy could not be " + done + ". This is not an unrestricted account. Nothing was changed."
+	return "The parental policy service is unavailable or returned an unusable answer, so this account's policy could not be " + done + ". This is not an unrestricted account." + tail
 }

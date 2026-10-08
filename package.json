@@ -4,7 +4,7 @@
   "description": "[![CI](https://github.com/Muxcore-Media/admin-ui/actions/workflows/ci.yml/badge.svg)](https://github.com/Muxcore-Media/admin-ui/actions) [![Go Version](https://img.shields.io/badge/Go-1.26-blue)](https://go.dev/) [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)",
   "main": "tailwind.config.js",
   "scripts": {
-    "test": "node --test tests/nav.test.mjs",
+    "test": "node --test tests/nav.test.mjs tests/csrf.test.mjs",
     "test:a11y": "node --test tests/a11y.test.mjs",
     "css": "tailwindcss -i input.css -o assets/dist/styles.css --minify"
   },

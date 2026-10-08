@@ -49,6 +49,7 @@ type fakePolicyProvider struct {
 	raceOnce map[string]bool   // "u1": next PUT loses a race (409 after another writer)
 	blob     json.RawMessage   // last PUT /api/userdata body
 	blobPuts int
+	onPut    func() // called at the start of every policy PUT
 }
 
 func newFakePolicyProvider(t *testing.T, users ...string) *fakePolicyProvider {
@@ -92,6 +93,9 @@ func (f *fakePolicyProvider) serve(w http.ResponseWriter, r *http.Request) {
 		user = userIDs[0]
 	}
 	key := r.Method + " " + user
+	if r.Method == http.MethodPut && f.onPut != nil {
+		f.onPut()
+	}
 	if st := f.force[key]; st != 0 {
 		w.WriteHeader(st)
 		_, _ = w.Write([]byte(`{"code":"policy.forced"}`))
@@ -342,4 +346,19 @@ func restrictedPolicy(rules parental.Rules) parental.Policy {
 		rules.AllowedTags = []string{}
 	}
 	return parental.Policy{Version: 1, Mode: "restricted", Rules: &rules}
+}
+
+// loadParentalMap and saveParentalMap are test conveniences over the legacy file.
+func loadParentalMap() map[string]parentalSettings {
+	src, err := readParentalLegacy()
+	if err != nil {
+		return map[string]parentalSettings{}
+	}
+	return src.Entries
+}
+
+func saveParentalMap(m map[string]parentalSettings) error {
+	parentalMu.Lock()
+	defer parentalMu.Unlock()
+	return writeFile0600(parentalFilePath(), m)
 }

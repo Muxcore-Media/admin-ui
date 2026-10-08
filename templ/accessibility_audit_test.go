@@ -74,6 +74,12 @@ func TestAccessibilityCoreJourneys(t *testing.T) {
 		{"invites", InvitesPage(InvitesPageData{Invites: []InviteRow{{ID: "invite-1", Prefix: "abc", Role: "user"}}})},
 		{"parental-migrate", ParentalMigratePage()},
 		{"parental-migrate-dry-run", withA11yHeading("Parental policy migration", ParentalMigrateResult(parentalMigrateFixture("dry-run")))},
+		{"parental-migrate-source-missing", withA11yHeading("Parental policy migration", ParentalMigrateResult(func() ParentalMigrateData {
+			d := parentalMigrateFixture("dry-run")
+			d.SourceMissing, d.SourcePath = true, "/data/parental.json"
+			d.Rows[1].Reason = "no legacy entry"
+			return d
+		}()))},
 		{"parental-migrate-applied", withA11yHeading("Parental policy migration", ParentalMigrateResult(parentalMigrateFixture("applied")))},
 		{"parental-migrate-error", withA11yHeading("Parental policy migration", ParentalMigrateResult(ParentalMigrateData{Error: "The legacy parental.json could not be read."}))},
 		{"parental-form-unconfigured", withUserDetailHeadings(UserParentalForm(ParentalData{

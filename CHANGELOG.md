@@ -27,6 +27,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Depends on `github.com/Muxcore-Media/userdata-local` v0.1.5 (public `parental`
   package only).
 
+### Fixed
+
+- Parental PIN saves use the same fail-closed `parental.json` reader as the
+  migration and refuse to rewrite a damaged file. The migration dry run warns
+  when `parental.json` is missing, and its opt-in wording and per-row mapping
+  reasons follow. Unrestricted mode submitted with rule fields is rejected.
+  Migration apply continues after the browser disconnects, refuses to overwrite
+  an unreadable `parental-migration.json`, and write errors say "may not have
+  been saved" when the outcome is unknown. JSON files are written via an
+  exclusively created 0600 temporary file.
+
 ### Changed
 
 - Saving parental settings no longer writes restriction fields into
