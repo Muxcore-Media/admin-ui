@@ -64,8 +64,8 @@ All configuration is via environment variables:
 | `ADMIN_UI_DATA_DIR` | `MEDIA_UI_USERDATA_DIR`, else `$XDG_STATE_HOME/muxcore/admin-ui`, else `~/.local/state/muxcore/admin-ui` | Root for durable JSON state (branding, networking, sessions, …) |
 | `ADMIN_UI_SESSION_KEY` | generated `session.key` (0600) next to the session file | Key protecting session bearer material at rest (32 bytes base64/hex, or any passphrase → SHA-256) |
 | `ADMIN_UI_RESTORE_ROOT` | `BACKUP_RESTORE_DIR`, else `/data/restore` | Allow-listed root for backup restore targets (paths outside → 400) |
-| `ADMIN_UI_*_FILE` | under data dir | Per-artifact overrides: `BRANDING`, `NETWORKING`, `PARENTAL`, `LIVETV`, `PLAYBACK`, `PASSWORD_RESET`, `SESSION` |
-| `ADMIN_UI_USERDATA_URL` | mesh `userdata.local` | HTTP base for parental prefs sync to userdata-local |
+| `ADMIN_UI_*_FILE` | under data dir | Per-artifact overrides: `BRANDING`, `NETWORKING`, `PARENTAL`, `PARENTAL_MIGRATION`, `LIVETV`, `PLAYBACK`, `PASSWORD_RESET`, `SESSION` |
+| `ADMIN_UI_USERDATA_URL` | mesh `userdata.local` | HTTP base for userdata-local (parental policy resource and PIN sync) |
 | `ADMIN_UI_METRICS_TOKEN` | — | When set, `/metrics` requires `Authorization: Bearer <token>` |
 
 ---
@@ -219,12 +219,72 @@ local revoke and rename controls. Labels apply only to admin-ui sessions. Local
 cookie hashes never stand in for provider management IDs, and provider actions
 do not automatically remove or rename local sessions.
 
+### Parental policy (provider-backed)
+
+The per-account parental policy is owned by userdata-local's
+`GET`/`PUT /api/parental-policy` resource (ADR-0030, userdata-local v0.1.5 and
+later). The Users page's parental form reads and writes **only** that resource,
+using the signed-in admin's identity-provider bearer (never browser headers) and
+the account being edited in `X-MuxCore-User-Id`. Nothing is read from or written
+to `parental.json` or the user's writable userdata blob for restrictions.
+
+- **States are distinct.** *Not configured* (no policy yet, which is not the
+  same as unrestricted), *Configured: unrestricted* and *Configured:
+  restricted* each render differently. The maximum rating is chosen from the
+  provider's supported tokens; tags are comma-separated and compared exactly
+  after trimming and lower-casing.
+- **Revision-checked writes.** Each save sends `expected_revision`. On a 409
+  the form shows a conflict notice and reloads the current revision; it never
+  retries or overwrites silently.
+- **Provider errors are errors.** 401, 403, 404, 5xx, timeouts, unreachable or
+  malformed answers and scope mismatches show an error with a retry button and
+  no form. They never render as unrestricted or empty.
+- **Admin and manager accounts.** A restricted policy on an account holding the
+  `admin` or `manager` role is applied but is not a security boundary (those
+  roles can change item tags and ratings); the form says so.
+- **PIN lock is unchanged** until FR-AUTH-010: it still lives in `parental.json`
+  and is mirrored as `pin_hash` into the user's blob. It is a separate form and
+  is never sent to the policy provider.
+
+#### Migrating `parental.json`
+
+`/users/parental/migrate` (admin role only; others get 403 and nothing is
+written) copies the legacy file into the provider (ADR-0031 section 5):
+
+1. Run the **dry run**. It lists every account from the identity provider with
+   the policy it would receive and what would happen, and writes nothing.
+2. **Apply** with the dry-run digest (SHA-256 over the exact `parental.json`
+   bytes and the plan). If the file or the account list changed, the digest no
+   longer matches and nothing is written; run the dry run again.
+
+Mapping: the rating is trimmed and upper-cased; tags are split on commas;
+`allow_unrated` and `kids_mode` map directly; any rating, tag or kids-mode
+setting makes the account `restricted`; `pin_hash` is never sent. A rating the
+provider does not support is reported and **skipped** (the account stays
+unconfigured). Accounts with no restriction (all-default entry or no entry) are
+set to `unrestricted` only if you tick *Set unrestricted for N listed
+accounts*, which is unchecked by default. Legacy entries for accounts the
+provider does not list are ignored.
+
+Each account is read first: unconfigured accounts are created with
+`expected_revision: 0`; an identical configured policy is skipped; a *different*
+configured policy is reported as a conflict and never overwritten; 409, 403 and
+404 are reported. Re-running is safe. Every write-run outcome is audited as
+`admin.parental.migrate` and appended to `parental-migration.json` (0600) in the
+data dir. `parental.json` is kept and never deleted.
+
+**Rollout order:** deploy the provider (userdata-local with the policy resource),
+then run this migration, then enable BFF enforcement (ADR-0031 slice S5).
+Deploying enforcement first leaves every account unconfigured, which the BFF
+denies. `muxcorectl users parental set` (muxcorectl-cli) still writes the legacy
+file until slice S7, so its changes are **not** seen by the provider; use the admin form until then.
+
 ### Accessibility validation
 
 For T-M4-05 / NFR-A11Y-001, the ordinary Go template suite checks rendered DOM
 relationships (labels, unique IDs, ARIA references, names and landmarks),
 including settings with identical keys in different modules. The Accessibility
-GitHub workflow adds axe-core checks over 20 Go-rendered core-journey documents
+GitHub workflow adds axe-core checks over 28 Go-rendered core-journey documents
 and keyboard interaction tests for the responsive sidebar and HTMX navigation.
 
 ```bash

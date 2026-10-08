@@ -32,6 +32,7 @@ type identityRPCStub struct {
 	sessionRows     []*authv1.SessionInfo
 	nextSessionPage string
 	validateResp    *authv1.ValidateResponse
+	users           []*authv1.UserInfo // ListUsers answer when set
 	validateHold    chan struct{}
 	validateStarted chan struct{}
 	validateOnce    sync.Once
@@ -54,6 +55,9 @@ func (s *identityRPCStub) intercept(ctx context.Context, req any, info *grpc.Una
 	}
 	switch method {
 	case "ListUsers":
+		if s.users != nil {
+			return &authv1.ListUsersResponse{Users: s.users}, nil
+		}
 		return &authv1.ListUsersResponse{Users: []*authv1.UserInfo{{Id: "u1", Username: "alice"}}}, nil
 	case "CreateUser":
 		return &authv1.CreateUserResponse{UserId: "u2"}, nil

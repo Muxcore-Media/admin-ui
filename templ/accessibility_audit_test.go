@@ -1,7 +1,9 @@
 package templates
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -70,6 +72,24 @@ func TestAccessibilityCoreJourneys(t *testing.T) {
 		{"queue-empty", UnifiedQueuePage(UnifiedQueueData{})},
 		{"settings", SettingsPage(settings)},
 		{"invites", InvitesPage(InvitesPageData{Invites: []InviteRow{{ID: "invite-1", Prefix: "abc", Role: "user"}}})},
+		{"parental-migrate", ParentalMigratePage()},
+		{"parental-migrate-dry-run", withA11yHeading("Parental policy migration", ParentalMigrateResult(parentalMigrateFixture("dry-run")))},
+		{"parental-migrate-applied", withA11yHeading("Parental policy migration", ParentalMigrateResult(parentalMigrateFixture("applied")))},
+		{"parental-migrate-error", withA11yHeading("Parental policy migration", ParentalMigrateResult(ParentalMigrateData{Error: "The legacy parental.json could not be read."}))},
+		{"parental-form-unconfigured", withUserDetailHeadings(UserParentalForm(ParentalData{
+			UserID: "alice", State: "unconfigured", RatingOptions: []string{"G", "PG", "PG-13"}, Privileged: "unknown",
+		}))},
+		{"parental-form-restricted", withUserDetailHeadings(UserParentalForm(ParentalData{
+			UserID: "alice", State: "configured", Revision: 3, StoredMode: "restricted", Mode: "restricted", MaxRating: "PG",
+			RatingOptions: []string{"G", "PG", "PG-13"}, BlockedTags: "gore", KidsMode: true, Saved: true, PINSet: true, Privileged: "yes",
+		}))},
+		{"parental-form-conflict", withUserDetailHeadings(UserParentalForm(ParentalData{
+			UserID: "alice", State: "configured", Revision: 4, StoredMode: "unrestricted", Mode: "unrestricted",
+			RatingOptions: []string{"G", "PG"}, Conflict: true, Attempted: "restricted; max rating PG", Error: "Choose a maximum rating from the list.", PINError: "PIN must be 4–6 digits",
+		}))},
+		{"parental-form-load-error", withUserDetailHeadings(UserParentalForm(ParentalData{
+			UserID: "alice", LoadError: "The parental policy service is unavailable.",
+		}))},
 		{"backups", BackupsLivePage([]BackupRow{{ID: "backup-1", Timestamp: "2026-10-07", Size: "10 MB"}}, "", "Backup created", BackupScheduleData{Enabled: true})},
 	}
 	links := []NavLink{{Label: "Dashboard", Path: "/", Group: "Overview"}, {Label: "Queue", Path: "/queue", Group: "Daily admin"}}
@@ -90,6 +110,40 @@ func TestAccessibilityCoreJourneys(t *testing.T) {
 			assertAccessibleDocument(t, markup)
 			writeA11yFixture(t, name, markup)
 		})
+	}
+}
+
+// withA11yHeading gives an htmx fragment the page heading its real host page
+// supplies, so the document-level checks apply to it unchanged.
+func withA11yHeading(title string, c templ.Component) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
+		if _, err := io.WriteString(w, "<h1>"+title+"</h1>"); err != nil {
+			return err
+		}
+		return c.Render(ctx, w)
+	})
+}
+
+// withUserDetailHeadings reproduces the heading path the form is loaded under
+// on the Users page (h1, sr-only h2, h3 "Manage: user"), so heading-order rules
+// judge the fragment in its real context.
+func withUserDetailHeadings(c templ.Component) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
+		if _, err := io.WriteString(w, "<h1>Users</h1><h2>Registered users</h2><h3>Manage: Alice</h3>"); err != nil {
+			return err
+		}
+		return c.Render(ctx, w)
+	})
+}
+
+func parentalMigrateFixture(phase string) ParentalMigrateData {
+	return ParentalMigrateData{
+		Phase: phase, Digest: strings.Repeat("a", 64), OptInCount: 2, Created: 1, Orphans: []string{"ghost", "gone"},
+		Rows: []ParentalMigrateRow{
+			{UserID: "kid", Username: "Kid", Mapped: "restricted; max rating PG", Outcome: "created", OutcomeLabel: "Created", Revision: 1},
+			{UserID: "bad", Username: "Bad", Mapped: "no policy (stays unconfigured)", Outcome: "skipped", OutcomeLabel: "Skipped", Detail: "unsupported maximum rating"},
+			{UserID: "adm", Username: "Admin", Mapped: "restricted; max rating R", Outcome: "conflict", OutcomeLabel: "Conflict, not overwritten", Note: "Holds the admin or manager role."},
+		},
 	}
 }
 
