@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -11,9 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
-
-	authv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/auth/v1"
 	discoveryv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/discovery/v1"
 	"github.com/Muxcore-Media/core/sdk/go/client"
 
@@ -510,10 +506,12 @@ func (h *Handler) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 			snap = revalidated
 		}
 
-		if err := h.checkAuthorized(r.Context(), &snap); err != nil {
-			slog.Warn("authorization denied", "user", snap.Username, "path", r.URL.Path, "error", err)
-			component := templates.Forbidden()
-			h.render(w, r, component)
+		code := h.checkAuthorized(r.Context(), &snap)
+		if !h.sessionBindingCurrent(w, r, cookie.Value, snap) {
+			return
+		}
+		if code != http.StatusOK {
+			h.sessionCheckFailed(w, r, cookie.Value, snap, code)
 			return
 		}
 
@@ -540,43 +538,6 @@ func (h *Handler) requireNoAuth(next http.HandlerFunc) http.HandlerFunc {
 		}
 		next(w, r)
 	}
-}
-
-func (h *Handler) checkAuthorized(ctx context.Context, sess *session.Session) error {
-	if h.Core == nil {
-		return fmt.Errorf("core not connected")
-	}
-
-	mod, err := h.findFirstModule(ctx, capAuthorizer)
-	if err != nil {
-		return fmt.Errorf("authorizer unavailable: %w", err)
-	}
-
-	addr := normalizeDialAddr(mod.GetId(), mod.GetHttpAddr())
-	if addr == "" {
-		return fmt.Errorf("authorizer has no gRPC address")
-	}
-
-	conn, err := meshdial.NewClient(addr)
-	if err != nil {
-		return fmt.Errorf("dial authorizer %s: %w", addr, err)
-	}
-	defer func() { _ = conn.Close() }()
-
-	ac := authv1.NewAuthServiceClient(conn)
-	cresp, err := ac.Can(ctx, &authv1.CanRequest{
-		UserId:   sess.UserID,
-		Action:   "admin.access",
-		Resource: "admin.ui",
-	})
-	if err != nil {
-		return fmt.Errorf("authz call failed: %w", err)
-	}
-
-	if !cresp.Allowed {
-		return fmt.Errorf("access denied")
-	}
-	return nil
 }
 
 func redirectToLogin(w http.ResponseWriter, r *http.Request) {

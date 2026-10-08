@@ -36,10 +36,14 @@ type identityRPCStub struct {
 	validateHold    chan struct{}
 	validateStarted chan struct{}
 	validateOnce    sync.Once
+	onCall          func(context.Context, string)
+	onDiscovery     func(context.Context, string) error
 	mu              sync.Mutex
 	calls           map[string]int
 	requests        map[string]proto.Message
 	tokens          map[string][]string
+	authorization   map[string][]string
+	order           []string
 }
 
 func (s *identityRPCStub) intercept(ctx context.Context, req any, info *grpc.UnaryServerInfo, next grpc.UnaryHandler) (any, error) {
@@ -49,7 +53,12 @@ func (s *identityRPCStub) intercept(ctx context.Context, req any, info *grpc.Una
 	s.requests[method] = proto.Clone(req.(proto.Message))
 	md, _ := metadata.FromIncomingContext(ctx)
 	s.tokens[method] = append([]string(nil), md.Get("x-auth-token")...)
+	s.authorization[method] = append([]string(nil), md.Get("authorization")...)
+	s.order = append(s.order, method)
 	s.mu.Unlock()
+	if s.onCall != nil {
+		s.onCall(ctx, method)
+	}
 	if code := s.fail[method]; code != codes.OK {
 		return nil, status.Error(code, "provider response")
 	}
@@ -114,6 +123,7 @@ func setupIdentityHandler(t *testing.T, stub *identityRPCStub) *Handler {
 	stub.calls = map[string]int{}
 	stub.requests = map[string]proto.Message{}
 	stub.tokens = map[string][]string{}
+	stub.authorization = map[string][]string{}
 	authLis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -127,6 +137,11 @@ func setupIdentityHandler(t *testing.T, stub *identityRPCStub) *Handler {
 		t.Fatal(err)
 	}
 	discSrv := grpc.NewServer(grpc.UnaryInterceptor(func(ctx context.Context, req any, info *grpc.UnaryServerInfo, next grpc.UnaryHandler) (any, error) {
+		if lookup, ok := req.(*discoveryv1.FindByCapabilityRequest); ok && stub.onDiscovery != nil {
+			if err := stub.onDiscovery(ctx, lookup.GetCapability()); err != nil {
+				return nil, err
+			}
+		}
 		if stub.discoveryFail != codes.OK {
 			return nil, status.Error(stub.discoveryFail, "discovery unavailable")
 		}
