@@ -398,3 +398,29 @@ func TestCommitValidatedClaimsSkipsRewriteWhenUnchanged(t *testing.T) {
 		t.Fatal("changed roles did not rewrite the sessions file")
 	}
 }
+
+func TestRevokeIfBoundPreservesReplacement(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sessions.json")
+	s := NewFileStore(path, time.Hour)
+	token, err := s.Create("user", "Name", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.BindAuthLocalToken(token, "old-bearer")
+	s.BindAuthLocalToken(token, "new-bearer")
+	if s.RevokeIfBound(token, "user", "old-bearer") || s.RevokeIfBound(token, "different-user", "new-bearer") {
+		t.Fatal("rejection revoked a different binding")
+	}
+	if current, ok := NewFileStore(path, time.Hour).Get(token); !ok || current.AuthLocalToken != "new-bearer" {
+		t.Fatal("replacement did not survive reload")
+	}
+	if !s.RevokeIfBound(token, "user", "new-bearer") {
+		t.Fatal("current invalid binding was not revoked")
+	}
+	if _, ok := NewFileStore(path, time.Hour).Get(token); ok {
+		t.Fatal("invalid binding survived reload")
+	}
+	if s.RevokeIfBound(token, "user", "new-bearer") {
+		t.Fatal("already-revoked binding was reported as removed again")
+	}
+}

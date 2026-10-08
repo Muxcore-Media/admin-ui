@@ -104,7 +104,7 @@ func TestBoundSessionRevalidationAppliesCurrentClaims(t *testing.T) {
 	if req.GetToken() != bearer {
 		t.Fatalf("validated token=%q", req.GetToken())
 	}
-	if len(stub.tokens["Validate"]) != 0 {
+	if len(stub.tokens["Validate"]) != 1 || stub.tokens["Validate"][0] != bearer {
 		t.Fatalf("Validate forwarded metadata=%v", stub.tokens["Validate"])
 	}
 	snap := <-seen
@@ -158,7 +158,7 @@ func TestBoundSessionRevalidationLogsOutInvalidBearer(t *testing.T) {
 }
 
 func TestBoundSessionRevalidationKeepsCookieOnOutage(t *testing.T) {
-	for _, code := range []codes.Code{codes.Internal, codes.Unavailable, codes.DeadlineExceeded, codes.PermissionDenied} {
+	for _, code := range []codes.Code{codes.Internal, codes.Unavailable, codes.DeadlineExceeded} {
 		t.Run(code.String(), func(t *testing.T) {
 			stub := &identityRPCStub{allowAdmin: true, fail: map[string]codes.Code{"Validate": code}}
 			h := setupIdentityHandler(t, stub)
