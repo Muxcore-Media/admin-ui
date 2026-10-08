@@ -342,6 +342,22 @@ retried automatically. Timeouts or failed/mismatched readback say to reload and
 check, because the save may already have happened. Error responses remain
 visible through the existing HTMX opt-in error handling and are not cached.
 
+These two routes share a 12-second operation budget across current-session
+validation, authorization, discovery, request-body reading and classification
+RPCs, leaving time to render beneath the server's 15-second write timeout.
+An earlier caller deadline still wins. Rendering after the operation deadline
+does not resume provider work. A socket body-read timeout cancels Go's request
+context, so its refusal page alone gets a separate one-second rendering bound;
+no classification call is made on that path.
+
+Every dispatched `SetContentRating` attempt emits one
+`admin.media.content_rating` audit outcome: `confirmed` after matching readback,
+`refused` for a definite provider rejection, or `uncertain` after a timeout,
+unavailable service or unconfirmed readback. Audits distinguish the requested
+value from a confirmed saved value and use fixed reason codes without provider
+error text or bearer material. Audit delivery remains asynchronous and bounded;
+it does not retry the classification write.
+
 This source workflow is fixture-tested; it does not establish deployment,
 authenticated parental-policy HTTP transport (S9), or a live restricted-account
 journey. FR-PLAY-007 remains partial.
