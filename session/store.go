@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -91,6 +92,9 @@ func (s *Store) CreateWithTenant(userID, username, tenantID string, roles, permi
 	return token, nil
 }
 
+// Get returns a deep copy of the live session, so callers may read its fields
+// without racing claim updates from CommitValidatedClaims. An expired session
+// is removed.
 func (s *Store) Get(token string) (*Session, bool) {
 	if token == "" {
 		return nil, false
@@ -98,20 +102,25 @@ func (s *Store) Get(token string) (*Session, bool) {
 	id := ID(token)
 	s.mu.RLock()
 	sess, ok := s.sessions[id]
+	var cp Session
+	expired := ok && time.Now().After(sess.ExpiresAt)
+	if ok && !expired {
+		cp = sess.clone()
+	}
 	s.mu.RUnlock()
 
 	if !ok {
 		return nil, false
 	}
 
-	if time.Now().After(sess.ExpiresAt) {
+	if expired {
 		s.mu.Lock()
 		delete(s.sessions, id)
 		s.mu.Unlock()
 		return nil, false
 	}
 
-	return sess, true
+	return &cp, true
 }
 
 // CommitResult reports whether current provider claims were stored on the
@@ -173,9 +182,17 @@ func (s *Store) Snapshot(token string) (Session, bool) {
 // It does not recreate a session revoked while validation was in flight, does
 // not apply claims when the stored bearer was replaced, and does not rebind a
 // session to a different user. Permissions and the provider bearer are kept.
-func (s *Store) CommitValidatedClaims(adminToken, bearer, userID, username, tenantID string, roles []string) CommitResult {
+// On CommitApplied the returned session is a deep copy taken under the same
+// lock as the write, so concurrent requests never observe each other's claims.
+// The file is rewritten only when username, tenant or roles actually changed.
+//
+// TenantID is replaced with the tenant passed in (the provider's Validate
+// tenant_id). Login falls back to the token's "tenant_id" claim when the
+// response carries none, so a provider that reports the tenant only as a claim
+// blanks the stored tenant on the first revalidation.
+func (s *Store) CommitValidatedClaims(adminToken, bearer, userID, username, tenantID string, roles []string) (Session, CommitResult) {
 	if s == nil || adminToken == "" {
-		return CommitGone
+		return Session{}, CommitGone
 	}
 	id := ID(adminToken)
 	s.mu.Lock()
@@ -188,22 +205,28 @@ func (s *Store) CommitValidatedClaims(adminToken, bearer, userID, username, tena
 		if ok {
 			_ = s.persist()
 		}
-		return CommitGone
+		return Session{}, CommitGone
 	}
 	if sess.AuthLocalToken != bearer {
 		s.mu.Unlock()
-		return CommitRebound
+		return Session{}, CommitRebound
 	}
 	if userID == "" || sess.UserID != userID {
 		s.mu.Unlock()
-		return CommitIdentityMismatch
+		return Session{}, CommitIdentityMismatch
 	}
-	sess.Username = username
-	sess.TenantID = tenantID
-	sess.Roles = append([]string(nil), roles...)
+	changed := sess.Username != username || sess.TenantID != tenantID || !slices.Equal(sess.Roles, roles)
+	if changed {
+		sess.Username = username
+		sess.TenantID = tenantID
+		sess.Roles = append([]string(nil), roles...)
+	}
+	cp := sess.clone()
 	s.mu.Unlock()
-	_ = s.persist()
-	return CommitApplied
+	if changed {
+		_ = s.persist()
+	}
+	return cp, CommitApplied
 }
 
 func (s *Store) BindAuthLocalToken(adminSessionToken, authLocalToken string) {

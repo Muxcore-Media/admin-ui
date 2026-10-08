@@ -1,9 +1,11 @@
 package session
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -240,7 +242,7 @@ func TestCommitValidatedClaims(t *testing.T) {
 	tok, _ := s.CreateWithTenant("u1", "alice", "old-tenant", []string{"viewer"}, []string{"keep"})
 	s.BindAuthLocalToken(tok, "bearer-a")
 	roles := []string{"admin"}
-	if got := s.CommitValidatedClaims(tok, "bearer-a", "u1", "alice-new", "tenant-b", roles); got != CommitApplied {
+	if _, got := s.CommitValidatedClaims(tok, "bearer-a", "u1", "alice-new", "tenant-b", roles); got != CommitApplied {
 		t.Fatalf("commit = %v", got)
 	}
 	roles[0] = "mutated"
@@ -249,20 +251,20 @@ func TestCommitValidatedClaims(t *testing.T) {
 		t.Fatalf("claims = %+v", stored)
 	}
 
-	if got := s.CommitValidatedClaims(tok, "other-bearer", "u1", "nope", "nope", []string{"nope"}); got != CommitRebound {
+	if _, got := s.CommitValidatedClaims(tok, "other-bearer", "u1", "nope", "nope", []string{"nope"}); got != CommitRebound {
 		t.Fatalf("rebind commit = %v", got)
 	}
 	if stored, _ = s.Get(tok); stored.Username != "alice-new" {
 		t.Fatal("rebound commit wrote claims")
 	}
-	if got := s.CommitValidatedClaims(tok, "bearer-a", "u2", "other", "t", nil); got != CommitIdentityMismatch {
+	if _, got := s.CommitValidatedClaims(tok, "bearer-a", "u2", "other", "t", nil); got != CommitIdentityMismatch {
 		t.Fatalf("mismatch commit = %v", got)
 	}
-	if got := s.CommitValidatedClaims(tok, "bearer-a", "", "other", "t", nil); got != CommitIdentityMismatch {
+	if _, got := s.CommitValidatedClaims(tok, "bearer-a", "", "other", "t", nil); got != CommitIdentityMismatch {
 		t.Fatalf("empty user commit = %v", got)
 	}
 	s.Revoke(tok)
-	if got := s.CommitValidatedClaims(tok, "bearer-a", "u1", "alice", "t", nil); got != CommitGone {
+	if _, got := s.CommitValidatedClaims(tok, "bearer-a", "u1", "alice", "t", nil); got != CommitGone {
 		t.Fatalf("revoked commit = %v", got)
 	}
 	if s.Count() != 0 {
@@ -279,7 +281,7 @@ func TestCommitValidatedClaimsPersists(t *testing.T) {
 		t.Fatal(err)
 	}
 	s1.BindAuthLocalToken(tok, "bearer-a")
-	if got := s1.CommitValidatedClaims(tok, "bearer-a", "u1", "alice-new", "tenant-b", []string{"admin"}); got != CommitApplied {
+	if _, got := s1.CommitValidatedClaims(tok, "bearer-a", "u1", "alice-new", "tenant-b", []string{"admin"}); got != CommitApplied {
 		t.Fatalf("commit = %v", got)
 	}
 	s2 := NewFileStore(path, time.Hour)
@@ -299,5 +301,100 @@ func TestParseKey(t *testing.T) {
 	}
 	if _, err := ParseKey("  "); err == nil {
 		t.Fatal("expected error for empty key")
+	}
+}
+
+func TestCommitValidatedClaimsReturnsOwnClaimsConcurrently(t *testing.T) {
+	s := NewStore(time.Hour)
+	tok, _ := s.CreateWithTenant("u1", "alice", "t", []string{"viewer"}, []string{"keep"})
+	s.BindAuthLocalToken(tok, "bearer-a")
+	var wg sync.WaitGroup
+	for i := 0; i < 32; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			name := fmt.Sprintf("alice-%d", i)
+			role := fmt.Sprintf("role-%d", i)
+			for j := 0; j < 50; j++ {
+				got, res := s.CommitValidatedClaims(tok, "bearer-a", "u1", name, "tenant-"+name, []string{role})
+				if res != CommitApplied {
+					t.Errorf("commit = %v", res)
+					return
+				}
+				if got.Username != name || got.TenantID != "tenant-"+name || len(got.Roles) != 1 || got.Roles[0] != role || got.Permissions[0] != "keep" {
+					t.Errorf("request %d saw another request's claims: %+v", i, got)
+					return
+				}
+				got.Roles[0] = "mutated" // the copy must not alias the store
+			}
+		}(i)
+	}
+	wg.Wait()
+}
+
+// Run under -race: Get and Snapshot readers must not race claim rewrites.
+func TestSessionReadersDoNotRaceClaimCommits(t *testing.T) {
+	s := NewStore(time.Hour)
+	tok, _ := s.CreateWithTenant("u1", "alice", "t", []string{"viewer"}, nil)
+	s.BindAuthLocalToken(tok, "bearer-a")
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; ; i++ {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			name := fmt.Sprintf("alice-%d", i)
+			s.CommitValidatedClaims(tok, "bearer-a", "u1", name, name, []string{name})
+		}
+	}()
+	for i := 0; i < 2000; i++ {
+		if sess, ok := s.Get(tok); !ok || sess.Username == "" || sess.TenantID == "" || len(sess.Roles) == 0 {
+			t.Fatalf("Get = %+v ok=%v", sess, ok)
+		}
+		if snap, ok := s.Snapshot(tok); !ok || snap.Username == "" || len(snap.Roles) == 0 {
+			t.Fatalf("Snapshot = %+v ok=%v", snap, ok)
+		}
+	}
+	close(stop)
+	wg.Wait()
+}
+
+func TestCommitValidatedClaimsSkipsRewriteWhenUnchanged(t *testing.T) {
+	t.Setenv(EnvSessionKey, "claims-key")
+	path := filepath.Join(t.TempDir(), "sessions.json")
+	s := NewFileStore(path, time.Hour)
+	tok, err := s.CreateWithTenant("u1", "alice", "t", []string{"admin"}, []string{"keep"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.BindAuthLocalToken(tok, "bearer-a")
+	old := time.Now().Add(-time.Hour).Truncate(time.Second)
+	if err := os.Chtimes(path, old, old); err != nil {
+		t.Fatal(err)
+	}
+	mtime := func() time.Time {
+		fi, err := os.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return fi.ModTime()
+	}
+	got, res := s.CommitValidatedClaims(tok, "bearer-a", "u1", "alice", "t", []string{"admin"})
+	if res != CommitApplied || got.Username != "alice" || got.Roles[0] != "admin" {
+		t.Fatalf("commit = %v %+v", res, got)
+	}
+	if !mtime().Equal(old) {
+		t.Fatal("unchanged claims rewrote the sessions file")
+	}
+	if _, res = s.CommitValidatedClaims(tok, "bearer-a", "u1", "alice", "t", []string{"admin", "extra"}); res != CommitApplied {
+		t.Fatalf("commit = %v", res)
+	}
+	if mtime().Equal(old) {
+		t.Fatal("changed roles did not rewrite the sessions file")
 	}
 }

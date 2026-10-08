@@ -41,6 +41,26 @@ func revalidateHandler(h *Handler, seen chan<- *session.Session) http.HandlerFun
 	})
 }
 
+// revalidateGuard wraps a page handler that records whether it ran, so tests
+// can prove a rejected or unavailable session never reaches the page.
+func revalidateGuard(h *Handler) (http.HandlerFunc, *bool) {
+	ran := new(bool)
+	return h.requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		*ran = true
+		w.WriteHeader(http.StatusNoContent)
+	}), ran
+}
+
+func assertNotReached(t *testing.T, ran *bool, stub *identityRPCStub) {
+	t.Helper()
+	if *ran {
+		t.Fatal("page handler ran for a session that must not proceed")
+	}
+	if stub != nil && stub.calls["Can"] != 0 {
+		t.Fatalf("authorization reached %d times", stub.calls["Can"])
+	}
+}
+
 func sessionRequest(path, cookie string) *http.Request {
 	r := httptest.NewRequest(http.MethodGet, path, nil)
 	r.Header.Set("Authorization", "Bearer browser-forged-token")
@@ -119,10 +139,12 @@ func TestBoundSessionRevalidationLogsOutInvalidBearer(t *testing.T) {
 			h := setupIdentityHandler(t, stub)
 			cookie := boundSession(t, h, "u1", "alice", "tenant", "bearer-secret", []string{"admin"})
 			w := httptest.NewRecorder()
-			revalidateHandler(h, nil)(w, sessionRequest("/", cookie))
+			guard, ran := revalidateGuard(h)
+			guard(w, sessionRequest("/", cookie))
 			if w.Code != http.StatusSeeOther || w.Header().Get("Location") != "/login" {
 				t.Fatalf("status=%d location=%q body=%s", w.Code, w.Header().Get("Location"), w.Body.String())
 			}
+			assertNotReached(t, ran, stub)
 			assertSessionCleared(t, w)
 			if _, ok := h.Sessions.Get(cookie); ok || h.Sessions.Count() != 0 {
 				t.Fatal("invalid bearer left a local session")
@@ -142,10 +164,12 @@ func TestBoundSessionRevalidationKeepsCookieOnOutage(t *testing.T) {
 			h := setupIdentityHandler(t, stub)
 			cookie := boundSession(t, h, "u1", "alice", "tenant", "bearer-secret", []string{"admin"})
 			w := httptest.NewRecorder()
-			revalidateHandler(h, nil)(w, sessionRequest("/devices", cookie))
+			guard, ran := revalidateGuard(h)
+			guard(w, sessionRequest("/devices", cookie))
 			if w.Code != http.StatusServiceUnavailable {
 				t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
 			}
+			assertNotReached(t, ran, stub)
 			assertSessionKept(t, w)
 			stored, ok := h.Sessions.Get(cookie)
 			if !ok || stored.Username != "alice" || stored.AuthLocalToken != "bearer-secret" {
@@ -162,10 +186,12 @@ func TestBoundSessionRevalidationKeepsCookieOnOutage(t *testing.T) {
 		h := setupIdentityHandler(t, stub)
 		cookie := boundSession(t, h, "u1", "alice", "tenant", "bearer-secret", []string{"admin"})
 		w := httptest.NewRecorder()
-		revalidateHandler(h, nil)(w, sessionRequest("/", cookie))
+		guard, ran := revalidateGuard(h)
+		guard(w, sessionRequest("/", cookie))
 		if w.Code != http.StatusServiceUnavailable || stub.calls["Validate"] != 0 {
 			t.Fatalf("status=%d validate calls=%d", w.Code, stub.calls["Validate"])
 		}
+		assertNotReached(t, ran, stub)
 		assertSessionKept(t, w)
 		if _, ok := h.Sessions.Get(cookie); !ok {
 			t.Fatal("discovery outage dropped the session")
@@ -176,10 +202,12 @@ func TestBoundSessionRevalidationKeepsCookieOnOutage(t *testing.T) {
 		h := New(nil, session.NewStore(time.Hour), false, "test", nil, true, "", nil, nil)
 		cookie := boundSession(t, h, "u1", "alice", "tenant", "bearer-secret", []string{"admin"})
 		w := httptest.NewRecorder()
-		revalidateHandler(h, nil)(w, sessionRequest("/", cookie))
+		guard, ran := revalidateGuard(h)
+		guard(w, sessionRequest("/", cookie))
 		if w.Code != http.StatusServiceUnavailable {
 			t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
 		}
+		assertNotReached(t, ran, nil)
 		assertSessionKept(t, w)
 		if _, ok := h.Sessions.Get(cookie); !ok {
 			t.Fatal("missing core dropped the session")
@@ -202,9 +230,10 @@ func TestBoundSessionRevalidationDoesNotResurrectRevokedSession(t *testing.T) {
 	cookie := boundSession(t, h, "u1", "alice", "tenant", "bearer-secret", []string{"viewer"})
 	w := httptest.NewRecorder()
 	done := make(chan struct{})
+	guard, ran := revalidateGuard(h)
 	go func() {
 		defer close(done)
-		revalidateHandler(h, nil)(w, sessionRequest("/", cookie))
+		guard(w, sessionRequest("/", cookie))
 	}()
 	select {
 	case <-started:
@@ -221,6 +250,7 @@ func TestBoundSessionRevalidationDoesNotResurrectRevokedSession(t *testing.T) {
 	if w.Code != http.StatusSeeOther || w.Header().Get("Location") != "/login" {
 		t.Fatalf("status=%d location=%q body=%s", w.Code, w.Header().Get("Location"), w.Body.String())
 	}
+	assertNotReached(t, ran, stub)
 	assertSessionCleared(t, w)
 	if h.Sessions.Count() != 0 {
 		t.Fatal("in-flight validation recreated the revoked session")
@@ -242,9 +272,10 @@ func TestBoundSessionRevalidationIgnoresReplacedBearer(t *testing.T) {
 	cookie := boundSession(t, h, "u1", "alice", "tenant-old", "bearer-old", []string{"viewer"})
 	w := httptest.NewRecorder()
 	done := make(chan struct{})
+	guard, ran := revalidateGuard(h)
 	go func() {
 		defer close(done)
-		revalidateHandler(h, nil)(w, sessionRequest("/", cookie))
+		guard(w, sessionRequest("/", cookie))
 	}()
 	select {
 	case <-started:
@@ -261,6 +292,7 @@ func TestBoundSessionRevalidationIgnoresReplacedBearer(t *testing.T) {
 	if w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
 	}
+	assertNotReached(t, ran, stub)
 	assertSessionKept(t, w)
 	stored, ok := h.Sessions.Get(cookie)
 	if !ok || stored.Username != "alice" || stored.AuthLocalToken != "bearer-new" || stored.Roles[0] != "viewer" {
@@ -302,10 +334,12 @@ func TestHTMXInvalidSessionRedirectsWithoutFollow(t *testing.T) {
 	r := sessionRequest("/", cookie)
 	r.Header.Set("HX-Request", "true")
 	w := httptest.NewRecorder()
-	revalidateHandler(h, nil)(w, r)
+	guard, ran := revalidateGuard(h)
+	guard(w, r)
 	if w.Code != http.StatusOK || w.Header().Get("HX-Redirect") != "/login" {
 		t.Fatalf("status=%d hx=%q", w.Code, w.Header().Get("HX-Redirect"))
 	}
+	assertNotReached(t, ran, stub)
 	assertSessionCleared(t, w)
 }
 
@@ -316,9 +350,11 @@ func TestHTMXOutageDoesNotRedirect(t *testing.T) {
 	r := sessionRequest("/dashboard/health", cookie)
 	r.Header.Set("HX-Request", "true")
 	w := httptest.NewRecorder()
-	revalidateHandler(h, nil)(w, r)
+	guard, ran := revalidateGuard(h)
+	guard(w, r)
 	if w.Code != http.StatusServiceUnavailable || w.Header().Get("HX-Redirect") != "" {
 		t.Fatalf("status=%d hx=%q body=%s", w.Code, w.Header().Get("HX-Redirect"), w.Body.String())
 	}
+	assertNotReached(t, ran, stub)
 	assertSessionKept(t, w)
 }

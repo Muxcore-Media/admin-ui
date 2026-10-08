@@ -50,14 +50,9 @@ func (h *Handler) revalidateBoundSession(w http.ResponseWriter, r *http.Request,
 		return session.Session{}, false
 	}
 
-	switch h.Sessions.CommitValidatedClaims(adminToken, bearer, resp.GetUserId(), resp.GetUsername(), resp.GetTenantId(), resp.GetRoles()) {
+	updated, result := h.Sessions.CommitValidatedClaims(adminToken, bearer, resp.GetUserId(), resp.GetUsername(), resp.GetTenantId(), resp.GetRoles())
+	switch result {
 	case session.CommitApplied:
-		updated, ok := h.Sessions.Snapshot(adminToken)
-		if !ok {
-			h.clearSessionCookie(w)
-			redirectToLogin(w, r)
-			return session.Session{}, false
-		}
 		return updated, true
 	case session.CommitGone:
 		h.clearSessionCookie(w)
