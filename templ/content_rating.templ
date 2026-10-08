@@ -1,0 +1,67 @@
+package templates
+
+import "net/url"
+
+type ContentRatingData struct {
+	ModuleID, ItemID, Title string
+	Rating, Source, State string
+	Selected string
+	Options []string
+	CanEdit, Loaded, Saved bool
+	Error string
+}
+
+func ContentRatingURL(moduleID, itemID string) string {
+	return "/media/" + url.PathEscape(moduleID) + "/item/" + url.PathEscape(itemID) + "/content-rating"
+}
+
+templ ContentRatingPage(d ContentRatingData) {
+	<div class="space-y-6" data-testid="content-rating-page">
+		<a href={ templ.SafeURL("/media/" + url.PathEscape(d.ModuleID) + "/item/" + url.PathEscape(d.ItemID)) } hx-select="#main-content > *" class="text-sm text-indigo-400 hover:text-indigo-300">&larr; Back to item</a>
+		<h1 class="text-2xl font-bold">Content rating</h1>
+		if d.Title != "" {
+			<p class="text-lg">{ d.Title }</p>
+		}
+		if d.Error != "" {
+			<p role="alert" class="rounded-lg border border-red-900 p-4 text-red-300">{ d.Error }</p>
+		}
+		if d.Saved {
+			<p role="status" class="text-green-300">Content rating saved and checked.</p>
+		}
+		if d.Loaded {
+			<section aria-labelledby="content-rating-current" class="space-y-2">
+				<h2 id="content-rating-current" class="text-lg font-semibold">Current classification</h2>
+				<p>{ d.State }</p>
+				if d.Rating != "" {
+					<p>Recorded value: <strong>{ d.Rating }</strong></p>
+				}
+				if d.Source != "" {
+					<p>Source: { d.Source }</p>
+				}
+			</section>
+		}
+		<p id="content-rating-help" class="text-sm text-gray-400">A recorded rating is compared with each account's parental policy. Explicit unrated (NR) is allowed only when that policy allows unrated items. Clearing the rating makes classification unavailable; restricted accounts are denied even when they allow unrated items.</p>
+		if d.ModuleID == "media-tvshows" {
+			<p class="text-sm text-gray-400">All seasons and episodes inherit this series rating.</p>
+		}
+		<p class="text-sm text-gray-400">Admins can change ratings and managers can change item tags. Parental restrictions on these accounts are applied but are not a security boundary.</p>
+		if d.CanEdit && d.Loaded {
+			<form method="POST" action={ templ.SafeURL(ContentRatingURL(d.ModuleID, d.ItemID)) } hx-select="#main-content > *" class="space-y-3" data-testid="content-rating-form">
+				<label for="content-rating-choice" class="block text-sm font-medium">Operator classification</label>
+				<select id="content-rating-choice" name="classification" required aria-describedby="content-rating-help" class="rounded-lg border border-gray-700 bg-gray-900 px-3 py-2">
+					<option value="" disabled selected?={ d.Selected == "" }>Choose a classification</option>
+					<option value="clear" selected?={ d.Selected == "clear" }>Clear rating — unavailable</option>
+					<option value="unrated" selected?={ d.Selected == "unrated" }>Explicit unrated (NR)</option>
+					for _, rating := range d.Options {
+						<option value={ rating } selected?={ d.Selected == rating }>{ rating }</option>
+					}
+				</select>
+				<p class="text-sm text-gray-400">Saving replaces the current operator classification. Reload first if another admin may have changed it.</p>
+				<button type="submit" class="block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">Save content rating</button>
+			</form>
+		} else if !d.CanEdit {
+			<p class="text-sm text-gray-400">An admin role and a current sign-in are required to change content ratings.</p>
+		}
+		<a href={ templ.SafeURL(ContentRatingURL(d.ModuleID, d.ItemID)) } hx-select="#main-content > *" class="inline-block text-sm text-indigo-400 hover:text-indigo-300">Reload current classification</a>
+	</div>
+}

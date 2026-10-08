@@ -25,7 +25,7 @@ require github.com/Muxcore-Media/playback-guard v0.1.2
 require github.com/Muxcore-Media/media-library-maintainer v0.1.15
 
 require (
-	github.com/Muxcore-Media/media-movies v0.1.20
+	github.com/Muxcore-Media/media-movies v0.1.23
 	github.com/Muxcore-Media/media-music v0.3.2
 	github.com/Muxcore-Media/media-subtitles v0.5.4
 	github.com/Muxcore-Media/media-transcoder v0.3.10
@@ -38,7 +38,7 @@ require (
 	github.com/Muxcore-Media/core/sdk/go/module v0.6.6
 	github.com/Muxcore-Media/media-rename v0.2.11
 	github.com/Muxcore-Media/media-root-folders v0.1.11
-	github.com/Muxcore-Media/media-tvshows v0.1.18
+	github.com/Muxcore-Media/media-tvshows v0.1.23
 	golang.org/x/net v0.58.0
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
