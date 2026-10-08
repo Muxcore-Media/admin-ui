@@ -55,6 +55,7 @@ var staticNavLinks = []templates.NavLink{
 	{Label: "Music", Path: "/music", Icon: "music", Group: "Library"},
 	{Label: "Music Wanted", Path: "/music/wanted", Icon: "alert-circle", Group: "Library"},
 	{Label: "Tagging", Path: "/tagging", Icon: "tags", Group: "Library"},
+	{Label: "Content ratings", Path: "/content-ratings", Icon: "shield", Group: "Library"},
 	{Label: "AI", Path: "/ai", Icon: "sparkles", Group: "Library"},
 	{Label: "Profiles", Path: "/formats/profiles", Icon: "award", Group: "Library"},
 	{Label: "Release Profiles", Path: "/formats/release-profiles", Icon: "badge", Group: "Library"},

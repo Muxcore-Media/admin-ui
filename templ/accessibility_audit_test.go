@@ -73,6 +73,28 @@ func TestAccessibilityCoreJourneys(t *testing.T) {
 		{"settings", SettingsPage(settings)},
 		{"invites", InvitesPage(InvitesPageData{Invites: []InviteRow{{ID: "invite-1", Prefix: "abc", Role: "user"}}})},
 		{"parental-migrate", ParentalMigratePage()},
+		{"content-ratings", ContentRatingsPage(contentRatingFixture())},
+		{"content-ratings-result-partial", ContentRatingsPage(func() ContentRatingData {
+			d := contentRatingFixture()
+			d.Applied = &ContentRatingApplied{Choice: "PG-13", Mode: "set", OK: 1, Failed: 1, Skipped: 1, Results: []ContentRatingResult{
+				{ID: "m1", Title: "Dune", Outcome: ContentRatingOutcomeOK},
+				{ID: "m2", Title: "Arrival", Outcome: ContentRatingOutcomeFailed, Message: "The module rejected this rating. This title was not changed."},
+				{ID: "m3", Outcome: ContentRatingOutcomeNotAttempted, Message: "Not attempted: the request ran out of time before this title. Nothing was changed."},
+			}}
+			return d
+		}())},
+		{"content-ratings-form-error", ContentRatingsPage(func() ContentRatingData {
+			d := contentRatingFixture()
+			d.FormError = "Select at least one title."
+			return d
+		}())},
+		{"content-ratings-list-error", ContentRatingsPage(ContentRatingData{
+			Kind: "tv", KindNoun: "TV series", Page: 1, PageSize: 50, RatingOptions: []string{"G"},
+			ListError: "The TV series module is unavailable, so ratings cannot be shown.",
+		})},
+		{"content-ratings-empty", ContentRatingsPage(ContentRatingData{
+			Kind: "movies", KindNoun: "movies", Query: "zzz", Page: 1, PageSize: 50, RatingOptions: []string{"G"},
+		})},
 		{"parental-migrate-dry-run", withA11yHeading("Parental policy migration", ParentalMigrateResult(parentalMigrateFixture("dry-run")))},
 		{"parental-migrate-source-missing", withA11yHeading("Parental policy migration", ParentalMigrateResult(func() ParentalMigrateData {
 			d := parentalMigrateFixture("dry-run")
@@ -140,6 +162,19 @@ func withUserDetailHeadings(c templ.Component) templ.Component {
 		}
 		return c.Render(ctx, w)
 	})
+}
+
+func contentRatingFixture() ContentRatingData {
+	return ContentRatingData{
+		Kind: "movies", KindNoun: "movies", Query: "d", Page: 2, PageSize: 50, Total: 120,
+		RatingOptions: []string{"G", "PG", "PG-13", "R", "TV-MA"},
+		Items: []ContentRatingItem{
+			{ID: "m1", Title: "Dune", Year: 2021, State: ContentRatingRated, Rating: "PG-13", Source: "operator", Tags: []string{"scifi"}},
+			{ID: "m2", Title: "Arrival", Year: 2016, State: ContentRatingUnrated, Rating: "NR", Source: "operator"},
+			{ID: "m3", Title: "Untitled", State: ContentRatingUnavailable},
+			{ID: "m4", Title: "Odd", State: ContentRatingUnavailable, Unrecognised: "XYZ"},
+		},
+	}
 }
 
 func parentalMigrateFixture(phase string) ParentalMigrateData {

@@ -211,6 +211,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /tagging/tags", h.requireAuth(h.TaggingCreateTag))
 	mux.HandleFunc("POST /tagging/rules", h.requireAuth(h.TaggingCreateRule))
 	mux.HandleFunc("POST /tagging/rules/{id}/delete", h.requireAuth(h.TaggingDeleteRule))
+	mux.HandleFunc("GET /content-ratings", h.requireAuth(h.ContentRatingsPage))
+	mux.HandleFunc("POST /content-ratings", h.requireAuth(h.ContentRatingsApply))
 
 	mux.HandleFunc("GET /list-sync", h.requireAuth(h.ListSyncPage))
 	mux.HandleFunc("GET /list-sync/history", h.requireAuth(h.ListSyncHistoryPage))
