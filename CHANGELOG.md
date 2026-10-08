@@ -29,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Session checks replace inherited bearer metadata and bound authorization
+  discovery and RPCs to eight seconds. Revocation or a replaced binding during
+  either check stops the protected handler; a late rejection cannot delete the
+  replacement. Authentication failures redirect to login, permission denials
+  return 403, and service failures return 503 while retaining the cookie. The
+  existing local-only and persisted-claim behavior is preserved.
 - Parental PIN saves use the same fail-closed `parental.json` reader as the
   migration and refuse to rewrite a damaged file. The migration dry run warns
   when `parental.json` is missing, and its opt-in wording and per-row mapping
