@@ -30,12 +30,14 @@ test('adds the CSRF header to htmx requests', t => {
   assert.equal(detail.headers['X-CSRF-Token'], 'abc123');
 });
 
-test('swaps a 4xx body only when the response opts in', t => {
+test('swaps an error body only when the response opts in', t => {
   const window = setup(t);
-  const optedIn = beforeSwap(window, 400, '1');
-  assert.equal(optedIn.shouldSwap, true);
-  assert.equal(optedIn.isError, false);
-  for (const [status, header] of [[400, null], [403, null], [400, '0'], [500, '1']]) {
+  for (const status of [400, 401, 403, 404, 502, 503]) {
+    const optedIn = beforeSwap(window, status, '1');
+    assert.equal(optedIn.shouldSwap, true);
+    assert.equal(optedIn.isError, false);
+  }
+  for (const [status, header] of [[400, null], [403, null], [400, '0'], [500, null], [503, '0'], [200, '1'], [302, '1']]) {
     const detail = beforeSwap(window, status, header);
     assert.equal(detail.shouldSwap, false, `status ${status} header ${header}`);
     assert.equal(detail.isError, true);

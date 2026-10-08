@@ -9,20 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Operator content-rating override (T-M4-01, ADR-0031 Decision 2): admin-only
-  `/content-ratings` page listing movies and series (paginated, searchable) with
-  each title's rating, source, tags and state (rated / not rated NR /
-  unavailable), per-title and bulk set, replace, mark NR and clear through the
-  `SetContentRating` RPC of media-movies and media-tvshows. Ratings come only
-  from the pinned 20-token ladder plus NR and Clear; per-title results report
-  partial failure; each change is audited as `admin.content_rating.set`. The
-  page explains that unavailable titles are hidden from restricted accounts and
-  that the rating is the authority. Managers, users and viewers get 403 before
-  any module call.
+- Bulk operator content-rating override (T-M4-01, ADR-0031 Decision 2),
+  complementing the per-item content-rating page: admin-only `/content-ratings`
+  page listing movies and series (paginated, searchable) with each title's
+  rating, source, tags and state (rated / not rated NR / unavailable), per-title
+  and bulk set, replace, mark NR and clear through the `SetContentRating` RPC of
+  media-movies and media-tvshows. Ratings come only from the pinned 20-token
+  ladder plus NR and Clear; per-title results report partial failure. Module
+  calls carry only the session's validated provider bearer, and a session
+  without one is refused before any module call. Each change is audited as
+  `admin.media.content_rating` with the per-item page's details. The page
+  explains that unavailable titles are hidden from restricted accounts and that
+  the rating is the authority. Managers, users and viewers get 403 before any
+  module call.
   A bulk apply gets a route-specific response write deadline so its result page
-  is not cut off by the 15 s server `WriteTimeout`; form and module-outage errors
-  no longer render as an empty library; writes that may have committed before an
-  error are audited with `outcome=uncertain`.
+  is not cut off by the 15 s server `WriteTimeout` (refused with 500 before any
+  write if it cannot be extended); form and module-outage (503) errors no longer
+  render as an empty library; writes that may have committed before an error are
+  audited with `outcome=uncertain`.
 - Depends on media-movies and media-tvshows v0.1.23.
 - Provider-backed parental controls (T-M4-01 slice S6, ADR-0030/0031). The
   Users parental form reads and writes the userdata-local

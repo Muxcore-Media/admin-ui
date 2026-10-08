@@ -1,0 +1,349 @@
+package templates
+
+import (
+	"fmt"
+	"net/url"
+	"strconv"
+)
+
+// Content-rating states (ADR-0031 section 2.5). A module reports "" for an
+// item nobody has rated; that is unavailable, not unrated.
+const (
+	ContentRatingBulkRated       = "rated"
+	ContentRatingBulkUnrated     = "unrated"
+	ContentRatingBulkUnavailable = "unavailable"
+)
+
+// Per-title outcomes of one apply.
+const (
+	ContentRatingBulkOutcomeOK           = "ok"
+	ContentRatingBulkOutcomeFailed       = "failed"
+	ContentRatingBulkOutcomeNotAttempted = "not-attempted"
+)
+
+// ContentRatingBulkItem is one movie or series with the rating its module holds.
+type ContentRatingBulkItem struct {
+	ID    string
+	Title string
+	Year  int
+	State string
+	// Rating is the ladder token, or "NR" for an explicit unrated.
+	Rating string
+	// Source is the module's content_rating_source ("operator" or "").
+	Source string
+	Tags   []string
+	// Unrecognised is a value the module returned that is not on the ladder.
+	// It is shown as-is and treated as unavailable.
+	Unrecognised string
+}
+
+// ContentRatingBulkResult is the outcome for one title of an apply.
+type ContentRatingBulkResult struct {
+	ID      string
+	Title   string
+	Outcome string
+	Message string
+}
+
+// ContentRatingBulkApplied summarises one bulk apply.
+type ContentRatingBulkApplied struct {
+	Choice  string
+	Mode    string
+	OK      int
+	Failed  int
+	Skipped int
+	Results []ContentRatingBulkResult
+}
+
+// ContentRatingBulkData drives the whole page.
+type ContentRatingBulkData struct {
+	Kind     string // "movies" or "tv"
+	KindNoun string
+	Query    string
+	Page     int
+	PageSize int
+	Total    int
+	Items    []ContentRatingBulkItem
+	// ListLoaded is true only when the module answered a list request. Without
+	// it an empty Items means "not queried or failed", never "no titles".
+	ListLoaded bool
+	// RatingOptions is the ladder, in display order.
+	RatingOptions []string
+	// ListError is set when the module could not list titles.
+	ListError string
+	// FormError is set when a submission was refused before any change.
+	FormError string
+	Applied   *ContentRatingBulkApplied
+}
+
+// ContentRatingBulkTotalPages is the number of pages for the current total.
+func ContentRatingBulkTotalPages(total, pageSize int) int {
+	if total <= 0 || pageSize <= 0 {
+		return 1
+	}
+	return (total + pageSize - 1) / pageSize
+}
+
+// ContentRatingBulkPageURL is the list URL for a kind, search and page.
+func ContentRatingBulkPageURL(kind, query string, page int) string {
+	v := url.Values{}
+	v.Set("kind", kind)
+	if query != "" {
+		v.Set("q", query)
+	}
+	if page > 1 {
+		v.Set("page", strconv.Itoa(page))
+	}
+	return "/content-ratings?" + v.Encode()
+}
+
+func contentRatingBulkStateLabel(it ContentRatingBulkItem) string {
+	switch it.State {
+	case ContentRatingBulkRated:
+		return "Rated " + it.Rating
+	case ContentRatingBulkUnrated:
+		return "Not rated (NR)"
+	}
+	if it.Unrecognised != "" {
+		return "Unavailable (unrecognised value)"
+	}
+	return "Unavailable"
+}
+
+func contentRatingBulkStateClass(state string) string {
+	switch state {
+	case ContentRatingBulkRated:
+		return "text-emerald-300"
+	case ContentRatingBulkUnrated:
+		return "text-sky-300"
+	}
+	return "text-amber-300"
+}
+
+// contentRatingBulkSelected reports whether option is the row select's preselection.
+func contentRatingBulkSelected(it ContentRatingBulkItem, option string) bool {
+	switch it.State {
+	case ContentRatingBulkRated:
+		return option == it.Rating
+	case ContentRatingBulkUnrated:
+		return option == "NR"
+	}
+	return false
+}
+
+func contentRatingBulkTitle(it ContentRatingBulkItem) string {
+	if it.Year > 0 {
+		return fmt.Sprintf("%s (%d)", it.Title, it.Year)
+	}
+	return it.Title
+}
+
+func contentRatingBulkResultName(r ContentRatingBulkResult) string {
+	if r.Title != "" {
+		return r.Title
+	}
+	return r.ID
+}
+
+templ contentRatingBulkOptions(options []string, selected func(string) bool) {
+	<option value="" selected?={ selected("") }>Choose…</option>
+	<optgroup label="Ratings">
+		for _, o := range options {
+			<option value={ o } selected?={ selected(o) }>{ o }</option>
+		}
+	</optgroup>
+	<optgroup label="Other">
+		<option value="NR" selected?={ selected("NR") }>Not rated (NR)</option>
+		<option value="CLEAR">Clear (unavailable)</option>
+	</optgroup>
+}
+
+templ ContentRatingBulkPage(data ContentRatingBulkData) {
+	<div class="space-y-6" data-testid="content-ratings-page">
+		<div>
+			<h1 class="text-2xl font-bold">Content ratings</h1>
+			<p class="text-gray-400 text-sm mt-1 max-w-3xl">
+				Set the parental classification of each movie and series. The rating you set here is the authority:
+				it is stored by the media module and is not taken from TMDB or from the web app.
+			</p>
+		</div>
+		<div class="rounded-xl border border-amber-900/50 bg-amber-950/20 p-4 text-sm text-amber-200 max-w-3xl" data-testid="content-rating-explainer">
+			<p>
+				<strong>Titles that are unavailable are hidden from restricted accounts.</strong>
+				A restricted account sees only titles rated at or below its limit (and, if its policy allows it, titles marked Not rated). Until a title is rated here, restricted accounts cannot see it.
+			</p>
+			<ul class="list-disc pl-5 mt-2 space-y-1 text-amber-100/90">
+				<li><strong>Rated</strong>: a rating from the list, shown to accounts whose limit allows it.</li>
+				<li><strong>Not rated (NR)</strong>: you decided the title has no rating. Whether restricted accounts may see it depends on each account's policy.</li>
+				<li><strong>Clear (unavailable)</strong>: removes your rating. The title is hidden from restricted accounts again.</li>
+			</ul>
+		</div>
+		<nav aria-label="Library type" class="flex gap-2">
+			for _, k := range []struct{ Kind, Label string }{{"movies", "Movies"}, {"tv", "TV series"}} {
+				if k.Kind == data.Kind {
+					<a href={ templ.SafeURL(ContentRatingBulkPageURL(k.Kind, "", 1)) } aria-current="page" class="rounded-[var(--radius-md)] bg-[var(--accent-color)] px-3 py-1.5 text-sm font-medium text-black">{ k.Label }</a>
+				} else {
+					<a href={ templ.SafeURL(ContentRatingBulkPageURL(k.Kind, "", 1)) } class="rounded-[var(--radius-md)] border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800">{ k.Label }</a>
+				}
+			}
+		</nav>
+		<form method="get" action="/content-ratings" role="search" aria-label={ "Search " + data.KindNoun } class="flex flex-wrap items-end gap-2">
+			<input type="hidden" name="kind" value={ data.Kind }/>
+			<div>
+				<label for="content-rating-search" class="block text-xs font-medium text-gray-400 mb-1">Search { data.KindNoun }</label>
+				<input id="content-rating-search" type="search" name="q" value={ data.Query } maxlength="200" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"/>
+			</div>
+			<button type="submit" class="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800">Search</button>
+		</form>
+		if data.FormError != "" {
+			<p class="rounded-lg border border-red-700 bg-red-950/40 p-3 text-sm text-red-200" role="alert" data-testid="content-rating-form-error">{ data.FormError }</p>
+		}
+		if data.Applied != nil {
+			@contentRatingBulkApplied(data.Applied)
+		}
+		if data.ListError != "" {
+			<p class="rounded-lg border border-red-700 bg-red-950/40 p-3 text-sm text-red-200" role="alert" data-testid="content-rating-list-error">{ data.ListError }</p>
+		} else if !data.ListLoaded {
+			<p class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-300" role="status" data-testid="content-rating-not-loaded">
+				The { data.KindNoun } list was not loaded for this request.
+				<a href={ templ.SafeURL(ContentRatingBulkPageURL(data.Kind, data.Query, data.Page)) } class="underline">Reload the list</a>
+				to see current ratings and try again.
+			</p>
+		} else if len(data.Items) == 0 {
+			<p class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400" data-testid="content-rating-empty">
+				if data.Total > 0 {
+					This page is past the end of the list.
+					<a href={ templ.SafeURL(ContentRatingBulkPageURL(data.Kind, data.Query, 1)) } class="underline">Go to the first page</a>.
+				} else if data.Query != "" {
+					No { data.KindNoun } match “{ data.Query }”.
+				} else {
+					No { data.KindNoun } in this library yet.
+				}
+			</p>
+		} else {
+			<form method="post" action="/content-ratings" class="space-y-4" data-testid="content-rating-form">
+				<input type="hidden" name="kind" value={ data.Kind }/>
+				<input type="hidden" name="q" value={ data.Query }/>
+				<input type="hidden" name="page" value={ strconv.Itoa(data.Page) }/>
+				<fieldset class="rounded-xl border border-gray-800 bg-gray-900/40 p-4" data-testid="content-rating-bulk">
+					<legend class="px-1 text-sm font-semibold">Apply one rating to the selected titles</legend>
+					<div class="flex flex-wrap items-end gap-3">
+						<div>
+							<label for="content-rating-bulk-choice" class="block text-xs font-medium text-gray-400 mb-1">Rating</label>
+							<select id="content-rating-bulk-choice" name="rating" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white">
+								@contentRatingBulkOptions(data.RatingOptions, func(o string) bool { return o == "" })
+							</select>
+						</div>
+						<button type="submit" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Apply to selected</button>
+					</div>
+					<p class="mt-2 text-xs text-gray-400">Tick titles in the table first. Each title is changed separately and the result of every one is listed afterwards.</p>
+				</fieldset>
+				<div class="overflow-x-auto rounded-xl border border-gray-800">
+					<table class="min-w-full divide-y divide-gray-800 text-sm" data-testid="content-rating-table">
+						<caption class="sr-only">{ data.KindNoun } and their content rating</caption>
+						<thead class="bg-gray-900/50">
+							<tr>
+								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Select</th>
+								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Title</th>
+								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Current rating</th>
+								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Set by</th>
+								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Tags</th>
+								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Change</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-800">
+							for _, it := range data.Items {
+								<tr class="align-top hover:bg-gray-900/40" data-testid="content-rating-row" data-id={ it.ID } data-state={ it.State }>
+									<td class="px-3 py-2">
+										<input type="checkbox" name="ids" value={ it.ID } aria-label={ "Select " + contentRatingBulkTitle(it) } class="rounded border-gray-600 bg-gray-800"/>
+									</td>
+									<th scope="row" class="px-3 py-2 text-left font-normal text-gray-200">{ contentRatingBulkTitle(it) }</th>
+									<td class="px-3 py-2">
+										<span class={ "font-medium " + contentRatingBulkStateClass(it.State) } data-testid="content-rating-state">{ contentRatingBulkStateLabel(it) }</span>
+										if it.Unrecognised != "" {
+											<span class="block text-xs text-gray-400">The module reports “{ it.Unrecognised }”, which is not a known rating.</span>
+										}
+									</td>
+									<td class="px-3 py-2 text-gray-400">
+										if it.Source == "operator" {
+											Operator
+										} else if it.Source != "" {
+											{ it.Source }
+										} else {
+											<span aria-label="not set">—</span>
+										}
+									</td>
+									<td class="px-3 py-2 text-xs text-gray-400">
+										for i, tag := range it.Tags {
+											if i > 0 {
+												,&nbsp;
+											}
+											{ tag }
+										}
+									</td>
+									<td class="px-3 py-2">
+										<div class="flex flex-wrap items-center gap-2">
+											<label for={ "rating-" + it.ID } class="sr-only">Rating for { contentRatingBulkTitle(it) }</label>
+											<select id={ "rating-" + it.ID } name={ "rating_" + it.ID } class="rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-white">
+												@contentRatingBulkOptions(data.RatingOptions, func(o string) bool { return contentRatingBulkSelected(it, o) || (o == "" && it.State == ContentRatingBulkUnavailable) })
+											</select>
+											<button type="submit" name="only" value={ it.ID } aria-label={ "Set rating for " + contentRatingBulkTitle(it) } class="rounded-lg border border-gray-600 px-2 py-1.5 text-sm text-gray-100 hover:bg-gray-800">Set</button>
+										</div>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			</form>
+			@contentRatingBulkPagination(data)
+		}
+	</div>
+}
+
+templ contentRatingBulkPagination(data ContentRatingBulkData) {
+	{{ pages := ContentRatingBulkTotalPages(data.Total, data.PageSize) }}
+	<nav aria-label="Pagination" class="flex flex-wrap items-center justify-center gap-3 text-sm text-gray-300" data-testid="content-rating-pagination">
+		if data.Page > 1 {
+			<a href={ templ.SafeURL(ContentRatingBulkPageURL(data.Kind, data.Query, data.Page-1)) } rel="prev" class="rounded-[var(--radius-md)] border border-gray-700 px-3 py-1.5 hover:bg-gray-800">Previous</a>
+		}
+		<span data-testid="content-rating-page-status">Page { strconv.Itoa(data.Page) } of { strconv.Itoa(pages) } · { strconv.Itoa(data.Total) } { data.KindNoun }</span>
+		if data.Page < pages {
+			<a href={ templ.SafeURL(ContentRatingBulkPageURL(data.Kind, data.Query, data.Page+1)) } rel="next" class="rounded-[var(--radius-md)] border border-gray-700 px-3 py-1.5 hover:bg-gray-800">Next</a>
+		}
+	</nav>
+}
+
+templ contentRatingBulkApplied(a *ContentRatingBulkApplied) {
+	<section aria-labelledby="content-rating-result-heading" class="space-y-2 rounded-xl border border-gray-700 p-4" data-testid="content-rating-result">
+		<h2 id="content-rating-result-heading" class="text-lg font-semibold">Result: { a.Choice }</h2>
+		<p role="status" class="text-sm text-gray-200" data-testid="content-rating-summary">
+			{ strconv.Itoa(a.OK) } changed
+			if a.Failed > 0 {
+				, { strconv.Itoa(a.Failed) } failed
+			}
+			if a.Skipped > 0 {
+				, { strconv.Itoa(a.Skipped) } not attempted
+			}
+			.
+			if a.Failed > 0 || a.Skipped > 0 {
+				<strong class="text-amber-300"> Some titles were not changed; see the list below.</strong>
+			}
+		</p>
+		<ul class="text-sm space-y-1">
+			for _, r := range a.Results {
+				<li data-testid="content-rating-outcome" data-id={ r.ID } data-outcome={ r.Outcome }>
+					<strong>{ contentRatingBulkResultName(r) }</strong>:
+					switch r.Outcome {
+						case ContentRatingBulkOutcomeOK:
+							<span class="text-emerald-300">changed</span>
+						case ContentRatingBulkOutcomeNotAttempted:
+							<span class="text-amber-300">{ r.Message }</span>
+						default:
+							<span class="text-red-300">failed. { r.Message }</span>
+					}
+				</li>
+			}
+		</ul>
+	</section>
+}

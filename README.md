@@ -316,61 +316,99 @@ Deploying enforcement first leaves every account unconfigured, which the BFF
 denies. `muxcorectl users parental set` (muxcorectl-cli) still writes the legacy
 file until slice S7, so its changes are **not** seen by the provider; use the admin form until then.
 
-### Content ratings (operator override)
+### Operator content ratings
 
-`/content-ratings` (Library → Content ratings) is where an **admin** sets the
-parental classification of each movie and series (ADR-0031 Decision 2; T-M4-01,
-FR-PLAY-007). The rating is stored by media-movies / media-tvshows (v0.1.23 or
-later) and is the authority: it is not taken from TMDB or from the web app.
+Movie and TV-series library detail pages link to **Content rating**. The page
+reads the owning media module's typed classification (media-movies and
+media-tvshows v0.1.23). The existing `admin.access` check remains required; saves
+also require the current, revalidated `admin` role and a bound provider bearer.
+Manager accounts can view this page when authorized, but cannot save ratings.
+
+Choose a supported rating, **Explicit unrated (NR)**, or **Clear rating —
+unavailable**. NR is allowed only by policies that allow unrated items. Clearing
+leaves restricted accounts denied even if they allow unrated items. Unknown
+values and sources also display as unavailable; no rating is inferred from
+votes, filenames or editable metadata. All TV seasons and episodes inherit the
+series classification. The page explains that restrictions on admin/manager
+accounts are not a security boundary because these roles can change ratings or
+tags.
+
+Writes use `SetContentRating` with exactly the current session's provider bearer,
+then read the owning item back before displaying confirmation. The module RPCs
+delegate caller authorization, so the admin route's role check is essential.
+These contracts have no revision comparison: saves replace the operator value;
+reload first if another admin may have edited it. Failed writes are never
+retried automatically. Timeouts or failed/mismatched readback say to reload and
+check, because the save may already have happened. Error responses remain
+visible through the existing HTMX opt-in error handling and are not cached.
+
+This source workflow is fixture-tested; it does not establish deployment,
+authenticated parental-policy HTTP transport (S9), or a live restricted-account
+journey. FR-PLAY-007 remains partial.
+
+### Bulk content ratings
+
+`/content-ratings` (Library → Content ratings) lists one library at a time
+(Movies / TV series), 50 titles per page with search, so an **admin** can rate
+many titles at once. It complements the per-item page above, which remains the
+place to check one title: both call the same `SetContentRating` RPC of
+media-movies / media-tvshows (v0.1.23 or later), resolve the module by its ID
+(`media-movies`, `media-tvshows`), and write the same audit entry.
 
 - **Unavailable items are hidden from restricted accounts.** A title with no
-  operator rating is "unavailable"; until an admin rates titles here, restricted
+  operator rating is "unavailable"; until an admin rates titles, restricted
   accounts see an empty library.
-- The page lists one library at a time (Movies / TV series), 50 per page, with
-  search, and shows each title's rating, who set it (`operator`) and its tags.
-  State is one of *Rated* (a ladder token), *Not rated (NR)* (an explicit
-  decision) and *Unavailable*.
-- Per row: choose a ladder token (`G TV-Y TV-Y7 TV-Y7-FV ALL E PG TV-G TV-PG
-  E10+ PG-13 TV-14 T R TV-MA M MA NC-17 AO X`), **Not rated (NR)**, or **Clear
-  (unavailable)** and press Set. In bulk: tick titles and use "Apply to
+- Each row shows the rating, who set it (`operator`) and its tags. State is one
+  of *Rated* (a ladder token), *Not rated (NR)* (an explicit decision) and
+  *Unavailable*. Per row: choose a ladder token (`G TV-Y TV-Y7 TV-Y7-FV ALL E PG
+  TV-G TV-PG E10+ PG-13 TV-14 T R TV-MA M MA NC-17 AO X`), **Not rated (NR)**, or
+  **Clear (unavailable)** and press Set; or tick titles and use "Apply to
   selected" (selection is per page). Nothing is free text; the token list is the
   single `parentalRatingTokens` list, pinned by a test.
 - RPC mapping: a token → `content_rating=<token>`; NR → empty rating with
   `explicit_unrated=true`; Clear → empty rating, `explicit_unrated=false`.
-- Bulk apply makes one `SetContentRating` call per title and lists every
-  outcome (changed / failed with the module's reason / not attempted). A partial
-  failure is never silent; a failed title is not changed.
-- **Admin only.** The modules do no role check, so admin-ui refuses managers,
-  users and viewers with 403 *before* resolving or calling any module. POST
-  routes are covered by the global CSRF double-submit check. Each changed title
-  writes one audit entry `admin.content_rating.set` (resource `media_item`,
-  details `kind`, `mode` = `set`/`unrated`/`clear`, `rating`); titles and tags
-  are not logged. A call that ends in a deadline, a dropped connection or an
-  internal error may already have been committed by the module (it writes before
-  it replies), so it is audited with the same action and `outcome` = `uncertain`
-  plus the gRPC `code`; a definite refusal (invalid argument, not found,
-  unimplemented) writes nothing to the audit log.
+- An apply makes one `SetContentRating` call per title and lists every outcome
+  (changed / failed with the module's reason / not attempted). A partial failure
+  is never silent; a failed title is not changed. Unlike the per-item page it
+  does not read each title back; the page is refreshed from the module after
+  the writes and shows what the module now holds.
+- **Admin only, and bound to the validated session.** The modules do no role
+  check, so admin-ui refuses managers, users and viewers with 403 *before*
+  resolving or calling any module (the per-item page lets a manager view).
+  Module calls carry exactly the session's provider bearer, never inherited
+  identity headers; an admin session without a bound bearer is refused with 401
+  before any module call, deadline extension or write. POST routes are covered by
+  the global CSRF double-submit check.
+- **Audit.** Each changed title writes one `admin.media.content_rating` entry
+  (resource `media_item`), the same action and details as the per-item page:
+  `module`, `content_rating` (`NR` for an explicit unrated, empty for a clear)
+  and `source`. Titles and tags are not logged. A call that ends in a deadline,
+  a dropped connection or an internal error may already have been committed by
+  the module (it writes before it replies), so it is audited with the same
+  action plus `outcome` = `uncertain` and the gRPC `code`; a definite refusal
+  (invalid argument, not found, unimplemented) writes nothing. The per-item page
+  audits only a save it read back and confirmed.
 - A bulk apply can run up to two minutes, longer than the server's 15 s
-  `WriteTimeout`. After the admin check and form validation pass, this one
-  response gets its own write deadline (apply budget + list refresh + margin);
-  no other route is affected. If that deadline cannot be extended (the writer
-  has no `SetWriteDeadline`, or setting it fails) the apply is refused with a
-  swappable 424 before any module is dialled or written, because the time left
-  before the server's own deadline is unknown and the results could not be
+  `WriteTimeout`. After the admin check, the bearer check and form validation
+  pass, this one response gets its own write deadline (apply budget + list
+  refresh + margin); no other route is affected. If that deadline cannot be
+  extended (the writer has no `SetWriteDeadline`, or setting it fails) the apply
+  is refused with 500 before any module is dialled or written, because the time
+  left before the server's own deadline is unknown and the results could not be
   promised; the apply is never silently shortened.
 - A refused submission (nothing selected, no rating chosen) is validated before
   any module is contacted, so the list is not reloaded; the page shows the error
   and a "Reload the list" link, never an empty-library message. A module outage
-  is answered with 424 (not 5xx) because `csrf.js` swaps only 4xx bodies.
+  is answered with 503. Error responses carry the swap header, so `csrf.js`
+  shows their bodies.
 
 ### Accessibility validation
 
 For T-M4-05 / NFR-A11Y-001, the ordinary Go template suite checks rendered DOM
 relationships (labels, unique IDs, ARIA references, names and landmarks),
 including settings with identical keys in different modules. The Accessibility
-GitHub workflow adds axe-core checks over 35 Go-rendered core-journey documents
-and keyboard interaction tests for the responsive sidebar, HTMX navigation and
-the content-rating page.
+GitHub workflow adds axe-core checks over Go-rendered core-journey documents
+and keyboard interaction tests for the responsive sidebar and HTMX navigation.
 
 ```bash
 go test ./templ

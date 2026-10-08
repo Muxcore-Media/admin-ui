@@ -2,558 +2,239 @@ package handler
 
 import (
 	"context"
-	"fmt"
-	"log/slog"
+	"errors"
 	"net/http"
-	"strconv"
 	"strings"
-	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
+	"github.com/Muxcore-Media/admin-ui/internal/meshdial"
+	templates "github.com/Muxcore-Media/admin-ui/templ"
 	mgmntv1 "github.com/Muxcore-Media/media-movies/proto/mgmntv1"
 	tvmgmtv1 "github.com/Muxcore-Media/media-tvshows/proto/tvmgmtv1"
-
-	templates "github.com/Muxcore-Media/admin-ui/templ"
+	"github.com/Muxcore-Media/userdata-local/parental"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
-// Operator content-rating override (ADR-0031 Decision 2). The media modules own
-// the classification (ADR-0009); admin-ui only calls their SetContentRating
-// RPC, which performs no role check. This handler is therefore the gate: only
-// the "admin" role may read or change ratings here (ADR-0031 §2.7: managers can
-// edit item tags, admins set rating overrides), and the check runs before any
-// module is resolved or dialled.
-
-const (
-	// contentRatingAuditAction is the audit action written once per changed item.
-	contentRatingAuditAction = "admin.content_rating.set"
-
-	contentRatingKindMovies = "movies"
-	contentRatingKindTV     = "tv"
-
-	// Form choices that are not ladder tokens. Everything else must be one of
-	// parentalRatingTokens, exactly as listed.
-	contentRatingChoiceNR    = "NR"
-	contentRatingChoiceClear = "CLEAR"
-
-	contentRatingPageSize = 50
-	// contentRatingMaxPage keeps page*size well inside int32 on the module side.
-	contentRatingMaxPage = 1 << 20
-	// contentRatingMaxBatch bounds one request. The page lists 50 titles, so a
-	// larger batch can only come from a hand-built request.
-	contentRatingMaxBatch    = 200
-	contentRatingMaxQuery    = 200
-	contentRatingMaxIDLength = 200
-	contentRatingMaxBody     = 1 << 20
-
-	contentRatingDialTimeout = 3 * time.Second
-	contentRatingReadTimeout = 5 * time.Second
-	contentRatingListTimeout = contentRatingDialTimeout + contentRatingReadTimeout + time.Second
-	// contentRatingApplyTimeout bounds a whole bulk apply. Titles not reached
-	// before it expires are reported as not attempted, never dropped.
-	contentRatingApplyTimeout = 2 * time.Minute
-	// contentRatingRenderMargin is the explicit slack for rendering and writing
-	// the result page once the writes and the refresh are done.
-	contentRatingRenderMargin = 10 * time.Second
-	// contentRatingResponseTimeout is the write deadline of one apply response:
-	// the apply budget, the list refresh that follows it, and the render margin.
-	// The server-wide WriteTimeout (15s in main.go) is far shorter than a bulk
-	// apply, and a response past it never reaches the browser although every
-	// write already happened.
-	contentRatingResponseTimeout = contentRatingApplyTimeout + contentRatingReadTimeout + contentRatingRenderMargin
-)
-
-// contentRatingChange is the RPC mapping of one form choice. It is the single
-// place where "Not rated (NR)" and "Clear (unavailable)" are told apart:
-// NR is explicit_unrated=true with an empty rating, Clear is an empty rating
-// with explicit_unrated=false, and the modules reject the literal token "NR".
-type contentRatingChange struct {
-	Rating          string
-	ExplicitUnrated bool
-	// Mode is "set", "unrated" or "clear"; it is what the audit entry records.
-	Mode string
+// These endpoints consume only the owning modules' classification RPCs. Generic
+// media metadata, browser identity headers and vote averages are not authority.
+func contentRatingModule(moduleID string) bool {
+	return moduleID == "media-movies" || moduleID == "media-tvshows"
 }
 
-// parseContentRatingChoice maps a submitted choice to the RPC fields. It
-// accepts nothing but the ladder tokens, NR and CLEAR, spelled exactly; free
-// text and different case are rejected before any module call.
-func parseContentRatingChoice(choice string) (contentRatingChange, bool) {
-	switch choice {
-	case contentRatingChoiceNR:
-		return contentRatingChange{ExplicitUnrated: true, Mode: "unrated"}, true
-	case contentRatingChoiceClear:
-		return contentRatingChange{Mode: "clear"}, true
+func contentRatingContext(ctx context.Context) (context.Context, bool) {
+	sess := SessionFromContext(ctx)
+	if sess == nil || strings.TrimSpace(sess.AuthLocalToken) == "" {
+		return ctx, false
 	}
-	if containsString(parentalRatingTokens, choice) {
-		return contentRatingChange{Rating: choice, Mode: "set"}, true
-	}
-	return contentRatingChange{}, false
+	// Do not allow inherited identity metadata to compete with the bearer
+	// requireAuth validated and authorized for this request.
+	md, _ := metadata.FromOutgoingContext(ctx)
+	md = md.Copy()
+	md.Delete("x-auth-token")
+	md.Delete("x-muxcore-user-id")
+	md.Delete("x-muxcore-tenant-id")
+	md.Set("authorization", "Bearer "+sess.AuthLocalToken)
+	return metadata.NewOutgoingContext(ctx, md), true
 }
 
-// contentRatingChoiceLabel is the operator-facing name of a choice.
-func contentRatingChoiceLabel(ch contentRatingChange) string {
-	switch ch.Mode {
-	case "unrated":
-		return "Not rated (NR)"
-	case "clear":
-		return "Cleared (unavailable)"
-	}
-	return ch.Rating
-}
-
-// classifyContentRating derives the ADR-0031 §2.5 state from what a module
-// reports. An empty or unrecognised value is "unavailable"; it is never read as
-// unrated.
-func classifyContentRating(rating string) (state string, recognised bool) {
-	token := strings.ToUpper(strings.TrimSpace(rating))
-	switch {
-	case token == "":
-		return templates.ContentRatingUnavailable, true
-	case token == contentRatingChoiceNR:
-		return templates.ContentRatingUnrated, true
-	case containsString(parentalRatingTokens, token):
-		return templates.ContentRatingRated, true
-	}
-	return templates.ContentRatingUnavailable, false
-}
-
-// ratingBackend is one media module reachable for rating work.
-type ratingBackend interface {
-	list(ctx context.Context, page int, search string) (items []templates.ContentRatingItem, total int, err error)
-	set(ctx context.Context, id string, ch contentRatingChange) error
-	close()
-}
-
-type movieRatingBackend struct {
-	conn   *grpc.ClientConn
-	client mgmntv1.MovieManagementServiceClient
-}
-
-func (b movieRatingBackend) close() { _ = b.conn.Close() }
-
-func (b movieRatingBackend) list(ctx context.Context, page int, search string) ([]templates.ContentRatingItem, int, error) {
-	resp, err := b.client.ListMovies(ctx, &mgmntv1.ListMoviesRequest{
-		Page: int32(page), PageSize: contentRatingPageSize, Search: search,
-	})
-	if err != nil {
-		return nil, 0, err
-	}
-	out := make([]templates.ContentRatingItem, 0, len(resp.GetMovies()))
-	for _, m := range resp.GetMovies() {
-		out = append(out, ratingItem(m.GetId(), m.GetTitle(), int(m.GetYear()), m.GetContentRating(), m.GetContentRatingSource(), m.GetTagLabels()))
-	}
-	return out, int(resp.GetTotal()), nil
-}
-
-func (b movieRatingBackend) set(ctx context.Context, id string, ch contentRatingChange) error {
-	_, err := b.client.SetContentRating(ctx, &mgmntv1.SetContentRatingRequest{
-		MovieId: id, ContentRating: ch.Rating, ExplicitUnrated: ch.ExplicitUnrated,
-	})
-	return err
-}
-
-type tvRatingBackend struct {
-	conn   *grpc.ClientConn
-	client tvmgmtv1.TvManagementServiceClient
-}
-
-func (b tvRatingBackend) close() { _ = b.conn.Close() }
-
-func (b tvRatingBackend) list(ctx context.Context, page int, search string) ([]templates.ContentRatingItem, int, error) {
-	resp, err := b.client.ListTVShows(ctx, &tvmgmtv1.ListTVShowsRequest{
-		Page: int32(page), PageSize: contentRatingPageSize, Search: search,
-	})
-	if err != nil {
-		return nil, 0, err
-	}
-	out := make([]templates.ContentRatingItem, 0, len(resp.GetSeries()))
-	for _, s := range resp.GetSeries() {
-		out = append(out, ratingItem(s.GetId(), s.GetName(), int(s.GetYear()), s.GetContentRating(), s.GetContentRatingSource(), s.GetTagLabels()))
-	}
-	return out, int(resp.GetTotal()), nil
-}
-
-func (b tvRatingBackend) set(ctx context.Context, id string, ch contentRatingChange) error {
-	_, err := b.client.SetContentRating(ctx, &tvmgmtv1.SetContentRatingRequest{
-		SeriesId: id, ContentRating: ch.Rating, ExplicitUnrated: ch.ExplicitUnrated,
-	})
-	return err
-}
-
-func ratingItem(id, title string, year int, rating, source string, tags []string) templates.ContentRatingItem {
-	state, recognised := classifyContentRating(rating)
-	it := templates.ContentRatingItem{
-		ID: id, Title: title, Year: year, State: state,
-		Source: source, Tags: append([]string(nil), tags...),
-	}
-	switch {
-	case state == templates.ContentRatingUnavailable && !recognised:
-		it.Unrecognised = strings.TrimSpace(rating)
-		it.Source = ""
-	case state == templates.ContentRatingUnavailable:
-		it.Source = ""
-	default:
-		it.Rating = strings.ToUpper(strings.TrimSpace(rating))
-	}
-	return it
-}
-
-// openRatingBackend resolves and dials the module for kind. The caller closes it.
-func (h *Handler) openRatingBackend(ctx context.Context, kind string) (ratingBackend, error) {
-	capability := capMediaLibraryMovies
-	if kind == contentRatingKindTV {
-		capability = capMediaLibraryTV
-	}
-	dialCtx, cancel := context.WithTimeout(ctx, contentRatingDialTimeout)
-	addr, err := h.findCapabilityDialAddr(dialCtx, capability)
-	cancel()
-	if err != nil {
-		return nil, err
-	}
-	if kind == contentRatingKindTV {
-		conn, client, err := h.dialTVModule(addr)
-		if err != nil {
-			return nil, err
-		}
-		return tvRatingBackend{conn: conn, client: client}, nil
-	}
-	conn, client, err := h.dialMovieModule(addr)
-	if err != nil {
-		return nil, err
-	}
-	return movieRatingBackend{conn: conn, client: client}, nil
-}
-
-func contentRatingKindOrDefault(v string) string {
-	if v == contentRatingKindTV {
-		return contentRatingKindTV
-	}
-	return contentRatingKindMovies
-}
-
-func contentRatingForbidden(w http.ResponseWriter, r *http.Request, h *Handler) {
-	w.Header().Set("Cache-Control", "no-store")
-	w.WriteHeader(http.StatusForbidden)
-	h.render(w, r, templates.Layout("Forbidden", h.nav(r.URL.Path), templates.Forbidden()))
-}
-
-// contentRatingPageNumber parses a 1-based page, defaulting to 1.
-func contentRatingPageNumber(v string) int {
-	n, err := strconv.Atoi(strings.TrimSpace(v))
-	if err != nil || n < 1 {
-		return 1
-	}
-	// The RPC page is an int32. Clamp so a huge value cannot wrap negative;
-	// a page this far out simply lists nothing.
-	return min(n, contentRatingMaxPage)
-}
-
-func contentRatingQuery(v string) string {
-	v = strings.TrimSpace(v)
-	if len(v) > contentRatingMaxQuery {
-		v = v[:contentRatingMaxQuery]
-	}
-	return strings.ToValidUTF8(v, "")
-}
-
-// loadContentRatingList fills the list part of data. A failure becomes
-// data.ListError; the page still renders.
-func (h *Handler) loadContentRatingList(ctx context.Context, backend ratingBackend, data *templates.ContentRatingData) {
-	readCtx, cancel := context.WithTimeout(ctx, contentRatingReadTimeout)
-	defer cancel()
-	items, total, err := backend.list(readCtx, data.Page, data.Query)
-	if err != nil {
-		slog.Warn("content-rating: list failed", "kind", data.Kind, "error", err)
-		// Also used to refresh the page after an apply, so this must not say
-		// anything about whether ratings changed: the per-title results do.
-		data.ListError = "Unable to refresh the " + data.KindNoun + " list (" + contentRatingErrorSummary(err) + ")."
+func (h *Handler) ContentRatingPage(w http.ResponseWriter, r *http.Request) {
+	d := contentRatingData(r)
+	if !contentRatingModule(d.ModuleID) {
+		http.NotFound(w, r)
 		return
 	}
-	data.Items = items
-	data.Total = total
-	data.ListLoaded = true
+	ctx, cancel := context.WithTimeout(r.Context(), mediaDialTimeout+mediaReadTimeout)
+	defer cancel()
+	ctx, ok := contentRatingContext(ctx)
+	if !ok {
+		d.Error = "Sign in again to read the current classification."
+		h.renderContentRating(w, r, d, http.StatusUnauthorized)
+		return
+	}
+	conn, err := h.contentRatingClient(ctx, d.ModuleID)
+	if err == nil {
+		defer func() { _ = conn.Close() }()
+		err = readContentRating(ctx, conn, &d)
+	}
+	code := http.StatusOK
+	if err != nil {
+		code, d.Error = contentRatingError(err, false)
+	}
+	h.renderContentRating(w, r, d, code)
 }
 
-func (h *Handler) newContentRatingData(kind, query string, page int) templates.ContentRatingData {
-	noun := "movies"
-	if kind == contentRatingKindTV {
-		noun = "TV series"
-	}
+func contentRatingData(r *http.Request) templates.ContentRatingData {
+	_, admin := parentalActor(r)
 	return templates.ContentRatingData{
-		Kind: kind, KindNoun: noun, Query: query, Page: page, PageSize: contentRatingPageSize,
-		RatingOptions: parentalRatingTokens,
+		ModuleID: r.PathValue("moduleID"), ItemID: r.PathValue("id"),
+		CanEdit: admin, Options: parentalRatingTokens,
 	}
 }
 
-func (h *Handler) renderContentRatings(w http.ResponseWriter, r *http.Request, data templates.ContentRatingData) {
-	w.Header().Set("Cache-Control", "no-store")
-	h.render(w, r, templates.Layout("Content ratings", h.nav(r.URL.Path), templates.ContentRatingsPage(data)))
-}
-
-// ContentRatingsPage lists movies or series with their operator content rating
-// (admin only). It makes no module call for a non-admin.
-func (h *Handler) ContentRatingsPage(w http.ResponseWriter, r *http.Request) {
-	if _, admin := parentalActor(r); !admin {
-		contentRatingForbidden(w, r, h)
-		return
-	}
-	q := r.URL.Query()
-	data := h.newContentRatingData(contentRatingKindOrDefault(q.Get("kind")), contentRatingQuery(q.Get("q")), contentRatingPageNumber(q.Get("page")))
-
-	ctx, cancel := context.WithTimeout(r.Context(), contentRatingListTimeout)
+func (h *Handler) contentRatingClient(ctx context.Context, moduleID string) (*grpc.ClientConn, error) {
+	dialCtx, cancel := context.WithTimeout(ctx, mediaDialTimeout)
 	defer cancel()
-	backend, err := h.openRatingBackend(ctx, data.Kind)
+	addr, err := h.mediaModuleAddr(dialCtx, moduleID)
 	if err != nil {
-		slog.Warn("content-rating: module unavailable", "kind", data.Kind, "error", err)
-		data.ListError = "The " + data.KindNoun + " module is unavailable, so ratings cannot be shown."
-		h.renderContentRatings(w, r, data)
-		return
+		return nil, err
 	}
-	defer backend.close()
-	h.loadContentRatingList(ctx, backend, &data)
-	h.renderContentRatings(w, r, data)
+	return meshdial.NewClient(addr)
 }
 
-// contentRatingSelection reads the submitted ids and choice. A per-row "Set"
-// button posts only=<id> and that row's select; the bulk bar posts the checked
-// ids and the bar's select.
-func contentRatingSelection(r *http.Request) (ids []string, choice string, problem string) {
-	if only := strings.TrimSpace(r.PostFormValue("only")); only != "" {
-		ids = []string{only}
-		choice = r.PostFormValue("rating_" + only)
-	} else {
-		ids = r.PostForm["ids"]
-		choice = r.PostFormValue("rating")
-	}
-	seen := make(map[string]bool, len(ids))
-	clean := ids[:0:0]
-	for _, id := range ids {
-		id = strings.TrimSpace(id)
-		if id == "" || seen[id] {
-			continue
-		}
-		if len(id) > contentRatingMaxIDLength || strings.ContainsAny(id, "\x00\r\n") {
-			return nil, "", "A selected title has an invalid identifier. Reload the page and try again."
-		}
-		seen[id] = true
-		clean = append(clean, id)
-	}
-	switch {
-	case len(clean) == 0:
-		return nil, "", "Select at least one title."
-	case len(clean) > contentRatingMaxBatch:
-		return nil, "", fmt.Sprintf("Select at most %d titles at a time.", contentRatingMaxBatch)
-	}
-	return clean, choice, ""
-}
-
-// contentRatingErrorSummary is a short, non-sensitive reason for a module error.
-func contentRatingErrorSummary(err error) string {
-	st, ok := status.FromError(err)
-	if !ok {
-		return "the module could not be reached"
-	}
-	switch st.Code() {
-	case codes.InvalidArgument:
-		return "the module rejected the request"
-	case codes.NotFound:
-		return "not found"
-	case codes.Unavailable, codes.DeadlineExceeded, codes.Canceled:
-		return "the module did not answer in time"
-	case codes.Unimplemented:
-		return "the module does not support content ratings; update it to v0.1.23 or later"
-	}
-	return "the module reported an error (" + st.Code().String() + ")"
-}
-
-// contentRatingFailureMessage explains a failed SetContentRating call. An
-// InvalidArgument carries the module's own message because it says what the
-// module refused; other failures get a fixed explanation, not module internals.
-func contentRatingFailureMessage(err error) string {
-	st, ok := status.FromError(err)
-	if !ok {
-		return "The module could not be reached. This title may not have been changed; check its current rating."
-	}
-	switch st.Code() {
-	case codes.InvalidArgument:
-		msg := strings.TrimSpace(st.Message())
-		if len(msg) > 200 {
-			msg = msg[:200]
-		}
-		msg = strings.ToValidUTF8(msg, "")
-		if msg == "" {
-			msg = "invalid rating"
-		}
-		return "The module rejected this rating (invalid argument: " + msg + "). This title was not changed."
-	case codes.NotFound:
-		return "The module no longer has this title (it may have been removed). Nothing was changed."
-	case codes.Unavailable, codes.DeadlineExceeded, codes.Canceled:
-		return "The module did not answer in time. This title may not have been changed; check its current rating."
-	case codes.Unimplemented:
-		return "The module does not support content ratings. Update media-movies and media-tvshows to v0.1.23 or later."
-	}
-	return "The module reported an error (" + st.Code().String() + "). This title may not have been changed; check its current rating."
-}
-
-// contentRatingWriteRefused reports whether err proves the module refused the
-// write before storing anything. Any other failure (a deadline, a dropped
-// connection, an internal error) can arrive after the module committed, because
-// the modules write before they reply, so the outcome is uncertain.
-func contentRatingWriteRefused(err error) bool {
-	st, ok := status.FromError(err)
-	if !ok {
-		return false
-	}
-	switch st.Code() {
-	case codes.InvalidArgument, codes.NotFound, codes.Unimplemented:
-		return true
-	}
-	return false
-}
-
-// extendContentRatingResponseDeadline gives this one response the write
-// deadline a full apply needs. If the writer cannot be extended (no
-// SetWriteDeadline, or a wrapper hiding the connection) the time left before
-// the server's own deadline is unknown, so no promise about delivering the
-// per-title results can be kept; the caller must refuse before any write.
-func extendContentRatingResponseDeadline(w http.ResponseWriter) error {
-	return http.NewResponseController(w).SetWriteDeadline(time.Now().Add(contentRatingResponseTimeout))
-}
-
-// ContentRatingsApply sets, replaces, marks unrated or clears the operator
-// rating of one or more titles (admin only). Each title is its own RPC; the
-// response lists every outcome, so a partial failure is never silent.
-func (h *Handler) ContentRatingsApply(w http.ResponseWriter, r *http.Request) {
-	sess, admin := parentalActor(r)
-	if !admin {
-		// The modules do not check roles, so refuse before any lookup or dial.
-		contentRatingForbidden(w, r, h)
-		return
-	}
-	r.Body = http.MaxBytesReader(w, r.Body, contentRatingMaxBody)
-	if err := r.ParseForm(); err != nil {
-		data := h.newContentRatingData(contentRatingKindMovies, "", 1)
-		data.FormError = "The form could not be read. Reload the page and try again."
-		h.renderContentRatingsError(w, r, data, http.StatusBadRequest)
-		return
-	}
-	kind := r.PostFormValue("kind")
-	if kind != contentRatingKindMovies && kind != contentRatingKindTV {
-		data := h.newContentRatingData(contentRatingKindMovies, "", 1)
-		data.FormError = "Choose movies or TV series."
-		h.renderContentRatingsError(w, r, data, http.StatusBadRequest)
-		return
-	}
-	data := h.newContentRatingData(kind, contentRatingQuery(r.PostFormValue("q")), contentRatingPageNumber(r.PostFormValue("page")))
-
-	ids, choice, problem := contentRatingSelection(r)
-	if problem != "" {
-		data.FormError = problem
-		h.renderContentRatingsError(w, r, data, http.StatusBadRequest)
-		return
-	}
-	change, ok := parseContentRatingChoice(choice)
-	if !ok {
-		data.FormError = "Choose a rating from the list, Not rated (NR), or Clear (unavailable). Nothing was changed."
-		h.renderContentRatingsError(w, r, data, http.StatusBadRequest)
-		return
-	}
-
-	// The admin gate and validation have passed: only now is the longer write
-	// deadline granted, and before the dial and the first write. If it cannot be
-	// granted, refuse here; a shortened or best-effort apply could not promise
-	// that the per-title results reach the browser.
-	if err := extendContentRatingResponseDeadline(w); err != nil {
-		slog.Error("content-rating: cannot extend the response write deadline; apply refused", "error", err)
-		data.FormError = "This server cannot extend its response time limit for a bulk apply, so nothing was attempted. Nothing was changed."
-		h.renderContentRatingsError(w, r, data, http.StatusFailedDependency)
-		return
-	}
-	applyCtx, cancel := context.WithTimeout(r.Context(), contentRatingApplyTimeout)
-	defer cancel()
-	backend, err := h.openRatingBackend(applyCtx, kind)
-	if err != nil {
-		slog.Warn("content-rating: module unavailable", "kind", kind, "error", err)
-		data.FormError = "The " + data.KindNoun + " module is unavailable. Nothing was changed."
-		// The list was not and cannot be loaded: say so rather than let the
-		// page read as an empty library.
-		data.ListError = "The " + data.KindNoun + " module is unavailable, so ratings cannot be shown."
-		h.renderContentRatingsError(w, r, data, http.StatusFailedDependency)
-		return
-	}
-	defer backend.close()
-
-	applied := &templates.ContentRatingApplied{Choice: contentRatingChoiceLabel(change), Mode: change.Mode}
-	for _, id := range ids {
-		res := templates.ContentRatingResult{ID: id}
-		if applyCtx.Err() != nil {
-			res.Outcome = templates.ContentRatingOutcomeNotAttempted
-			res.Message = "Not attempted: the request ran out of time before this title. Nothing was changed."
-			applied.Skipped++
-			applied.Results = append(applied.Results, res)
-			continue
-		}
-		callCtx, callCancel := context.WithTimeout(applyCtx, contentRatingReadTimeout)
-		err := backend.set(callCtx, id, change)
-		callCancel()
+func readContentRating(ctx context.Context, conn *grpc.ClientConn, d *templates.ContentRatingData) error {
+	var id string
+	switch d.ModuleID {
+	case "media-movies":
+		resp, err := mgmntv1.NewMovieManagementServiceClient(conn).GetMovie(ctx, &mgmntv1.GetMovieRequest{MovieId: d.ItemID})
 		if err != nil {
-			slog.Warn("content-rating: SetContentRating failed", "kind", kind, "id", id, "code", status.Code(err).String())
-			res.Outcome = templates.ContentRatingOutcomeFailed
-			res.Message = contentRatingFailureMessage(err)
-			applied.Failed++
-			if !contentRatingWriteRefused(err) {
-				// The module may have committed before the error reached us.
-				// Record the attempt without claiming it succeeded.
-				h.auditLog(r.Context(), sess.UserID, contentRatingAuditAction, "media_item", id, map[string]string{
-					"kind":    kind,
-					"mode":    change.Mode,
-					"rating":  change.Rating,
-					"outcome": "uncertain",
-					"code":    status.Code(err).String(),
-				})
-			}
-		} else {
-			res.Outcome = templates.ContentRatingOutcomeOK
-			applied.OK++
-			h.auditLog(r.Context(), sess.UserID, contentRatingAuditAction, "media_item", id, map[string]string{
-				"kind":   kind,
-				"mode":   change.Mode,
-				"rating": change.Rating,
-			})
+			return err
 		}
-		applied.Results = append(applied.Results, res)
+		item := resp.GetMovie()
+		id, d.Title, d.Rating, d.Source = item.GetId(), item.GetTitle(), item.GetContentRating(), item.GetContentRatingSource()
+	case "media-tvshows":
+		resp, err := tvmgmtv1.NewTvManagementServiceClient(conn).GetTVShow(ctx, &tvmgmtv1.GetTVShowRequest{SeriesId: d.ItemID})
+		if err != nil {
+			return err
+		}
+		item := resp.GetSeries()
+		id, d.Title, d.Rating, d.Source = item.GetId(), item.GetName(), item.GetContentRating(), item.GetContentRatingSource()
 	}
-
-	// Refresh the visible page after the writes so it shows what the module now
-	// holds, and fill result titles from it where the titles are on this page.
-	// The refresh has its own read timeout and must not inherit an apply budget
-	// that may already be spent.
-	h.loadContentRatingList(r.Context(), backend, &data)
-	titles := make(map[string]string, len(data.Items))
-	for _, it := range data.Items {
-		titles[it.ID] = it.Title
+	if id == "" || id != d.ItemID {
+		// Suppress data from a malformed or misrouted response.
+		d.Title, d.Rating, d.Source = "", "", ""
+		return errors.New("classification response item mismatch")
 	}
-	for i := range applied.Results {
-		applied.Results[i].Title = titles[applied.Results[i].ID]
+	d.Loaded = true
+	d.State = "Unavailable — restricted accounts are denied."
+	if d.Rating == "" && d.Source == "" {
+		d.Selected = "clear"
+	} else if d.Source == "operator" {
+		if _, valid := parental.RatingLevel(d.Rating); valid {
+			d.State, d.Selected = "Rated by an operator", strings.ToUpper(strings.TrimSpace(d.Rating))
+		} else if d.Rating == "NR" || d.Rating == "UR" {
+			d.State, d.Selected = "Explicit unrated", "unrated"
+		}
 	}
-	data.Applied = applied
-	h.renderContentRatings(w, r, data)
+	return nil
 }
 
-// renderContentRatingsError renders the page with a form error. The swap
-// header lets htmx show the body instead of dropping it. That is also why a
-// module outage is 424 (Failed Dependency) and not 502/503: csrf.js swaps only
-// 4xx responses that carry the header, so a 5xx explanation would never be
-// shown to the admin.
-//
-// A refused submission contacts no module (it is validated first), so the list
-// is not loaded here and the page says so (ListLoaded stays false) instead of
-// presenting an empty library.
-func (h *Handler) renderContentRatingsError(w http.ResponseWriter, r *http.Request, data templates.ContentRatingData, code int) {
+func (h *Handler) ContentRatingSave(w http.ResponseWriter, r *http.Request) {
+	d := contentRatingData(r)
+	if !contentRatingModule(d.ModuleID) {
+		http.NotFound(w, r)
+		return
+	}
+	if !d.CanEdit {
+		d.Error = "Only admins can change content ratings. Nothing was changed."
+		h.renderContentRating(w, r, d, http.StatusForbidden)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), mediaDialTimeout+2*mediaReadTimeout)
+	defer cancel()
+	ctx, ok := contentRatingContext(ctx)
+	if !ok {
+		d.CanEdit = false
+		d.Error = "Sign in again before changing content ratings. Nothing was changed."
+		h.renderContentRating(w, r, d, http.StatusUnauthorized)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
+	if err := r.ParseForm(); err != nil || len(r.PostForm["classification"]) != 1 || len(r.PostForm) != 1 || len(r.URL.Query()) != 0 {
+		d.Error = "Submit exactly one operator classification. Nothing was changed."
+		h.renderContentRating(w, r, d, http.StatusBadRequest)
+		return
+	}
+	choice := r.PostForm.Get("classification")
+	rating, unrated := choice, false
+	switch choice {
+	case "clear":
+		rating = ""
+	case "unrated":
+		rating, unrated = "", true
+	default:
+		if _, valid := parental.RatingLevel(choice); !valid || choice != strings.ToUpper(strings.TrimSpace(choice)) {
+			d.Error = "Choose a classification from the list. Nothing was changed."
+			h.renderContentRating(w, r, d, http.StatusBadRequest)
+			return
+		}
+	}
+	conn, err := h.contentRatingClient(ctx, d.ModuleID)
+	if err != nil {
+		d.Error = "The media service is unavailable. Nothing was changed. Reload to try again."
+		h.renderContentRating(w, r, d, http.StatusServiceUnavailable)
+		return
+	}
+	defer func() { _ = conn.Close() }()
+	writeCtx, writeCancel := context.WithTimeout(ctx, mediaReadTimeout)
+	switch d.ModuleID {
+	case "media-movies":
+		_, err = mgmntv1.NewMovieManagementServiceClient(conn).SetContentRating(writeCtx, &mgmntv1.SetContentRatingRequest{MovieId: d.ItemID, ContentRating: rating, ExplicitUnrated: unrated})
+	case "media-tvshows":
+		_, err = tvmgmtv1.NewTvManagementServiceClient(conn).SetContentRating(writeCtx, &tvmgmtv1.SetContentRatingRequest{SeriesId: d.ItemID, ContentRating: rating, ExplicitUnrated: unrated})
+	}
+	writeCancel()
+	if err != nil {
+		code, msg := contentRatingError(err, true)
+		d.Error = msg
+		h.renderContentRating(w, r, d, code)
+		return
+	}
+	// The mutation returns an empty acknowledgement. Read the authoritative item
+	// once; do not claim success for a stale/mismatched value or retry a write.
+	err = readContentRating(ctx, conn, &d)
+	wantRating, wantSource := rating, "operator"
+	if unrated {
+		wantRating = "NR"
+	}
+	if choice == "clear" {
+		wantSource = ""
+	}
+	if err != nil || d.Rating != wantRating || d.Source != wantSource {
+		d.Error = "The save was acknowledged, but its current classification could not be confirmed. Reload and check before saving again."
+		d.Loaded = false
+		h.renderContentRating(w, r, d, http.StatusBadGateway)
+		return
+	}
+	d.Saved = true
+	sess := SessionFromContext(r.Context())
+	h.auditLog(r.Context(), sess.UserID, "admin.media.content_rating", "media_item", d.ItemID, map[string]string{"module": d.ModuleID, "content_rating": wantRating, "source": wantSource})
+	h.renderContentRating(w, r, d, http.StatusOK)
+}
+
+func contentRatingError(err error, write bool) (int, string) {
+	code, message, definite := http.StatusServiceUnavailable, "The media service is unavailable.", false
+	switch status.Code(err) {
+	case codes.Unauthenticated:
+		code, message, definite = http.StatusUnauthorized, "Sign in again to access content ratings.", true
+	case codes.PermissionDenied:
+		code, message, definite = http.StatusForbidden, "The media service refused this operation.", true
+	case codes.NotFound:
+		code, message, definite = http.StatusNotFound, "This item was not found.", true
+	case codes.InvalidArgument:
+		code, message, definite = http.StatusBadRequest, "The media service rejected the classification.", true
+	case codes.Unimplemented:
+		code, message, definite = http.StatusNotImplemented, "This media service does not support content ratings yet.", true
+	}
+	if write {
+		if definite {
+			message += " Nothing was changed."
+		} else {
+			message += " The change may have been saved. Reload and check before saving again."
+		}
+	} else {
+		message += " Reload to try again."
+	}
+	return code, message
+}
+
+func (h *Handler) renderContentRating(w http.ResponseWriter, r *http.Request, d templates.ContentRatingData, code int) {
 	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set(swapErrorHeader, "1")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if code >= 400 {
+		w.Header().Set(swapErrorHeader, "1")
+	}
 	w.WriteHeader(code)
-	h.render(w, r, templates.Layout("Content ratings", h.nav(r.URL.Path), templates.ContentRatingsPage(data)))
+	h.render(w, r, templates.Layout("Content rating", h.nav("/media/"+d.ModuleID), templates.ContentRatingPage(d)))
 }

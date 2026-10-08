@@ -64,6 +64,11 @@ func TestAccessibilityCoreJourneys(t *testing.T) {
 		})},
 		{"request-unavailable", RequestPage(RequestPageData{Error: "Request service unavailable", SoftEmpty: true})},
 		{"library", MediaListPage("Movies", []*mediaadminv1.MediaItem{{Id: "movie-1", Title: "Dune"}}, 2, 3, 24, "movies", nil, "", "")},
+		{"content-rating-movie", ContentRatingPage(ContentRatingData{ModuleID: "media-movies", ItemID: "fixture", Title: "Fixture", Loaded: true, CanEdit: true, State: "Rated by an operator", Rating: "PG", Source: "operator", Selected: "PG", Options: []string{"G", "PG", "R"}})},
+		{"content-rating-series-unrated", ContentRatingPage(ContentRatingData{ModuleID: "media-tvshows", ItemID: "fixture", Title: "Fixture", Loaded: true, CanEdit: true, State: "Explicit unrated", Rating: "NR", Source: "operator", Selected: "unrated", Saved: true, Options: []string{"TV-Y", "TV-14", "TV-MA"}})},
+		{"content-rating-unavailable", ContentRatingPage(ContentRatingData{ModuleID: "media-movies", ItemID: "fixture", Loaded: true, CanEdit: true, State: "Unavailable", Selected: "clear", Options: []string{"G", "PG"}})},
+		{"content-rating-read-only", ContentRatingPage(ContentRatingData{ModuleID: "media-tvshows", ItemID: "fixture", Loaded: true, State: "Unavailable"})},
+		{"content-rating-error", ContentRatingPage(ContentRatingData{ModuleID: "media-movies", ItemID: "fixture", CanEdit: true, Error: "The change may have been saved. Reload and check before saving again."})},
 		{"queue", UnifiedQueuePage(UnifiedQueueData{
 			Wanted:       []UnifiedQueueWanted{{ID: "wanted-1", Title: "Dune"}},
 			Failures:     []UnifiedQueueHistory{{ID: "failed-1", Title: "Arrival", Stuck: true}},
@@ -73,30 +78,30 @@ func TestAccessibilityCoreJourneys(t *testing.T) {
 		{"settings", SettingsPage(settings)},
 		{"invites", InvitesPage(InvitesPageData{Invites: []InviteRow{{ID: "invite-1", Prefix: "abc", Role: "user"}}})},
 		{"parental-migrate", ParentalMigratePage()},
-		{"content-ratings", ContentRatingsPage(contentRatingFixture())},
-		{"content-ratings-result-partial", ContentRatingsPage(func() ContentRatingData {
-			d := contentRatingFixture()
-			d.Applied = &ContentRatingApplied{Choice: "PG-13", Mode: "set", OK: 1, Failed: 1, Skipped: 1, Results: []ContentRatingResult{
-				{ID: "m1", Title: "Dune", Outcome: ContentRatingOutcomeOK},
-				{ID: "m2", Title: "Arrival", Outcome: ContentRatingOutcomeFailed, Message: "The module rejected this rating. This title was not changed."},
-				{ID: "m3", Outcome: ContentRatingOutcomeNotAttempted, Message: "Not attempted: the request ran out of time before this title. Nothing was changed."},
+		{"content-ratings-bulk", ContentRatingBulkPage(contentRatingBulkFixture())},
+		{"content-ratings-bulk-result-partial", ContentRatingBulkPage(func() ContentRatingBulkData {
+			d := contentRatingBulkFixture()
+			d.Applied = &ContentRatingBulkApplied{Choice: "PG-13", Mode: "set", OK: 1, Failed: 1, Skipped: 1, Results: []ContentRatingBulkResult{
+				{ID: "m1", Title: "Dune", Outcome: ContentRatingBulkOutcomeOK},
+				{ID: "m2", Title: "Arrival", Outcome: ContentRatingBulkOutcomeFailed, Message: "The module rejected this rating. This title was not changed."},
+				{ID: "m3", Outcome: ContentRatingBulkOutcomeNotAttempted, Message: "Not attempted: the request ran out of time before this title. Nothing was changed."},
 			}}
 			return d
 		}())},
-		{"content-ratings-form-error", ContentRatingsPage(func() ContentRatingData {
-			d := contentRatingFixture()
+		{"content-ratings-bulk-form-error", ContentRatingBulkPage(func() ContentRatingBulkData {
+			d := contentRatingBulkFixture()
 			d.FormError = "Select at least one title."
 			return d
 		}())},
-		{"content-ratings-list-error", ContentRatingsPage(ContentRatingData{
+		{"content-ratings-bulk-list-error", ContentRatingBulkPage(ContentRatingBulkData{
 			Kind: "tv", KindNoun: "TV series", Page: 1, PageSize: 50, RatingOptions: []string{"G"},
 			ListError: "The TV series module is unavailable, so ratings cannot be shown.",
 		})},
-		{"content-ratings-empty", ContentRatingsPage(ContentRatingData{
+		{"content-ratings-bulk-empty", ContentRatingBulkPage(ContentRatingBulkData{
 			Kind: "movies", KindNoun: "movies", Query: "zzz", Page: 1, PageSize: 50, RatingOptions: []string{"G"},
 			ListLoaded: true,
 		})},
-		{"content-ratings-not-loaded", ContentRatingsPage(ContentRatingData{
+		{"content-ratings-bulk-not-loaded", ContentRatingBulkPage(ContentRatingBulkData{
 			Kind: "movies", KindNoun: "movies", Page: 1, PageSize: 50, RatingOptions: []string{"G"},
 			FormError: "Select at least one title.",
 		})},
@@ -169,16 +174,16 @@ func withUserDetailHeadings(c templ.Component) templ.Component {
 	})
 }
 
-func contentRatingFixture() ContentRatingData {
-	return ContentRatingData{
+func contentRatingBulkFixture() ContentRatingBulkData {
+	return ContentRatingBulkData{
 		Kind: "movies", KindNoun: "movies", Query: "d", Page: 2, PageSize: 50, Total: 120,
 		RatingOptions: []string{"G", "PG", "PG-13", "R", "TV-MA"},
 		ListLoaded:    true,
-		Items: []ContentRatingItem{
-			{ID: "m1", Title: "Dune", Year: 2021, State: ContentRatingRated, Rating: "PG-13", Source: "operator", Tags: []string{"scifi"}},
-			{ID: "m2", Title: "Arrival", Year: 2016, State: ContentRatingUnrated, Rating: "NR", Source: "operator"},
-			{ID: "m3", Title: "Untitled", State: ContentRatingUnavailable},
-			{ID: "m4", Title: "Odd", State: ContentRatingUnavailable, Unrecognised: "XYZ"},
+		Items: []ContentRatingBulkItem{
+			{ID: "m1", Title: "Dune", Year: 2021, State: ContentRatingBulkRated, Rating: "PG-13", Source: "operator", Tags: []string{"scifi"}},
+			{ID: "m2", Title: "Arrival", Year: 2016, State: ContentRatingBulkUnrated, Rating: "NR", Source: "operator"},
+			{ID: "m3", Title: "Untitled", State: ContentRatingBulkUnavailable},
+			{ID: "m4", Title: "Odd", State: ContentRatingBulkUnavailable, Unrecognised: "XYZ"},
 		},
 	}
 }

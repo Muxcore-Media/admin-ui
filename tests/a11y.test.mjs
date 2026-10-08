@@ -34,7 +34,7 @@ test('axe checks actual Go-rendered core journeys', async t => {
   });
   assert.equal(result.status, 0, `Go template fixtures failed: ${result.error || ''}\n${result.stdout}\n${result.stderr}`);
   const fixtures = readdirSync(dir).filter(name => name.endsWith('.html')).sort();
-  assert.equal(fixtures.length, 35, 'render every core journey, including errors and repeated module setting keys');
+  assert.equal(fixtures.length, 40, 'render every core journey, including per-item and bulk content rating states, errors and repeated module setting keys');
   for (const fixture of fixtures) {
     await t.test(fixture, async () => {
       const results = await scan(readFileSync(join(dir, fixture), 'utf8'));
@@ -45,11 +45,54 @@ test('axe checks actual Go-rendered core journeys', async t => {
       })), null, 2));
     });
   }
+  await t.test('content rating controls select page contents with bundled HTMX', async () => {
+    const markup = readFileSync(join(dir, 'content-rating-movie.html'), 'utf8');
+    const htmxSource = readFileSync(join(root, 'assets/htmx.min.js'), 'utf8');
+    for (const target of ['form', 'a[href$="/item/fixture"]', 'a[href$="/content-rating"]']) {
+      for (const removeSelector of [false, true]) {
+        const dom = new JSDOM(markup, { runScripts: 'outside-only', url: 'https://admin.example/' });
+        try {
+          const { window } = dom;
+          // jsdom requires an explicit XPath result type; browsers default it.
+          const evaluate = window.XPathExpression.prototype.evaluate;
+          window.XPathExpression.prototype.evaluate = function(context, type, result) {
+            return evaluate.call(this, context, type ?? 0, result);
+          };
+          window.eval(htmxSource);
+          const control = window.document.querySelector(target);
+          assert(control, `missing ${target}`);
+          if (removeSelector) control.removeAttribute('hx-select');
+          // Exercise this repository's bundled HTMX attribute inheritance and
+          // response selection, including Layout's hx-disinherit boundary.
+          const select = window.htmx._('re')(control, 'hx-select');
+          window.htmx.swap(window.document.querySelector('#main-content'), markup,
+            { swapStyle: 'innerHTML', settleDelay: 0 }, { select, contextElement: control });
+          const expected = removeSelector ? 2 : 1;
+          assert.equal(window.document.querySelectorAll('#main-content').length, expected);
+          assert.equal(window.document.querySelectorAll('#sidebar').length, expected);
+          if (!removeSelector) {
+            const choice = window.document.querySelector('select[name="classification"]');
+            choice.focus();
+            assert.equal(window.document.activeElement, choice);
+            choice.value = 'unrated';
+            const form = choice.closest('form');
+            assert.equal(new window.FormData(form).get('classification'), 'unrated');
+            const save = form.querySelector('button[type="submit"]');
+            save.focus();
+            assert.equal(window.document.activeElement, save);
+          }
+          await new Promise(resolve => window.setTimeout(resolve, 0));
+        } finally {
+          dom.window.close();
+        }
+      }
+    }
+  });
 
-  // Keyboard behaviour of the content-rating page (ADR-0025): operable with
+  // Keyboard behaviour of the bulk content-rating page (ADR-0025): operable with
   // native controls only, in a sensible order, every control named.
-  await t.test('content-ratings is keyboard operable in document order', () => {
-    const dom = new JSDOM(readFileSync(join(dir, 'content-ratings.html'), 'utf8'));
+  await t.test('bulk content-ratings is keyboard operable in document order', () => {
+    const dom = new JSDOM(readFileSync(join(dir, 'content-ratings-bulk.html'), 'utf8'));
     try {
       const doc = dom.window.document;
       const form = doc.querySelector('[data-testid="content-rating-form"]');
@@ -80,8 +123,8 @@ test('axe checks actual Go-rendered core journeys', async t => {
       dom.window.close();
     }
   });
-  await t.test('content-ratings result announces partial failure', () => {
-    const dom = new JSDOM(readFileSync(join(dir, 'content-ratings-result-partial.html'), 'utf8'));
+  await t.test('bulk content-ratings result announces partial failure', () => {
+    const dom = new JSDOM(readFileSync(join(dir, 'content-ratings-bulk-result-partial.html'), 'utf8'));
     try {
       const doc = dom.window.document;
       assert.equal(doc.querySelector('[data-testid="content-rating-summary"]').getAttribute('role'), 'status');

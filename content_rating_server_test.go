@@ -51,8 +51,20 @@ func (m *slowMovies) setCount() int {
 	return len(m.sets)
 }
 
+// allowAll authorizes everything and validates the fixture bearer as role's
+// user, as the identity provider would for the session requireAuth revalidates.
 type allowAll struct {
 	authv1.UnimplementedAuthServiceServer
+	role string
+}
+
+const serverTestBearer = "provider-bearer"
+
+func (a allowAll) Validate(_ context.Context, req *authv1.ValidateRequest) (*authv1.ValidateResponse, error) {
+	if req.GetToken() != serverTestBearer {
+		return &authv1.ValidateResponse{}, nil
+	}
+	return &authv1.ValidateResponse{Valid: true, UserId: "u-" + a.role, Username: a.role, Roles: []string{a.role}}, nil
 }
 
 func (allowAll) Can(context.Context, *authv1.CanRequest) (*authv1.CanResponse, error) {
@@ -62,6 +74,14 @@ func (allowAll) Can(context.Context, *authv1.CanRequest) (*authv1.CanResponse, e
 type fixedDiscovery struct {
 	discoveryv1.UnimplementedDiscoveryServiceServer
 	addrs map[string]string
+}
+
+func (d fixedDiscovery) Resolve(_ context.Context, req *discoveryv1.ResolveRequest) (*discoveryv1.ResolveResponse, error) {
+	addr := d.addrs[req.GetModuleId()]
+	if addr == "" {
+		return &discoveryv1.ResolveResponse{}, nil
+	}
+	return &discoveryv1.ResolveResponse{Found: true, Module: &discoveryv1.ModuleInfoProto{Id: req.GetModuleId(), HttpAddr: addr}}, nil
 }
 
 func (d fixedDiscovery) FindByCapability(_ context.Context, req *discoveryv1.FindByCapabilityRequest) (*discoveryv1.FindByCapabilityResponse, error) {
@@ -104,11 +124,12 @@ func startRatingServer(t *testing.T, role string, writeTimeout time.Duration, wr
 
 	movies := &slowMovies{delay: 600 * time.Millisecond}
 	moviesAddr := serveTestGRPC(t, func(s *grpc.Server) { mgmntv1.RegisterMovieManagementServiceServer(s, movies) })
-	authAddr := serveTestGRPC(t, func(s *grpc.Server) { authv1.RegisterAuthServiceServer(s, allowAll{}) })
+	authAddr := serveTestGRPC(t, func(s *grpc.Server) { authv1.RegisterAuthServiceServer(s, allowAll{role: role}) })
 	discAddr := serveTestGRPC(t, func(s *grpc.Server) {
 		discoveryv1.RegisterDiscoveryServiceServer(s, fixedDiscovery{addrs: map[string]string{
-			"media.library.movies": moviesAddr,
-			"authorizer":           authAddr,
+			"media-movies": moviesAddr,
+			"authorizer":   authAddr,
+			"auth":         authAddr,
 		}})
 	})
 	core, err := client.Dial(discAddr, client.WithInsecure())
@@ -122,6 +143,7 @@ func startRatingServer(t *testing.T, role string, writeTimeout time.Duration, wr
 	if err != nil {
 		t.Fatal(err)
 	}
+	store.BindAuthLocalToken(token, serverTestBearer)
 	h := handler.New(nil, store, false, "test", nil, true, "", nil, nil)
 	h.Core = core
 	rs := &ratingServer{movies: movies, cookie: token}
@@ -213,7 +235,7 @@ func TestContentRatingRefusedBeforeWritesWhenConnectionIsHidden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("no response: %v", err)
 	}
-	if code != http.StatusFailedDependency || !strings.Contains(text, "Nothing was changed") {
+	if code != http.StatusInternalServerError || !strings.Contains(text, "Nothing was changed") {
 		t.Fatalf("status = %d: %.500s", code, text)
 	}
 	if rs.movies.setCount() != 0 || rs.auditCount() != 0 {
