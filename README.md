@@ -316,13 +316,45 @@ Deploying enforcement first leaves every account unconfigured, which the BFF
 denies. `muxcorectl users parental set` (muxcorectl-cli) still writes the legacy
 file until slice S7, so its changes are **not** seen by the provider; use the admin form until then.
 
+### Content ratings (operator override)
+
+`/content-ratings` (Library → Content ratings) is where an **admin** sets the
+parental classification of each movie and series (ADR-0031 Decision 2; T-M4-01,
+FR-PLAY-007). The rating is stored by media-movies / media-tvshows (v0.1.23 or
+later) and is the authority: it is not taken from TMDB or from the web app.
+
+- **Unavailable items are hidden from restricted accounts.** A title with no
+  operator rating is "unavailable"; until an admin rates titles here, restricted
+  accounts see an empty library.
+- The page lists one library at a time (Movies / TV series), 50 per page, with
+  search, and shows each title's rating, who set it (`operator`) and its tags.
+  State is one of *Rated* (a ladder token), *Not rated (NR)* (an explicit
+  decision) and *Unavailable*.
+- Per row: choose a ladder token (`G TV-Y TV-Y7 TV-Y7-FV ALL E PG TV-G TV-PG
+  E10+ PG-13 TV-14 T R TV-MA M MA NC-17 AO X`), **Not rated (NR)**, or **Clear
+  (unavailable)** and press Set. In bulk: tick titles and use "Apply to
+  selected" (selection is per page). Nothing is free text; the token list is the
+  single `parentalRatingTokens` list, pinned by a test.
+- RPC mapping: a token → `content_rating=<token>`; NR → empty rating with
+  `explicit_unrated=true`; Clear → empty rating, `explicit_unrated=false`.
+- Bulk apply makes one `SetContentRating` call per title and lists every
+  outcome (changed / failed with the module's reason / not attempted). A partial
+  failure is never silent; a failed title is not changed.
+- **Admin only.** The modules do no role check, so admin-ui refuses managers,
+  users and viewers with 403 *before* resolving or calling any module. POST
+  routes are covered by the global CSRF double-submit check. Each changed title
+  writes one audit entry `admin.content_rating.set` (resource `media_item`,
+  details `kind`, `mode` = `set`/`unrated`/`clear`, `rating`); titles and tags
+  are not logged.
+
 ### Accessibility validation
 
 For T-M4-05 / NFR-A11Y-001, the ordinary Go template suite checks rendered DOM
 relationships (labels, unique IDs, ARIA references, names and landmarks),
 including settings with identical keys in different modules. The Accessibility
-GitHub workflow adds axe-core checks over 29 Go-rendered core-journey documents
-and keyboard interaction tests for the responsive sidebar and HTMX navigation.
+GitHub workflow adds axe-core checks over 34 Go-rendered core-journey documents
+and keyboard interaction tests for the responsive sidebar, HTMX navigation and
+the content-rating page.
 
 ```bash
 go test ./templ

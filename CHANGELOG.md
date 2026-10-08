@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Operator content-rating override (T-M4-01, ADR-0031 Decision 2): admin-only
+  `/content-ratings` page listing movies and series (paginated, searchable) with
+  each title's rating, source, tags and state (rated / not rated NR /
+  unavailable), per-title and bulk set, replace, mark NR and clear through the
+  `SetContentRating` RPC of media-movies and media-tvshows. Ratings come only
+  from the pinned 20-token ladder plus NR and Clear; per-title results report
+  partial failure; each change is audited as `admin.content_rating.set`. The
+  page explains that unavailable titles are hidden from restricted accounts and
+  that the rating is the authority. Managers, users and viewers get 403 before
+  any module call.
+- Depends on media-movies and media-tvshows v0.1.23.
 - Provider-backed parental controls (T-M4-01 slice S6, ADR-0030/0031). The
   Users parental form reads and writes the userdata-local
   `/api/parental-policy` resource with the admin's identity-provider bearer and
