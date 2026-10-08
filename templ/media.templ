@@ -249,6 +249,9 @@ templ MediaDetailPage(item *mediaadminv1.MediaItem, moduleID string, history []A
 			<div class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ errorMsg }</div>
 		}
 		<div class="flex flex-wrap gap-2" data-testid="item-actions">
+			if moduleID == "media-movies" || moduleID == "media-tvshows" {
+				<a href={ templ.SafeURL(ContentRatingURL(moduleID, item.GetId())) } hx-select="#main-content > *" class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800">Content rating</a>
+			}
 			<form method="POST" action={ templ.SafeURL(fmt.Sprintf("/media/%s/item/%s/refresh", moduleID, item.GetId())) }>
 				<button type="submit" class="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800" data-testid="item-refresh">Refresh metadata</button>
 			</form>
