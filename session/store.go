@@ -247,6 +247,26 @@ func (s *Store) Revoke(token string) {
 	s.RevokeByID(ID(token))
 }
 
+// RevokeIfBound removes only the identity and provider bearer that a request
+// checked. A late rejection for an old bearer cannot revoke its replacement.
+func (s *Store) RevokeIfBound(token, userID, bearer string) bool {
+	if s == nil || token == "" {
+		return false
+	}
+	id := ID(token)
+	s.mu.Lock()
+	sess, ok := s.sessions[id]
+	matched := ok && sess.UserID == userID && sess.AuthLocalToken == bearer
+	if matched {
+		delete(s.sessions, id)
+	}
+	s.mu.Unlock()
+	if matched {
+		_ = s.persist()
+	}
+	return matched
+}
+
 // RevokeByID removes the session with the given ID (see ID / SessionInfo.ID).
 func (s *Store) RevokeByID(id string) {
 	s.mu.Lock()

@@ -132,8 +132,26 @@ Browser ──HTTP──→ admin-ui ──gRPC──→ muxcored
 1. Browser → `GET /login` → redirect to `ADMIN_UI_AUTH_ADDR/login?redirect=.../auth/callback`
 2. Auth module returns with `?code=...` → admin-ui `POST`s `{code}` to `ADMIN_UI_AUTH_ADDR/login/exchange`
 3. On success, server-side session created (cookie-based, in-memory store)
-4. Every subsequent request validates session cookie and requires `Authorizer.Can("admin.access")` on `admin.ui`
+4. Every protected request checks its local session, revalidates a bound provider bearer with `AuthService.Validate`, and requires `Authorizer.Can("admin.access")` on `admin.ui`
 5. CSRF protection via double-submit cookie pattern
+
+Validation and authorization each have an eight-second deadline covering
+discovery and the RPC. Both send only the current stored bearer in
+`x-auth-token` and `authorization` metadata; browser and inherited credentials
+are not used. Local-only sessions skip `Validate` and send no bearer to `Can`.
+Invalid authentication clears only the matching local binding and redirects to
+login (303, or HTMX `HX-Redirect`). Permission denial returns 403; discovery or
+provider outages return 503 and retain the cookie. A session revoked during
+either RPC cannot reach the protected handler, and a replaced binding is kept
+for retry. Established requests and streams are not periodically revalidated.
+
+Successful validation keeps the existing claim policy: changed username, roles
+and tenant are persisted, while user ID, permissions, bearer and local expiry
+remain unchanged. The tenant comes from the provider's `tenant_id`, without the
+login-time claim fallback. Each handler receives its own deep snapshot. Outage
+retention requires the provider to distinguish invalid sessions from operational
+failures. BFF revalidation, Quick Connect device grants and live integration
+remain separate acceptance work.
 
 **Live updates:**
 - Dashboard health grid: HTMX polling every 5s
