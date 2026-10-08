@@ -1,4 +1,4 @@
-.PHONY: build test lint css css-watch dev run clean fmt tidy ci help
+.PHONY: build test lint css css-watch dev run clean fmt tidy ci help templ
 
 GO ?= go
 TEMPL ?= $(shell which templ 2>/dev/null || echo ~/go/bin/templ)
