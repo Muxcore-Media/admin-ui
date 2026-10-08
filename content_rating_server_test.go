@@ -133,7 +133,7 @@ func startRatingServer(t *testing.T, role string, writeTimeout time.Duration, wr
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
 
-	var root http.Handler = withMiddleware(mux, newRateLimiter(), parseTrustedProxies(nil), "")
+	root := withMiddleware(mux, newRateLimiter(), parseTrustedProxies(nil), "")
 	if wrap != nil {
 		root = wrap(root)
 	}
