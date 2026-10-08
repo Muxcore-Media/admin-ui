@@ -94,6 +94,11 @@ func TestAccessibilityCoreJourneys(t *testing.T) {
 		})},
 		{"content-ratings-empty", ContentRatingsPage(ContentRatingData{
 			Kind: "movies", KindNoun: "movies", Query: "zzz", Page: 1, PageSize: 50, RatingOptions: []string{"G"},
+			ListLoaded: true,
+		})},
+		{"content-ratings-not-loaded", ContentRatingsPage(ContentRatingData{
+			Kind: "movies", KindNoun: "movies", Page: 1, PageSize: 50, RatingOptions: []string{"G"},
+			FormError: "Select at least one title.",
 		})},
 		{"parental-migrate-dry-run", withA11yHeading("Parental policy migration", ParentalMigrateResult(parentalMigrateFixture("dry-run")))},
 		{"parental-migrate-source-missing", withA11yHeading("Parental policy migration", ParentalMigrateResult(func() ParentalMigrateData {
@@ -168,6 +173,7 @@ func contentRatingFixture() ContentRatingData {
 	return ContentRatingData{
 		Kind: "movies", KindNoun: "movies", Query: "d", Page: 2, PageSize: 50, Total: 120,
 		RatingOptions: []string{"G", "PG", "PG-13", "R", "TV-MA"},
+		ListLoaded:    true,
 		Items: []ContentRatingItem{
 			{ID: "m1", Title: "Dune", Year: 2021, State: ContentRatingRated, Rating: "PG-13", Source: "operator", Tags: []string{"scifi"}},
 			{ID: "m2", Title: "Arrival", Year: 2016, State: ContentRatingUnrated, Rating: "NR", Source: "operator"},

@@ -345,14 +345,30 @@ later) and is the authority: it is not taken from TMDB or from the web app.
   routes are covered by the global CSRF double-submit check. Each changed title
   writes one audit entry `admin.content_rating.set` (resource `media_item`,
   details `kind`, `mode` = `set`/`unrated`/`clear`, `rating`); titles and tags
-  are not logged.
+  are not logged. A call that ends in a deadline, a dropped connection or an
+  internal error may already have been committed by the module (it writes before
+  it replies), so it is audited with the same action and `outcome` = `uncertain`
+  plus the gRPC `code`; a definite refusal (invalid argument, not found,
+  unimplemented) writes nothing to the audit log.
+- A bulk apply can run up to two minutes, longer than the server's 15 s
+  `WriteTimeout`. After the admin check and form validation pass, this one
+  response gets its own write deadline (apply budget + list refresh + margin);
+  no other route is affected. If that deadline cannot be extended (the writer
+  has no `SetWriteDeadline`, or setting it fails) the apply is refused with a
+  swappable 424 before any module is dialled or written, because the time left
+  before the server's own deadline is unknown and the results could not be
+  promised; the apply is never silently shortened.
+- A refused submission (nothing selected, no rating chosen) is validated before
+  any module is contacted, so the list is not reloaded; the page shows the error
+  and a "Reload the list" link, never an empty-library message. A module outage
+  is answered with 424 (not 5xx) because `csrf.js` swaps only 4xx bodies.
 
 ### Accessibility validation
 
 For T-M4-05 / NFR-A11Y-001, the ordinary Go template suite checks rendered DOM
 relationships (labels, unique IDs, ARIA references, names and landmarks),
 including settings with identical keys in different modules. The Accessibility
-GitHub workflow adds axe-core checks over 34 Go-rendered core-journey documents
+GitHub workflow adds axe-core checks over 35 Go-rendered core-journey documents
 and keyboard interaction tests for the responsive sidebar, HTMX navigation and
 the content-rating page.
 

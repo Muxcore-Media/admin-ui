@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   page explains that unavailable titles are hidden from restricted accounts and
   that the rating is the authority. Managers, users and viewers get 403 before
   any module call.
+  A bulk apply gets a route-specific response write deadline so its result page
+  is not cut off by the 15 s server `WriteTimeout`; form and module-outage errors
+  no longer render as an empty library; writes that may have committed before an
+  error are audited with `outcome=uncertain`.
 - Depends on media-movies and media-tvshows v0.1.23.
 - Provider-backed parental controls (T-M4-01 slice S6, ADR-0030/0031). The
   Users parental form reads and writes the userdata-local

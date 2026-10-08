@@ -54,6 +54,15 @@ const (
 	// contentRatingApplyTimeout bounds a whole bulk apply. Titles not reached
 	// before it expires are reported as not attempted, never dropped.
 	contentRatingApplyTimeout = 2 * time.Minute
+	// contentRatingRenderMargin is the explicit slack for rendering and writing
+	// the result page once the writes and the refresh are done.
+	contentRatingRenderMargin = 10 * time.Second
+	// contentRatingResponseTimeout is the write deadline of one apply response:
+	// the apply budget, the list refresh that follows it, and the render margin.
+	// The server-wide WriteTimeout (15s in main.go) is far shorter than a bulk
+	// apply, and a response past it never reaches the browser although every
+	// write already happened.
+	contentRatingResponseTimeout = contentRatingApplyTimeout + contentRatingReadTimeout + contentRatingRenderMargin
 )
 
 // contentRatingChange is the RPC mapping of one form choice. It is the single
@@ -264,6 +273,7 @@ func (h *Handler) loadContentRatingList(ctx context.Context, backend ratingBacke
 	}
 	data.Items = items
 	data.Total = total
+	data.ListLoaded = true
 }
 
 func (h *Handler) newContentRatingData(kind, query string, page int) templates.ContentRatingData {
@@ -364,7 +374,7 @@ func contentRatingErrorSummary(err error) string {
 func contentRatingFailureMessage(err error) string {
 	st, ok := status.FromError(err)
 	if !ok {
-		return "The module could not be reached. This title was not changed."
+		return "The module could not be reached. This title may not have been changed; check its current rating."
 	}
 	switch st.Code() {
 	case codes.InvalidArgument:
@@ -385,6 +395,31 @@ func contentRatingFailureMessage(err error) string {
 		return "The module does not support content ratings. Update media-movies and media-tvshows to v0.1.23 or later."
 	}
 	return "The module reported an error (" + st.Code().String() + "). This title may not have been changed; check its current rating."
+}
+
+// contentRatingWriteRefused reports whether err proves the module refused the
+// write before storing anything. Any other failure (a deadline, a dropped
+// connection, an internal error) can arrive after the module committed, because
+// the modules write before they reply, so the outcome is uncertain.
+func contentRatingWriteRefused(err error) bool {
+	st, ok := status.FromError(err)
+	if !ok {
+		return false
+	}
+	switch st.Code() {
+	case codes.InvalidArgument, codes.NotFound, codes.Unimplemented:
+		return true
+	}
+	return false
+}
+
+// extendContentRatingResponseDeadline gives this one response the write
+// deadline a full apply needs. If the writer cannot be extended (no
+// SetWriteDeadline, or a wrapper hiding the connection) the time left before
+// the server's own deadline is unknown, so no promise about delivering the
+// per-title results can be kept; the caller must refuse before any write.
+func extendContentRatingResponseDeadline(w http.ResponseWriter) error {
+	return http.NewResponseController(w).SetWriteDeadline(time.Now().Add(contentRatingResponseTimeout))
 }
 
 // ContentRatingsApply sets, replaces, marks unrated or clears the operator
@@ -426,12 +461,25 @@ func (h *Handler) ContentRatingsApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The admin gate and validation have passed: only now is the longer write
+	// deadline granted, and before the dial and the first write. If it cannot be
+	// granted, refuse here; a shortened or best-effort apply could not promise
+	// that the per-title results reach the browser.
+	if err := extendContentRatingResponseDeadline(w); err != nil {
+		slog.Error("content-rating: cannot extend the response write deadline; apply refused", "error", err)
+		data.FormError = "This server cannot extend its response time limit for a bulk apply, so nothing was attempted. Nothing was changed."
+		h.renderContentRatingsError(w, r, data, http.StatusFailedDependency)
+		return
+	}
 	applyCtx, cancel := context.WithTimeout(r.Context(), contentRatingApplyTimeout)
 	defer cancel()
 	backend, err := h.openRatingBackend(applyCtx, kind)
 	if err != nil {
 		slog.Warn("content-rating: module unavailable", "kind", kind, "error", err)
 		data.FormError = "The " + data.KindNoun + " module is unavailable. Nothing was changed."
+		// The list was not and cannot be loaded: say so rather than let the
+		// page read as an empty library.
+		data.ListError = "The " + data.KindNoun + " module is unavailable, so ratings cannot be shown."
 		h.renderContentRatingsError(w, r, data, http.StatusFailedDependency)
 		return
 	}
@@ -455,6 +503,17 @@ func (h *Handler) ContentRatingsApply(w http.ResponseWriter, r *http.Request) {
 			res.Outcome = templates.ContentRatingOutcomeFailed
 			res.Message = contentRatingFailureMessage(err)
 			applied.Failed++
+			if !contentRatingWriteRefused(err) {
+				// The module may have committed before the error reached us.
+				// Record the attempt without claiming it succeeded.
+				h.auditLog(r.Context(), sess.UserID, contentRatingAuditAction, "media_item", id, map[string]string{
+					"kind":    kind,
+					"mode":    change.Mode,
+					"rating":  change.Rating,
+					"outcome": "uncertain",
+					"code":    status.Code(err).String(),
+				})
+			}
 		} else {
 			res.Outcome = templates.ContentRatingOutcomeOK
 			applied.OK++
@@ -469,7 +528,9 @@ func (h *Handler) ContentRatingsApply(w http.ResponseWriter, r *http.Request) {
 
 	// Refresh the visible page after the writes so it shows what the module now
 	// holds, and fill result titles from it where the titles are on this page.
-	h.loadContentRatingList(applyCtx, backend, &data)
+	// The refresh has its own read timeout and must not inherit an apply budget
+	// that may already be spent.
+	h.loadContentRatingList(r.Context(), backend, &data)
 	titles := make(map[string]string, len(data.Items))
 	for _, it := range data.Items {
 		titles[it.ID] = it.Title
@@ -482,7 +543,14 @@ func (h *Handler) ContentRatingsApply(w http.ResponseWriter, r *http.Request) {
 }
 
 // renderContentRatingsError renders the page with a form error. The swap
-// header lets htmx show the 4xx/5xx body instead of dropping it.
+// header lets htmx show the body instead of dropping it. That is also why a
+// module outage is 424 (Failed Dependency) and not 502/503: csrf.js swaps only
+// 4xx responses that carry the header, so a 5xx explanation would never be
+// shown to the admin.
+//
+// A refused submission contacts no module (it is validated first), so the list
+// is not loaded here and the page says so (ListLoaded stays false) instead of
+// presenting an empty library.
 func (h *Handler) renderContentRatingsError(w http.ResponseWriter, r *http.Request, data templates.ContentRatingData, code int) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set(swapErrorHeader, "1")

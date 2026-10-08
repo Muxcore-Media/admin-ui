@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -40,7 +41,10 @@ type ratingModuleState struct {
 	calls    []ratingCall
 	lists    []string // search strings of ListMovies / ListTVShows calls
 	failures map[string]error
-	listErr  error
+	// commitThenFail stores the change and then reports an error, as a module
+	// does when its reply is lost or late after the write.
+	commitThenFail map[string]error
+	listErr        error
 	// listErrAfterSet makes every list call fail once any SetContentRating
 	// has succeeded, to model a refresh failure after a write.
 	listErrAfterSet error
@@ -83,6 +87,7 @@ func (s *ratingModuleState) set(id, rating string, explicit bool) error {
 	if err := s.failures[id]; err != nil {
 		return err
 	}
+	commitErr := s.commitThenFail[id]
 	if s.listErrAfterSet != nil {
 		s.listErr = s.listErrAfterSet
 	}
@@ -99,7 +104,7 @@ func (s *ratingModuleState) set(id, rating string, explicit bool) error {
 			s.titles[i].Rating, s.titles[i].Source = rating, "operator"
 		}
 	}
-	return nil
+	return commitErr
 }
 
 func (s *ratingModuleState) callCount() int {
@@ -221,8 +226,8 @@ func serveGRPC(t *testing.T, register func(*grpc.Server)) string {
 func newRatingEnv(t *testing.T, withMovies, withTV bool) *ratingEnv {
 	t.Helper()
 	e := &ratingEnv{
-		movies: &ratingModuleState{failures: map[string]error{}},
-		tv:     &ratingModuleState{failures: map[string]error{}},
+		movies: &ratingModuleState{failures: map[string]error{}, commitThenFail: map[string]error{}},
+		tv:     &ratingModuleState{failures: map[string]error{}, commitThenFail: map[string]error{}},
 		disc:   &ratingDiscovery{},
 	}
 	if withMovies {
@@ -271,7 +276,31 @@ func (e *ratingEnv) get(sess *session.Session, target string) *httptest.Response
 	return w
 }
 
-func (e *ratingEnv) post(sess *session.Session, form url.Values) *httptest.ResponseRecorder {
+// deadlineRecorder is a response recorder that, like a real connection behind
+// the middleware, accepts a write deadline and remembers it.
+type deadlineRecorder struct {
+	*httptest.ResponseRecorder
+	deadlines []time.Time
+}
+
+func newDeadlineRecorder() *deadlineRecorder {
+	return &deadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
+}
+
+func (d *deadlineRecorder) SetWriteDeadline(t time.Time) error {
+	d.deadlines = append(d.deadlines, t)
+	return nil
+}
+
+// post submits form as sess to a writer that accepts a write deadline.
+func (e *ratingEnv) post(sess *session.Session, form url.Values) *deadlineRecorder {
+	w := newDeadlineRecorder()
+	e.postTo(w, sess, form)
+	return w
+}
+
+// postTo submits form as sess to the given writer.
+func (e *ratingEnv) postTo(w http.ResponseWriter, sess *session.Session, form url.Values) {
 	var body io.Reader
 	if form != nil {
 		body = strings.NewReader(form.Encode())
@@ -281,9 +310,7 @@ func (e *ratingEnv) post(sess *session.Session, form url.Values) *httptest.Respo
 	if sess != nil {
 		r = r.WithContext(context.WithValue(r.Context(), ctxSessionKey, sess))
 	}
-	w := httptest.NewRecorder()
 	e.h.ContentRatingsApply(w, r)
-	return w
 }
 
 func movieTitles(n int) []ratingTitle {
@@ -592,12 +619,15 @@ func TestContentRatingModuleErrorsAreRendered(t *testing.T) {
 		name string
 		err  error
 		want string
+		// uncertain: the module may have committed before the error, so the
+		// attempt is audited as outcome=uncertain (never as a success).
+		uncertain bool
 	}{
-		{"invalid argument", status.Error(codes.InvalidArgument, "unsupported token"), "The module rejected this rating (invalid argument: unsupported token)"},
-		{"not found", status.Error(codes.NotFound, "gone"), "no longer has this title"},
-		{"unavailable", status.Error(codes.Unavailable, "down"), "did not answer in time"},
-		{"unimplemented", status.Error(codes.Unimplemented, "old"), "does not support content ratings"},
-		{"internal", status.Error(codes.Internal, "secret stack trace"), "reported an error (Internal)"},
+		{"invalid argument", status.Error(codes.InvalidArgument, "unsupported token"), "The module rejected this rating (invalid argument: unsupported token)", false},
+		{"not found", status.Error(codes.NotFound, "gone"), "no longer has this title", false},
+		{"unavailable", status.Error(codes.Unavailable, "down"), "did not answer in time", true},
+		{"unimplemented", status.Error(codes.Unimplemented, "old"), "does not support content ratings", false},
+		{"internal", status.Error(codes.Internal, "secret stack trace"), "reported an error (Internal)", true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -612,8 +642,15 @@ func TestContentRatingModuleErrorsAreRendered(t *testing.T) {
 			if strings.Contains(body, "secret stack trace") {
 				t.Error("module internals leaked")
 			}
-			if !strings.Contains(body, `data-outcome="failed"`) || len(e.auditRecords()) != 0 {
-				t.Error("failure not reported, or audited as a change")
+			if !strings.Contains(body, `data-outcome="failed"`) {
+				t.Error("failure not reported")
+			}
+			recs := e.auditRecords()
+			switch {
+			case !c.uncertain && len(recs) != 0:
+				t.Errorf("a definite refusal was audited: %+v", recs)
+			case c.uncertain && (len(recs) != 1 || recs[0].Details["outcome"] != "uncertain"):
+				t.Errorf("a possible write was not audited as uncertain: %+v", recs)
 			}
 		})
 	}
@@ -799,5 +836,211 @@ func TestContentRatingPageNumberIsBoundedToInt32(t *testing.T) {
 	w := e.get(ratingSession("admin"), "/content-ratings?page=4294967297")
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "past the end") {
 		t.Errorf("huge page: %d %.200s", w.Code, w.Body.String())
+	}
+}
+
+// A refused submission must not look like an empty library, and must say how
+// to get the list back. The submissions here are validated before any module
+// contact, so the page cannot reload the list itself.
+func TestContentRatingFormErrorsDoNotRenderAnEmptyLibrary(t *testing.T) {
+	cases := map[string]url.Values{
+		"no ids":            {"kind": {"movies"}, "rating": {"G"}},
+		"default Choose":    ratingForm("movies", "", "m001"),
+		"row Set no choice": {"kind": {"movies"}, "only": {"m001"}, "rating_m001": {""}},
+		"bad kind":          {"kind": {"music"}, "rating": {"G"}, "ids": {"m001"}},
+	}
+	for name, form := range cases {
+		t.Run(name, func(t *testing.T) {
+			e := newRatingEnv(t, true, false)
+			e.movies.titles = movieTitles(3)
+			w := e.post(ratingSession("admin"), form)
+			body := w.Body.String()
+			if w.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400", w.Code)
+			}
+			for _, bad := range []string{"content-rating-empty", "in this library yet", "No movies"} {
+				if strings.Contains(body, bad) {
+					t.Errorf("form error rendered as an empty library (%q): %.400s", bad, body)
+				}
+			}
+			if !strings.Contains(body, "content-rating-form-error") {
+				t.Error("the validation error is missing")
+			}
+			if !strings.Contains(body, "content-rating-not-loaded") || !strings.Contains(body, `href="/content-ratings?kind=movies"`) {
+				t.Errorf("no retry path to reload the list: %.600s", body)
+			}
+			if e.disc.count() != 0 || e.movies.callCount() != 0 {
+				t.Error("a refused submission contacted discovery or the module")
+			}
+		})
+	}
+}
+
+func TestContentRatingModuleUnavailableDoesNotRenderAnEmptyLibrary(t *testing.T) {
+	e := newRatingEnv(t, false, false)
+	w := e.post(ratingSession("admin"), ratingForm("movies", "G", "m001"))
+	body := w.Body.String()
+	if w.Code != http.StatusFailedDependency || w.Header().Get(swapErrorHeader) != "1" {
+		t.Fatalf("status = %d, swap header %q", w.Code, w.Header().Get(swapErrorHeader))
+	}
+	for _, bad := range []string{"content-rating-empty", "in this library yet"} {
+		if strings.Contains(body, bad) {
+			t.Errorf("outage rendered as an empty library (%q)", bad)
+		}
+	}
+	if !strings.Contains(body, "content-rating-list-error") || !strings.Contains(body, "module is unavailable") || !strings.Contains(body, "Nothing was changed") {
+		t.Errorf("outage not explained: %.600s", body)
+	}
+}
+
+// A list that was queried and is truly empty still says so.
+func TestContentRatingTrulyEmptyLibraryStillSaysSo(t *testing.T) {
+	e := newRatingEnv(t, true, false)
+	w := e.get(ratingSession("admin"), "/content-ratings")
+	body := w.Body.String()
+	if !strings.Contains(body, "content-rating-empty") || !strings.Contains(body, "in this library yet") {
+		t.Errorf("empty library not reported: %.400s", body)
+	}
+	if strings.Contains(body, "content-rating-not-loaded") {
+		t.Error("a loaded list was shown as not loaded")
+	}
+}
+
+// A call that ends in an error other than a definite refusal may have been
+// committed by the module, so it is audited as uncertain, never as a success.
+func TestContentRatingUncertainWritesAreAudited(t *testing.T) {
+	e := newRatingEnv(t, true, false)
+	e.movies.titles = movieTitles(5)
+	e.movies.commitThenFail["m001"] = status.Error(codes.DeadlineExceeded, "late")
+	e.movies.commitThenFail["m002"] = status.Error(codes.Unavailable, "dropped")
+	e.movies.commitThenFail["m003"] = status.Error(codes.Unknown, "who knows")
+	e.movies.failures["m004"] = status.Error(codes.InvalidArgument, "refused")
+	w := e.post(ratingSession("admin"), ratingForm("movies", "R", "m001", "m002", "m003", "m004", "m005"))
+	body := w.Body.String()
+	if !strings.Contains(body, "may not have been changed") || strings.Contains(body, `data-id="m001" data-outcome="ok"`) {
+		t.Errorf("uncertain outcome misreported: %.600s", body)
+	}
+	got := map[string]auditRecord{}
+	for _, rec := range e.auditRecords() {
+		got[rec.ResourceID] = rec
+	}
+	for _, id := range []string{"m001", "m002", "m003"} {
+		rec, ok := got[id]
+		if !ok {
+			t.Errorf("%s: no audit record for a possibly committed write", id)
+			continue
+		}
+		wantCode := map[string]string{"m001": "DeadlineExceeded", "m002": "Unavailable", "m003": "Unknown"}[id]
+		if rec.Actor != "u-admin" || rec.Action != contentRatingAuditAction || rec.Resource != "media_item" ||
+			rec.Details["outcome"] != "uncertain" || rec.Details["mode"] != "set" || rec.Details["rating"] != "R" ||
+			rec.Details["kind"] != "movies" || rec.Details["code"] != wantCode {
+			t.Errorf("%s: audit = %+v", id, rec)
+		}
+	}
+	if _, ok := got["m004"]; ok {
+		t.Error("a definite refusal was audited as an attempt")
+	}
+	if rec, ok := got["m005"]; !ok || rec.Details["outcome"] != "" {
+		t.Errorf("m005 success audit = %+v", rec)
+	}
+	if len(got) != 4 {
+		t.Errorf("audit records = %d, want 4", len(got))
+	}
+}
+
+// The full apply budget needs a longer write deadline, granted once, after the
+// admin gate and validation, and covering the apply, the refresh and the render
+// margin.
+func TestContentRatingApplyExtendsTheWriteDeadlineOnlyWhenItWorks(t *testing.T) {
+	e := newRatingEnv(t, true, false)
+	e.movies.titles = movieTitles(1)
+	before := time.Now()
+	w := e.post(ratingSession("admin"), ratingForm("movies", "G", "m001"))
+	if len(w.deadlines) != 1 {
+		t.Fatalf("write deadline set %d times, want 1", len(w.deadlines))
+	}
+	want := contentRatingApplyTimeout + contentRatingReadTimeout + contentRatingRenderMargin
+	if got := w.deadlines[0].Sub(before); got < want || got > want+5*time.Second {
+		t.Errorf("deadline is %v ahead, want about %v", got, want)
+	}
+	if !strings.Contains(w.Body.String(), `data-id="m001" data-outcome="ok"`) {
+		t.Error("the apply did not run")
+	}
+
+	// Refused submissions get no extension.
+	for name, form := range map[string]url.Values{
+		"bad choice": ratingForm("movies", "nope", "m001"),
+		"no ids":     {"kind": {"movies"}, "rating": {"G"}},
+		"bad kind":   {"kind": {"x"}, "rating": {"G"}, "ids": {"m001"}},
+	} {
+		if w := e.post(ratingSession("admin"), form); len(w.deadlines) != 0 {
+			t.Errorf("%s: deadline extended for a refused submission", name)
+		}
+	}
+}
+
+// Only admins ever get the longer deadline: the gate runs first.
+func TestContentRatingNonAdminNeverExtendsTheWriteDeadline(t *testing.T) {
+	for _, roles := range [][]string{{"manager"}, {"user"}, {"viewer"}, nil} {
+		e := newRatingEnv(t, true, true)
+		e.movies.titles = movieTitles(1)
+		w := e.post(ratingSession(roles...), ratingForm("movies", "G", "m001"))
+		if w.Code != http.StatusForbidden || len(w.deadlines) != 0 {
+			t.Errorf("roles %v: status %d, deadlines %d", roles, w.Code, len(w.deadlines))
+		}
+		if e.disc.count() != 0 || e.movies.callCount() != 0 || len(e.auditRecords()) != 0 {
+			t.Errorf("roles %v: reached a module", roles)
+		}
+	}
+	e := newRatingEnv(t, true, false)
+	w := e.postAnonymous()
+	if w.Code != http.StatusForbidden || len(w.deadlines) != 0 {
+		t.Errorf("no session: status %d, deadlines %d", w.Code, len(w.deadlines))
+	}
+}
+
+func (e *ratingEnv) postAnonymous() *deadlineRecorder {
+	return e.post(nil, ratingForm("movies", "G", "m001"))
+}
+
+// A writer that cannot take a deadline (a plain recorder, or a wrapper that
+// hides the connection) leaves the time before the server's own deadline
+// unknown. The apply is then refused before any dial or write, with an error
+// the browser will show.
+func TestContentRatingRefusesBeforeAnyWriteWhenDeadlineCannotBeExtended(t *testing.T) {
+	e := newRatingEnv(t, true, false)
+	e.movies.titles = movieTitles(2)
+	w := httptest.NewRecorder() // no SetWriteDeadline, no Unwrap
+	e.postTo(w, ratingSession("admin"), ratingForm("movies", "G", "m001", "m002"))
+	body := w.Body.String()
+	if w.Code != http.StatusFailedDependency || w.Header().Get(swapErrorHeader) != "1" {
+		t.Fatalf("status = %d, swap header %q", w.Code, w.Header().Get(swapErrorHeader))
+	}
+	if !strings.Contains(body, "could not extend") && !strings.Contains(body, "cannot extend") {
+		t.Errorf("reason missing: %.500s", body)
+	}
+	if !strings.Contains(body, "Nothing was changed") || strings.Contains(body, "in this library yet") {
+		t.Errorf("unclear or misleading page: %.500s", body)
+	}
+	if e.disc.count() != 0 || e.movies.callCount() != 0 || len(e.auditRecords()) != 0 {
+		t.Error("a refused apply reached discovery, the module or the audit log")
+	}
+}
+
+// A writer whose deadline call fails is refused the same way.
+type failingDeadlineWriter struct{ *httptest.ResponseRecorder }
+
+func (failingDeadlineWriter) SetWriteDeadline(time.Time) error { return fmt.Errorf("connection gone") }
+
+func TestContentRatingRefusesBeforeAnyWriteWhenSettingDeadlineFails(t *testing.T) {
+	e := newRatingEnv(t, true, false)
+	e.movies.titles = movieTitles(1)
+	w := failingDeadlineWriter{httptest.NewRecorder()}
+	e.postTo(w, ratingSession("admin"), ratingForm("movies", "G", "m001"))
+	if w.Code != http.StatusFailedDependency || w.Header().Get(swapErrorHeader) != "1" {
+		t.Fatalf("status = %d", w.Code)
+	}
+	if e.disc.count() != 0 || e.movies.callCount() != 0 || len(e.auditRecords()) != 0 {
+		t.Error("a refused apply reached discovery, the module or the audit log")
 	}
 }

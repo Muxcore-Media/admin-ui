@@ -64,6 +64,9 @@ type ContentRatingData struct {
 	PageSize int
 	Total    int
 	Items    []ContentRatingItem
+	// ListLoaded is true only when the module answered a list request. Without
+	// it an empty Items means "not queried or failed", never "no titles".
+	ListLoaded bool
 	// RatingOptions is the ladder, in display order.
 	RatingOptions []string
 	// ListError is set when the module could not list titles.
@@ -200,6 +203,12 @@ templ ContentRatingsPage(data ContentRatingData) {
 		}
 		if data.ListError != "" {
 			<p class="rounded-lg border border-red-700 bg-red-950/40 p-3 text-sm text-red-200" role="alert" data-testid="content-rating-list-error">{ data.ListError }</p>
+		} else if !data.ListLoaded {
+			<p class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-300" role="status" data-testid="content-rating-not-loaded">
+				The { data.KindNoun } list was not loaded for this request.
+				<a href={ templ.SafeURL(ContentRatingPageURL(data.Kind, data.Query, data.Page)) } class="underline">Reload the list</a>
+				to see current ratings and try again.
+			</p>
 		} else if len(data.Items) == 0 {
 			<p class="rounded-xl border border-gray-800 bg-gray-900/50 p-4 text-sm text-gray-400" data-testid="content-rating-empty">
 				if data.Total > 0 {
