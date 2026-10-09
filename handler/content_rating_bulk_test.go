@@ -74,8 +74,11 @@ func (s *ratingModuleState) record(ctx context.Context) {
 
 type ratingTitle struct {
 	ID, Title, Rating, Source string
-	Year                      int32
-	Tags                      []string
+	// TMDB is the lower-precedence rating a module falls back to once the
+	// operator value is cleared (media-movies and media-tvshows v0.1.24).
+	TMDB string
+	Year int32
+	Tags []string
 }
 
 func (s *ratingModuleState) list(page, size int32, search string) ([]ratingTitle, int32, error) {
@@ -122,6 +125,8 @@ func (s *ratingModuleState) set(id, rating string, explicit bool) error {
 		switch {
 		case explicit:
 			s.titles[i].Rating, s.titles[i].Source = "NR", "operator"
+		case rating == "" && s.titles[i].TMDB != "":
+			s.titles[i].Rating, s.titles[i].Source = s.titles[i].TMDB, "tmdb"
 		case rating == "":
 			s.titles[i].Rating, s.titles[i].Source = "", ""
 		default:
@@ -526,7 +531,7 @@ func TestContentRatingBulkAdminListsStatesSourceAndTags(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Rated PG-13", "Not rated (NR)", "Unavailable", "Operator", "anime", "classic", "Rated One (1999)",
-		"hidden from restricted accounts", "not taken from TMDB",
+		"hidden from restricted accounts", "A TMDB rating applies only where no operator classification exists",
 		"which is not a known rating",
 	} {
 		if !strings.Contains(body, want) {
@@ -594,16 +599,22 @@ func TestContentRatingBulkSetReplaceNRClearMapToRPCFields(t *testing.T) {
 			// The per-item page's audit shape: requested values always, stored
 			// values because each save was read back and matched.
 			module := map[string]string{"movies": "media-movies", "tv": "media-tvshows"}[kind]
+			wantMode := []string{"set", "set", "unrated", "clear", "set"}
 			wantRating := []string{"TV-14", "PG", "NR", "", "E10+"}
 			wantSource := []string{"operator", "operator", "operator", "", "operator"}
+			// A clear with no TMDB value reads back as nothing at all.
+			wantEffective := []string{"operator TV-14", "operator PG", "operator NR", "none", "operator E10+"}
 			for i, rec := range recs {
 				if rec.Action != "admin.media.content_rating" || rec.Resource != "media_item" || rec.ResourceID != "x1" || rec.Actor != admin.UserID {
 					t.Errorf("audit %d = %+v", i, rec)
 				}
 				want := map[string]string{
 					"module": module, "outcome": "confirmed", "reason": "readback_matched",
+					"requested_mode":   wantMode[i],
 					"requested_rating": wantRating[i], "requested_source": wantSource[i],
+					"observed_rating": wantRating[i], "observed_source": wantSource[i],
 					"content_rating": wantRating[i], "source": wantSource[i],
+					"effective": wantEffective[i],
 				}
 				if !reflect.DeepEqual(rec.Details, want) {
 					t.Errorf("audit %d details = %v, want %v", i, rec.Details, want)
@@ -768,7 +779,7 @@ func TestContentRatingBulkModuleErrorsAreRendered(t *testing.T) {
 			// the requested value and the gRPC code as the reason.
 			want := map[string]string{
 				"module": "media-movies", "outcome": wantAudit, "reason": c.code,
-				"requested_rating": "R", "requested_source": "operator",
+				"requested_mode": "set", "requested_rating": "R", "requested_source": "operator",
 			}
 			if len(recs) != 1 || !reflect.DeepEqual(recs[0].Details, want) {
 				t.Errorf("audit = %+v, want details %v", recs, want)
@@ -1059,10 +1070,11 @@ func TestContentRatingBulkUncertainWritesAreAudited(t *testing.T) {
 		rec := got[id]
 		details := map[string]string{
 			"module": "media-movies", "outcome": want.outcome, "reason": want.reason,
-			"requested_rating": "R", "requested_source": "operator",
+			"requested_mode": "set", "requested_rating": "R", "requested_source": "operator",
 		}
 		if want.outcome == "confirmed" {
-			details["content_rating"], details["source"] = "R", "operator"
+			details["content_rating"], details["source"], details["effective"] = "R", "operator", "operator R"
+			details["observed_rating"], details["observed_source"] = "R", "operator"
 		}
 		if rec.Actor != "u-admin" || rec.Action != contentRatingAuditAction || rec.Resource != "media_item" || !reflect.DeepEqual(rec.Details, details) {
 			t.Errorf("%s: audit = %+v, want details %v", id, rec, details)
@@ -1120,7 +1132,13 @@ func TestContentRatingBulkAcknowledgedWriteNeedsMatchingReadback(t *testing.T) {
 			}
 			want := map[string]string{
 				"module": "media-movies", "outcome": "uncertain", "reason": c.reason,
-				"requested_rating": "R", "requested_source": "operator",
+				"requested_mode": "set", "requested_rating": "R", "requested_source": "operator",
+			}
+			// What the readback did return is recorded as observed, never as the
+			// stored classification; a failed readback observed nothing.
+			if c.reason == "readback_mismatch" {
+				got := e.movies.readAs["m001"]
+				want["observed_rating"], want["observed_source"] = got[0], got[1]
 			}
 			if recs[0].ResourceID != "m001" || !reflect.DeepEqual(recs[0].Details, want) {
 				t.Errorf("m001 audit = %+v, want details %v", recs[0], want)
@@ -1139,7 +1157,8 @@ func TestContentRatingBulkAcknowledgedWriteNeedsMatchingReadback(t *testing.T) {
 }
 
 // NR and Clear are confirmed against what the module reports for them, not
-// against the literal request: NR stores "NR"/operator, Clear stores nothing.
+// against the literal request: NR stores "NR"/operator; Clear is confirmed once
+// the operator value is gone (nothing, or the TMDB fallback).
 func TestContentRatingBulkReadbackExpectationPerChoice(t *testing.T) {
 	for _, tc := range []struct {
 		choice, readRating, readSource string
@@ -1147,9 +1166,23 @@ func TestContentRatingBulkReadbackExpectationPerChoice(t *testing.T) {
 	}{
 		{"NR", "NR", "operator", "ok"},
 		{"NR", "", "operator", "uncertain"},
+		{"NR", "NR", "tmdb", "uncertain"},
+		// A clear is confirmed when the operator value is gone: nothing left,
+		// or a TMDB rating (ladder token or NR) the module fell back to.
 		{"CLEAR", "", "", "ok"},
+		{"CLEAR", "R", "tmdb", "ok"},
+		{"CLEAR", "TV-MA", "tmdb", "ok"},
+		{"CLEAR", "NR", "tmdb", "ok"},
 		{"CLEAR", "", "operator", "uncertain"},
 		{"CLEAR", "R", "operator", "uncertain"},
+		{"CLEAR", "NR", "operator", "uncertain"},
+		{"CLEAR", "", "tmdb", "uncertain"},
+		{"CLEAR", "15", "tmdb", "uncertain"},
+		{"CLEAR", "r", "tmdb", "uncertain"},
+		{"CLEAR", "R", "", "uncertain"},
+		{"CLEAR", "R", "other", "uncertain"},
+		{"PG-13", "PG-13", "tmdb", "uncertain"},
+		{"PG-13", "PG-13", "", "uncertain"},
 		{"PG-13", "PG-13", "operator", "ok"},
 		{"PG-13", "pg-13", "operator", "uncertain"}, // exact, as on the per-item page
 	} {

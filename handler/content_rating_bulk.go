@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Muxcore-Media/userdata-local/parental"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -32,6 +33,11 @@ import (
 const (
 	contentRatingKindMovies = "movies"
 	contentRatingKindTV     = "tv"
+
+	// Sources a module reports in content_rating_source. The operator value
+	// always wins; tmdb applies only where no operator value exists.
+	contentRatingSourceOperator = "operator"
+	contentRatingSourceTMDB     = "tmdb"
 
 	contentRatingModuleMovies = "media-movies"
 	contentRatingModuleTV     = "media-tvshows"
@@ -69,7 +75,7 @@ const (
 )
 
 // contentRatingChange is the RPC mapping of one form choice. It is the single
-// place where "Not rated (NR)" and "Clear (unavailable)" are told apart:
+// place where "Not rated (NR)" and "Clear operator rating" are told apart:
 // NR is explicit_unrated=true with an empty rating, Clear is an empty rating
 // with explicit_unrated=false, and the modules reject the literal token "NR".
 type contentRatingChange struct {
@@ -79,17 +85,51 @@ type contentRatingChange struct {
 	Mode string
 }
 
-// expected is the classification a module must report after this change: the
-// rating and source a confirming readback has to match exactly. NR reads back as
-// "NR" set by the operator; a clear reads back as nothing at all.
-func (ch contentRatingChange) expected() (rating, source string) {
+// requested is the classification this change asks for, as the audit records
+// it: NR is "NR" set by the operator, a clear is nothing at all. It is a record
+// of intent only; whether a readback confirms the change is confirmedBy.
+func (ch contentRatingChange) requested() (rating, source string) {
 	switch ch.Mode {
 	case "unrated":
-		return contentRatingChoiceNR, "operator"
+		return contentRatingChoiceNR, contentRatingSourceOperator
 	case "clear":
 		return "", ""
 	}
-	return ch.Rating, "operator"
+	return ch.Rating, contentRatingSourceOperator
+}
+
+// confirmedBy is the confirmation predicate for the readback that follows an
+// acknowledged write.
+//
+// A set or an NR must read back exactly as requested: the operator source and
+// the exact token. A clear is confirmed when the OPERATOR value is gone, not
+// when nothing is left: the modules fall back to a lower-precedence TMDB value
+// (media-movies and media-tvshows v0.1.24), so the effective classification
+// after a clear is either nothing ("", "") or a TMDB rating (a ladder token or
+// NR, source "tmdb"). A readback that still names the operator source, an
+// unknown source, or an inconsistent rating/source pair is not confirmed.
+func (ch contentRatingChange) confirmedBy(rating, source string) bool {
+	if ch.Mode != "clear" {
+		wantRating, wantSource := ch.requested()
+		return rating == wantRating && source == wantSource
+	}
+	switch source {
+	case "":
+		return rating == ""
+	case contentRatingSourceTMDB:
+		return contentRatingCanonicalRating(rating)
+	}
+	return false
+}
+
+// contentRatingCanonicalRating reports whether rating is exactly a ladder token
+// or NR, the only values a module reports for a usable classification.
+func contentRatingCanonicalRating(rating string) bool {
+	if rating == contentRatingChoiceNR {
+		return true
+	}
+	_, valid := parental.RatingLevel(rating)
+	return valid && rating == strings.ToUpper(strings.TrimSpace(rating))
 }
 
 // parseContentRatingChoice maps a submitted choice to the RPC fields. It
@@ -114,7 +154,7 @@ func contentRatingChoiceLabel(ch contentRatingChange) string {
 	case "unrated":
 		return "Not rated (NR)"
 	case "clear":
-		return "Cleared (unavailable)"
+		return "Operator rating cleared"
 	}
 	return ch.Rating
 }
@@ -486,7 +526,7 @@ func (h *Handler) ContentRatingsBulkApply(w http.ResponseWriter, r *http.Request
 	}
 	change, ok := parseContentRatingChoice(choice)
 	if !ok {
-		data.FormError = "Choose a rating from the list, Not rated (NR), or Clear (unavailable). Nothing was changed."
+		data.FormError = "Choose a rating from the list, Not rated (NR), or Clear operator rating. Nothing was changed."
 		h.renderContentRatingsError(w, r, data, http.StatusBadRequest)
 		return
 	}
@@ -527,7 +567,6 @@ func (h *Handler) ContentRatingsBulkApply(w http.ResponseWriter, r *http.Request
 
 	applied := &templates.ContentRatingBulkApplied{Choice: contentRatingChoiceLabel(change), Mode: change.Mode}
 	module := contentRatingModuleID(kind)
-	wantRating, wantSource := change.expected()
 	// authStop is the HTTP status of the first auth failure. A revoked bearer
 	// or a refusing provider will refuse every remaining title the same way, so
 	// the batch stops: the rest are reported as not attempted and cost no RPC.
@@ -548,6 +587,7 @@ func (h *Handler) ContentRatingsBulkApply(w http.ResponseWriter, r *http.Request
 		// Requested values are recorded always; stored values only when a
 		// readback confirms them. The audit detaches from request cancellation.
 		var outcome, reason string
+		var observed *contentRatingReadback
 		callCtx, callCancel := context.WithTimeout(applyCtx, contentRatingReadTimeout)
 		err := backend.set(callCtx, id, change)
 		callCancel()
@@ -564,8 +604,12 @@ func (h *Handler) ContentRatingsBulkApply(w http.ResponseWriter, r *http.Request
 			title, rating, source, readErr = backend.get(readCtx, id)
 			readCancel()
 			res.Title = title
-			if readErr == nil && rating == wantRating && source == wantSource {
+			if readErr == nil {
+				observed = &contentRatingReadback{Rating: rating, Source: source}
+			}
+			if readErr == nil && change.confirmedBy(rating, source) {
 				outcome, reason = contentRatingOutcomeConfirmed, contentRatingReasonMatched
+				res.Rating, res.Source = rating, source
 			} else {
 				outcome, reason = contentRatingOutcomeUncertain, contentRatingReadbackReason(readErr)
 				res.Message = "The save was acknowledged, but this title's current rating could not be confirmed. Check it before saving again."
@@ -575,6 +619,15 @@ func (h *Handler) ContentRatingsBulkApply(w http.ResponseWriter, r *http.Request
 		case contentRatingOutcomeConfirmed:
 			res.Outcome = templates.ContentRatingBulkOutcomeOK
 			applied.OK++
+			if change.Mode == "clear" {
+				// The operator value is gone; what remains is the effective
+				// classification the module reports now.
+				if res.Source == contentRatingSourceTMDB {
+					applied.ClearedToTMDB++
+				} else {
+					applied.ClearedToNone++
+				}
+			}
 		case contentRatingOutcomeRefused:
 			res.Outcome = templates.ContentRatingBulkOutcomeFailed
 			applied.Failed++
@@ -582,7 +635,7 @@ func (h *Handler) ContentRatingsBulkApply(w http.ResponseWriter, r *http.Request
 			res.Outcome = templates.ContentRatingBulkOutcomeUncertain
 			applied.Uncertain++
 		}
-		h.auditLog(r.Context(), sess.UserID, contentRatingAuditAction, "media_item", id, contentRatingAuditDetails(module, wantRating, wantSource, outcome, reason))
+		h.auditLog(r.Context(), sess.UserID, contentRatingAuditAction, "media_item", id, contentRatingAuditDetails(module, change, outcome, reason, observed))
 		applied.Results = append(applied.Results, res)
 		// An auth failure on the write, or on the readback of an acknowledged
 		// write, ends the batch.

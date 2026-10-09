@@ -157,13 +157,21 @@ func readContentRating(ctx context.Context, conn *grpc.ClientConn, d *templates.
 	}
 	d.Loaded = true
 	d.State = "Unavailable — restricted accounts are denied."
-	if d.Rating == "" && d.Source == "" {
+	switch {
+	case d.Rating == "" && d.Source == "":
 		d.Selected = "clear"
-	} else if d.Source == "operator" {
+	case d.Source == contentRatingSourceOperator:
 		if _, valid := parental.RatingLevel(d.Rating); valid {
 			d.State, d.Selected = "Rated by an operator", strings.ToUpper(strings.TrimSpace(d.Rating))
 		} else if d.Rating == "NR" || d.Rating == "UR" {
 			d.State, d.Selected = "Explicit unrated", "unrated"
+		}
+	case d.Source == contentRatingSourceTMDB && contentRatingCanonicalRating(d.Rating):
+		// No operator classification exists; TMDB's value applies. Preselect
+		// "clear" because that is the operator state on record.
+		d.State, d.Selected = "Rated by TMDB (no operator classification)", "clear"
+		if d.Rating == "NR" {
+			d.State = "Not rated according to TMDB (no operator classification)"
 		}
 	}
 	return nil
@@ -260,13 +268,14 @@ func (h *Handler) ContentRatingSave(w http.ResponseWriter, r *http.Request) {
 	case "unrated":
 		mode = "unrated"
 	}
-	wantRating, wantSource := contentRatingChange{Rating: rating, ExplicitUnrated: unrated, Mode: mode}.expected()
+	change := contentRatingChange{Rating: rating, ExplicitUnrated: unrated, Mode: mode}
+	var observed *contentRatingReadback
 	// Record each dispatched mutation once, including lost acknowledgements and
 	// failed readback. Requested values are not evidence of a committed value.
 	outcome, reason := contentRatingOutcomeUncertain, "write_interrupted"
 	defer func() {
 		h.auditLog(r.Context(), SessionFromContext(r.Context()).UserID, contentRatingAuditAction, "media_item", d.ItemID,
-			contentRatingAuditDetails(d.ModuleID, wantRating, wantSource, outcome, reason))
+			contentRatingAuditDetails(d.ModuleID, change, outcome, reason, observed))
 	}()
 	writeCtx, writeCancel := context.WithTimeout(ctx, mediaReadTimeout)
 	switch d.ModuleID {
@@ -286,14 +295,17 @@ func (h *Handler) ContentRatingSave(w http.ResponseWriter, r *http.Request) {
 	// The mutation returns an empty acknowledgement. Read the authoritative item
 	// once; do not claim success for a stale/mismatched value or retry a write.
 	err = readContentRating(ctx, conn, &d)
-	if err != nil || d.Rating != wantRating || d.Source != wantSource {
+	if err == nil {
+		observed = &contentRatingReadback{Rating: d.Rating, Source: d.Source}
+	}
+	if err != nil || !change.confirmedBy(d.Rating, d.Source) {
 		reason = contentRatingReadbackReason(err)
 		d.Error = "The save was acknowledged, but its current classification could not be confirmed. Reload and check before saving again."
 		d.Loaded = false
 		h.renderContentRating(w, r, d, http.StatusBadGateway)
 		return
 	}
-	d.Saved = true
+	d.Saved, d.Cleared = true, mode == "clear"
 	outcome, reason = contentRatingOutcomeConfirmed, contentRatingReasonMatched
 	h.renderContentRating(w, r, d, http.StatusOK)
 }
@@ -311,14 +323,40 @@ const (
 	contentRatingReasonMatched = "readback_matched"
 )
 
+// contentRatingReadback is the classification a module reported when the item
+// was read back after an acknowledged write.
+type contentRatingReadback struct{ Rating, Source string }
+
+// effective names the readback for an operator: "operator PG", "tmdb R" or
+// "none".
+func (rb contentRatingReadback) effective() string {
+	if rb.Rating == "" && rb.Source == "" {
+		return "none"
+	}
+	return strings.TrimSpace(rb.Source + " " + rb.Rating)
+}
+
 // contentRatingAuditDetails is the one audit shape for an attempted write.
-// requested_* always carry the intended classification; content_rating and
-// source (the stored values) appear only for a confirmed outcome. reason is a
-// fixed code, never provider error text.
-func contentRatingAuditDetails(module, wantRating, wantSource, outcome, reason string) map[string]string {
-	details := map[string]string{"module": module, "requested_rating": wantRating, "requested_source": wantSource, "outcome": outcome, "reason": reason}
-	if outcome == contentRatingOutcomeConfirmed {
-		details["content_rating"], details["source"] = wantRating, wantSource
+// requested_mode, requested_rating and requested_source always carry the
+// intended change (a clear requests no rating and no source). observed_* are
+// the classification the module reported on the readback, present whenever a
+// readback was obtained, whether or not it matched. content_rating, source and
+// effective (for example "tmdb R" after a clear that fell back to TMDB) appear
+// only for a confirmed outcome. reason is a fixed code, never provider error
+// text.
+func contentRatingAuditDetails(module string, change contentRatingChange, outcome, reason string, observed *contentRatingReadback) map[string]string {
+	wantRating, wantSource := change.requested()
+	details := map[string]string{
+		"module": module, "requested_mode": change.Mode,
+		"requested_rating": wantRating, "requested_source": wantSource,
+		"outcome": outcome, "reason": reason,
+	}
+	if observed != nil {
+		details["observed_rating"], details["observed_source"] = observed.Rating, observed.Source
+		if outcome == contentRatingOutcomeConfirmed {
+			details["content_rating"], details["source"] = observed.Rating, observed.Source
+			details["effective"] = observed.effective()
+		}
 	}
 	return details
 }

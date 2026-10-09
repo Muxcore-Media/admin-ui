@@ -447,17 +447,34 @@ media-tvshows v0.1.23). The existing `admin.access` check remains required; save
 also require the current, revalidated `admin` role and a bound provider bearer.
 Manager accounts can view this page when authorized, but cannot save ratings.
 
-Choose a supported rating, **Explicit unrated (NR)**, or **Clear rating —
-unavailable**. NR is allowed only by policies that allow unrated items. Clearing
-leaves restricted accounts denied even if they allow unrated items. Unknown
-values and sources also display as unavailable; no rating is inferred from
+Choose a supported rating, **Explicit unrated (NR)**, or **Clear operator
+classification**. NR is allowed only by policies that allow unrated items.
+
+**Operator and TMDB sources.** media-movies and media-tvshows (v0.1.24 or later)
+hold two classification sources per item: the operator value set here, and a
+lower-precedence `tmdb` value. The effective rating is the operator value if
+present, else the TMDB value, else unavailable (`content_rating_source` is
+`operator`, `tmdb` or empty). A TMDB rating applies only where no operator
+classification exists; setting one here overrides it; clearing returns to TMDB.
+Both pages state the source of the effective rating in words (Operator, TMDB,
+None), never by colour alone. Clearing with no TMDB value leaves the item
+unavailable, so restricted accounts are denied even if they allow unrated items.
+Unknown values and sources also display as unavailable; no rating is inferred from
 votes, filenames or editable metadata. All TV seasons and episodes inherit the
 series classification. The page explains that restrictions on admin/manager
 accounts are not a security boundary because these roles can change ratings or
 tags.
 
 Writes use `SetContentRating` with exactly the current session's provider bearer,
-then read the owning item back before displaying confirmation. The module RPCs
+then read the owning item back before displaying confirmation. Confirmation is a
+predicate on the readback, not one fixed value: a **set** or **NR** must read
+back exactly as requested (source `operator`, the exact token or `NR`); a
+**clear** is confirmed when the operator value is gone, that is, source is not
+`operator` and the pair is either empty (`""`, `""`) or a TMDB rating (a ladder
+token or `NR`, source `tmdb`). A clear whose readback still shows the operator
+source, an unknown source or an inconsistent pair is not confirmed. After a
+confirmed clear the page says what applies now, for example "Operator
+classification cleared; the effective rating is now R from TMDB.". The module RPCs
 delegate caller authorization, so the admin route's role check is essential.
 These contracts have no revision comparison: saves replace the operator value;
 reload first if another admin may have edited it. Failed writes are never
@@ -476,8 +493,12 @@ no classification call is made on that path.
 Every dispatched `SetContentRating` attempt emits one
 `admin.media.content_rating` audit outcome: `confirmed` after matching readback,
 `refused` for a definite provider rejection, or `uncertain` after a timeout,
-unavailable service or unconfirmed readback. Audits distinguish the requested
-value from a confirmed saved value and use fixed reason codes without provider
+unavailable service or unconfirmed readback. Audits record `requested_mode`
+(`set`, `unrated` or `clear`) and the requested value, and, whenever a readback
+was obtained, the classification it showed (`observed_rating`,
+`observed_source`). Only a confirmed outcome adds the stored `content_rating`,
+`source` and an `effective` summary such as `tmdb R` (cleared; TMDB now
+applies), `none` or `operator PG`. Audits use fixed reason codes without provider
 error text or bearer material. Audit delivery remains asynchronous and bounded;
 it does not retry the classification write.
 
@@ -497,11 +518,14 @@ media-movies / media-tvshows (v0.1.23 or later), resolve the module by its ID
 - **Unavailable items are hidden from restricted accounts.** A title with no
   operator rating is "unavailable"; until an admin rates titles, restricted
   accounts see an empty library.
-- Each row shows the rating, who set it (`operator`) and its tags. State is one
+- Each row shows the rating, the **source** of the effective rating in text
+  (Operator, TMDB, or None; a TMDB row also says "No operator classification")
+  and its tags. A TMDB rating applies only where no operator classification
+  exists; setting one here overrides it; clearing returns to TMDB. State is one
   of *Rated* (a ladder token), *Not rated (NR)* (an explicit decision) and
   *Unavailable*. Per row: choose a ladder token (`G TV-Y TV-Y7 TV-Y7-FV ALL E PG
   TV-G TV-PG E10+ PG-13 TV-14 T R TV-MA M MA NC-17 AO X`), **Not rated (NR)**, or
-  **Clear (unavailable)** and press Set; or tick titles and use "Apply to
+  **Clear operator rating** and press Set; or tick titles and use "Apply to
   selected" (selection is per page). Nothing is free text; the token list is the
   single `parentalRatingTokens` list, pinned by a test.
 - RPC mapping: a token → `content_rating=<token>`; NR → empty rating with
@@ -509,13 +533,15 @@ media-movies / media-tvshows (v0.1.23 or later), resolve the module by its ID
 - An apply makes one `SetContentRating` call per title and then reads that
   title back once, exactly as the per-item page does (the module's reply is an
   empty acknowledgement and proves nothing about the stored value). Every title
-  is listed with one outcome: *changed* (the readback matched the request),
+  is listed with one outcome: *changed* (the readback confirmed the request),
   *failed* (the module definitely refused; nothing changed), *not confirmed*
   (the reply was lost or late, or the readback failed or showed another value;
   the title may or may not have changed, so check it before saving again) or
   *not attempted*. A partial failure is never silent, an acknowledged write is
-  never reported as changed without its matching readback, and a write is never
-  retried. The page is then refreshed from the module.
+  never reported as changed without a confirming readback (for a clear: the
+  operator value is gone; the result line says whether a TMDB rating or nothing
+  now applies, and the summary counts both), and a write is never retried. The
+  page is then refreshed from the module.
 - **An authorization failure ends the batch.** If the module answers a write (or
   the readback of an acknowledged write) with `Unauthenticated` (revoked or
   expired bearer) or `PermissionDenied`, admin-ui makes no further module call

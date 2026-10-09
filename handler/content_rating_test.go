@@ -27,13 +27,16 @@ import (
 type ratingFixture struct {
 	mu                         sync.Mutex
 	rating, source, responseID string
-	readErr, writeErr          codes.Code
-	ignoreWrite                bool
-	gets, sets                 int
-	lastID, lastRating         string
-	lastUnrated                bool
-	identities                 []metadata.MD
-	beforeCall                 func(context.Context, bool)
+	// tmdb is the lower-precedence rating the module falls back to once the
+	// operator value is cleared (media-movies and media-tvshows v0.1.24).
+	tmdb               string
+	readErr, writeErr  codes.Code
+	ignoreWrite        bool
+	gets, sets         int
+	lastID, lastRating string
+	lastUnrated        bool
+	identities         []metadata.MD
+	beforeCall         func(context.Context, bool)
 }
 
 func (f *ratingFixture) intercept(ctx context.Context, req any, _ *grpc.UnaryServerInfo, next grpc.UnaryHandler) (any, error) {
@@ -71,6 +74,9 @@ func (f *ratingFixture) intercept(ctx context.Context, req any, _ *grpc.UnarySer
 			}
 			if rating == "" && !unrated {
 				f.source = ""
+				if f.tmdb != "" {
+					f.rating, f.source = f.tmdb, "tmdb"
+				}
 			}
 		}
 		if _, ok := req.(*movies.SetContentRatingRequest); ok {
@@ -134,7 +140,11 @@ func TestContentRatingRoundTrip(t *testing.T) {
 				h := newRatingHandler(t, f)
 				w := httptest.NewRecorder()
 				h.ContentRatingSave(w, ratingRequest("POST", module, url.Values{"classification": {choice}}.Encode(), []string{"admin"}, "current-bearer"))
-				if w.Code != 200 || !strings.Contains(w.Body.String(), "saved and checked") {
+				wantNotice := "saved and checked"
+				if choice == "clear" {
+					wantNotice = "Operator classification cleared; no classification is available now."
+				}
+				if w.Code != 200 || !strings.Contains(w.Body.String(), wantNotice) {
 					t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
 				}
 				if f.sets != 1 || f.gets != 1 || f.lastID != "fixture" {
@@ -171,7 +181,7 @@ func TestContentRatingRoundTrip(t *testing.T) {
 func TestContentRatingStates(t *testing.T) {
 	for _, tc := range []struct{ rating, source, want string }{
 		{"", "", "Unavailable"}, {"NR", "operator", "Explicit unrated"}, {"UR", "operator", "Explicit unrated"},
-		{"PG", "operator", "Rated by an operator"}, {"15", "operator", "Unavailable"}, {"PG", "tmdb", "Unavailable"}, {"PG", "", "Unavailable"},
+		{"PG", "operator", "Rated by an operator"}, {"15", "operator", "Unavailable"}, {"PG", "tmdb", "Rated by TMDB"}, {"NR", "tmdb", "Not rated according to TMDB"}, {"15", "tmdb", "Unavailable"}, {"PG", "", "Unavailable"},
 	} {
 		t.Run(tc.rating+"/"+tc.source, func(t *testing.T) {
 			f := &ratingFixture{rating: tc.rating, source: tc.source}

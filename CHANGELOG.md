@@ -27,6 +27,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Clearing an operator content rating no longer fails with HTTP 502 when the
+  media module falls back to a TMDB rating. media-movies and media-tvshows
+  v0.1.24 report the effective rating (operator, else `tmdb`, else none), so a
+  clear legitimately reads back as e.g. `R` from `tmdb`; the confirming readback
+  expected exactly nothing and rejected it although the clear had taken effect.
+  Confirmation is now a predicate: a set or NR must still read back exactly
+  (operator source, exact token or NR); a clear is confirmed once the operator
+  value is gone (empty, or a ladder-valid or NR `tmdb` rating) and is not
+  confirmed while the readback still names the operator source. Single write,
+  no retry, uncertain wording for lost acknowledgements and the authoritative
+  same-item readback are unchanged. The audit entry now also records
+  `requested_mode`, the observed readback (`observed_rating`,
+  `observed_source`) and, when confirmed, `effective` (e.g. `tmdb R`). The item
+  page and the bulk list and results state the source of the effective rating
+  in words (Operator, TMDB, None) with a sentence on precedence, and a confirmed
+  clear says "Operator classification cleared; the effective rating is now R
+  from TMDB.". A TMDB rating is no longer preselected as if it were the
+  operator's choice.
 - Userdata transport and module-admission failures are no longer reported as
   admin-role denials or invalid requests. A `403 userdata.module_forbidden`
   shows "Userdata unavailable: … does not permit this service" (migration
