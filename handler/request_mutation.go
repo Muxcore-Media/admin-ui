@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"mime"
 	"net"
 	"net/http"
 	"time"
@@ -49,6 +50,16 @@ func (h *Handler) requestMutationRequest(next http.HandlerFunc, returnPath strin
 }
 
 func (h *Handler) parseRequestMutationForm(w http.ResponseWriter, r *http.Request, returnPath string) bool {
+	if r.Body != nil && r.Body != http.NoBody {
+		mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if err != nil || mediaType != "application/x-www-form-urlencoded" {
+			// ParseForm can succeed without reading an unsupported body. Keep
+			// the read deadline and close guard so an early refusal never waits
+			// for net/http to drain that body before writing its explanation.
+			h.renderRequestMutationError(w, r, http.StatusBadRequest, "Submit a URL-encoded request form. No request was sent.", returnPath)
+			return false
+		}
+	}
 	err := r.ParseForm()
 	// A completed form read no longer needs a socket deadline. Leaving it in
 	// place could cancel the HTTP caller while the provider outcome is rendered.

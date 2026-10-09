@@ -13,13 +13,18 @@ import (
 	"time"
 
 	authv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/auth/v1"
+	"google.golang.org/grpc/codes"
 )
 
-func requestBudgetFixture(t *testing.T, budget, writeTimeout time.Duration, onAuth func(context.Context, string), upstream http.Handler) (*http.Client, string, string) {
+func requestBudgetFixture(t *testing.T, budget, writeTimeout time.Duration, onAuth func(context.Context, string), upstream http.Handler, timedOutAuth ...string) (*http.Client, string, string) {
 	t.Helper()
 	provider := httptest.NewServer(upstream)
 	t.Cleanup(provider.Close)
-	h := setupIdentityHandler(t, &identityRPCStub{allowAdmin: true, onCall: onAuth, validateResp: &authv1.ValidateResponse{Valid: true, UserId: "u1", Roles: []string{"admin"}}})
+	authFailures := map[string]codes.Code{}
+	for _, method := range timedOutAuth {
+		authFailures[method] = codes.DeadlineExceeded
+	}
+	h := setupIdentityHandler(t, &identityRPCStub{allowAdmin: true, fail: authFailures, onCall: onAuth, validateResp: &authv1.ValidateResponse{Valid: true, UserId: "u1", Roles: []string{"admin"}}})
 	h.RequestMediaURL = provider.URL
 	cookie := boundSession(t, h, "u1", "fixture", "", "fixture-bearer", []string{"admin"})
 	mux := http.NewServeMux()
@@ -92,7 +97,7 @@ func TestRequestMutationRouteBudgetCoversEveryPhase(t *testing.T) {
 						w.WriteHeader(http.StatusOK)
 						w.(http.Flusher).Flush()
 						<-r.Context().Done()
-					}))
+					}), phase)
 				started := time.Now()
 				resp, body := requestAdapterPost(t, client, base, cookie, mutation.path, mutation.form)
 				if resp.StatusCode != http.StatusServiceUnavailable || len(body) == 0 || time.Since(started) > 500*time.Millisecond {
@@ -247,5 +252,72 @@ func TestRequestMutationCallerCancellationStopsProvider(t *testing.T) {
 				t.Errorf("mutation retried after cancellation: %d", writes.Load())
 			}
 		})
+	}
+}
+
+func TestRequestMutationRejectsUnreadNonForms(t *testing.T) {
+	for _, path := range []string{"/request", "/approvals/fixture/deny"} {
+		for _, contentType := range []string{"application/json", "multipart/form-data; boundary=fixture", "", "invalid; content type"} {
+			t.Run(path+"/"+contentType, func(t *testing.T) {
+				var writes atomic.Int32
+				_, base, cookie := requestBudgetFixture(t, 150*time.Millisecond, 600*time.Millisecond, nil,
+					http.HandlerFunc(func(http.ResponseWriter, *http.Request) { writes.Add(1) }))
+				conn, err := net.Dial("tcp", strings.TrimPrefix(base, "http://"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer func() { _ = conn.Close() }()
+				_ = conn.SetDeadline(time.Now().Add(time.Second))
+				headers := "POST " + path + " HTTP/1.1\r\nHost: fixture\r\nCookie: session=" + cookie + "\r\nHX-Request: true\r\nContent-Length: 99\r\n"
+				if contentType != "" {
+					headers += "Content-Type: " + contentType + "\r\n"
+				}
+				// Keep the body incomplete: neither ParseForm nor net/http may
+				// silently wait to drain it before returning the refusal.
+				if _, err := io.WriteString(conn, headers+"\r\n{}"); err != nil {
+					t.Fatal(err)
+				}
+				resp, err := http.ReadResponse(bufio.NewReader(conn), nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer func() { _ = resp.Body.Close() }()
+				body, err := io.ReadAll(resp.Body)
+				if err != nil || resp.StatusCode != http.StatusBadRequest || !resp.Close || writes.Load() != 0 || resp.Header.Get(swapErrorHeader) != "1" || resp.Header.Get("Cache-Control") != "no-store" || !strings.Contains(string(body), "No request was sent.") || !strings.Contains(string(body), "</html>") {
+					t.Fatalf("unread non-form refusal: status=%d close=%t writes=%d body=%q err=%v", resp.StatusCode, resp.Close, writes.Load(), body, err)
+				}
+			})
+		}
+	}
+}
+
+func TestRequestMutationValidFormCharsetAndEmptyDecision(t *testing.T) {
+	for _, path := range []string{"/request", "/approvals/fixture/deny"} {
+		var writes atomic.Int32
+		client, base, cookie := requestBudgetFixture(t, time.Second, 2*time.Second, nil,
+			http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				writes.Add(1)
+				w.WriteHeader(http.StatusNoContent)
+			}))
+		for _, body := range []string{"tmdb_id=1&type=movie&reason=fixture", ""} {
+			req, err := http.NewRequest(http.MethodPost, base+path, strings.NewReader(body))
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.AddCookie(&http.Cookie{Name: "session", Value: cookie})
+			if body != "" {
+				req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+			}
+			writes.Store(0)
+			resp, err := client.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+			if resp.StatusCode != http.StatusSeeOther || writes.Load() != 1 {
+				t.Errorf("%s form=%q status=%d writes=%d", path, body, resp.StatusCode, writes.Load())
+			}
+		}
 	}
 }
