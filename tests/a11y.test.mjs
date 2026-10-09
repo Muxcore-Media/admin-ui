@@ -34,7 +34,7 @@ test('axe checks actual Go-rendered core journeys', async t => {
   });
   assert.equal(result.status, 0, `Go template fixtures failed: ${result.error || ''}\n${result.stdout}\n${result.stderr}`);
   const fixtures = readdirSync(dir).filter(name => name.endsWith('.html')).sort();
-  assert.equal(fixtures.length, 34, 'render every core journey, including content rating states, errors and repeated module setting keys');
+  assert.equal(fixtures.length, 37, 'render every core journey, including request mutation errors, content rating states and repeated module setting keys');
   for (const fixture of fixtures) {
     await t.test(fixture, async () => {
       const results = await scan(readFileSync(join(dir, fixture), 'utf8'));
@@ -87,6 +87,63 @@ test('axe checks actual Go-rendered core journeys', async t => {
         }
       }
     }
+  });
+  await t.test('all five request mutation forms display errors with bundled HTMX', async () => {
+    const htmxSource = readFileSync(join(root, 'assets/htmx.min.js'), 'utf8');
+    const csrfSource = readFileSync(join(root, 'assets/csrf.js'), 'utf8');
+    let formsChecked = 0;
+    for (const page of ['request', 'approvals']) {
+      const markup = readFileSync(join(dir, `${page}.html`), 'utf8');
+      const response = readFileSync(join(dir, `${page}-action-error.html`), 'utf8');
+      const selectors = page === 'request'
+        ? ['form[action="/request"]', 'form[action$="/approve"]', 'form[action$="/deny"]']
+        : ['form[action$="/approve"]', 'form[action$="/deny"]'];
+      for (const target of selectors) {
+        formsChecked++;
+        for (const removeSelector of [false, true]) {
+          const dom = new JSDOM(markup, { runScripts: 'outside-only', url: 'https://admin.example/' });
+          try {
+            const { window } = dom;
+            const evaluate = window.XPathExpression.prototype.evaluate;
+            window.XPathExpression.prototype.evaluate = function(context, type, result) {
+              return evaluate.call(this, context, type ?? 0, result);
+            };
+            window.eval(htmxSource);
+            window.eval(csrfSource);
+            const control = window.document.querySelector(`form[method="post"]${target.slice(4)}`);
+            assert(control, `missing ${page} ${target}`);
+            if (removeSelector) control.removeAttribute('hx-select');
+            for (const optIn of [null, '1']) {
+              const detail = {
+                shouldSwap: false, isError: true,
+                xhr: { status: 403, getResponseHeader: name => name === 'X-Admin-Swap-Error' ? optIn : null },
+              };
+              window.document.dispatchEvent(new window.CustomEvent('htmx:beforeSwap', { detail }));
+              assert.equal(detail.shouldSwap, optIn === '1');
+            }
+            const select = window.htmx._('re')(control, 'hx-select');
+            window.htmx.swap(window.document.querySelector('#main-content'), response,
+              { swapStyle: 'innerHTML', settleDelay: 0 }, { select, contextElement: control });
+            // The deliberately removed selector detects whole-document nesting.
+            assert.equal(window.document.querySelectorAll('#main-content').length, removeSelector ? 2 : 1);
+            assert.equal(window.document.querySelectorAll('#sidebar').length, removeSelector ? 2 : 1);
+            assert(window.document.querySelector('#main-content [role="alert"]'));
+            assert.equal(window.document.querySelectorAll('#main-content form').length, 0);
+            if (!removeSelector) {
+              const reload = window.document.querySelector('#main-content a');
+              assert.equal(reload.getAttribute('href'), `/${page}`);
+              assert.equal(window.htmx._('re')(reload, 'hx-select'), '#main-content > *');
+              reload.focus();
+              assert.equal(window.document.activeElement, reload);
+            }
+            await new Promise(resolve => window.setTimeout(resolve, 0));
+          } finally {
+            dom.window.close();
+          }
+        }
+      }
+    }
+    assert.equal(formsChecked, 5);
   });
 });
 
