@@ -161,7 +161,7 @@ func TestParentalWriteErrorsClaimNothingChangedOnlyWhenCertain(t *testing.T) {
 	uncertain := map[string]func(*parentalEnv){
 		"500":         func(e *parentalEnv) { e.prov.force["PUT u1"] = 500 },
 		"503":         func(e *parentalEnv) { e.prov.force["PUT u1"] = 503 },
-		"unreachable": func(e *parentalEnv) { e.h.UserdataURL = "http://127.0.0.1:1" },
+		"unreachable": func(e *parentalEnv) { e.h.UserdataURL = "https://127.0.0.1:1" },
 		"mismatched acknowledgement": func(e *parentalEnv) {
 			e.prov.raw["PUT u1"] = `{"user_id":"u1","tenant_id":"tenant-1","state":"configured","revision":1,"policy":{"version":1,"mode":"unrestricted","rules":null}}`
 		},

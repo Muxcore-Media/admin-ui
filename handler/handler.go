@@ -14,6 +14,7 @@ import (
 	"github.com/Muxcore-Media/core/sdk/go/client"
 
 	"github.com/Muxcore-Media/admin-ui/arrmigrate"
+	"github.com/Muxcore-Media/admin-ui/internal/userdatahttp"
 	"github.com/Muxcore-Media/admin-ui/session"
 	"github.com/a-h/templ"
 
@@ -48,8 +49,12 @@ type Handler struct {
 	// HealthMonitorURL is the health-monitor HTTP base (e.g. http://127.0.0.1:9203).
 	// Empty disables the dashboard monitor panel.
 	HealthMonitorURL string
-	// UserdataURL is optional HTTP base for userdata-local (parental policy and PIN sync).
+	// UserdataURL is the configured userdata-local origin (parental policy and
+	// PIN sync), e.g. https://userdata-local:9672. Empty means discovery. It is
+	// only ever dialled through the checked client in userdata (ADR-0033).
 	UserdataURL string
+	// userdata builds the checked userdata-local client after enrollment.
+	userdata userdatahttp.Pool
 	// RequestMediaURL is optional HTTP base for request-media (empty = mesh only).
 	RequestMediaURL string
 	// APIRestURL is optional api-rest base for SpoolService HTTP proxy fallback.

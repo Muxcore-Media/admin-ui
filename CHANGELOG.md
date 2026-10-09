@@ -7,7 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- userdata-local HTTP transport (ADR-0033 slice S9c). Every userdata request
+  (parental form GET/PUT, every migration read and write, PIN blob GET/PUT)
+  now goes through userdata-local's published checked client
+  (`userdata-local/httpclient`, v0.1.6): HTTPS with mutual TLS using admin-ui's
+  own enrolled mesh identity (built after enrollment, rebuilt when the identity
+  files change), the fixed `userdata-local` server identity (service SAN and
+  exact CN, so another enrolled module, a wrong CA, expired or wrong-EKU
+  certificate is refused before the bearer is sent), an origin-bound transport,
+  no proxy and no redirects (any 3xx, even same-origin). Discovery no longer
+  invents `http://` for a bare advertised address: it uses `https://` (plain
+  `http://` only in explicit insecure dev), and an advertised `http://` address
+  or a missing origin is "unavailable", never a plaintext retry. A configured
+  `ADMIN_UI_USERDATA_URL` must be a bare origin and `https://` outside dev.
+  The session's identity-provider bearer remains the only user authorization,
+  with request-time session revalidation unchanged.
+
+### Fixed
+
+- Userdata transport and module-admission failures are no longer reported as
+  admin-role denials or invalid requests. A `403 userdata.module_forbidden`
+  shows "Userdata unavailable: … does not permit this service" (migration
+  outcome `service-not-permitted`, certain no-write); a missing or invalid
+  origin or identity shows "no verified connection"; a non-2xx answer without
+  the provider's own `policy.*` code (for example the bare `400 Client sent an
+  HTTP request to an HTTPS server` that previously rendered as "rejected the
+  request as invalid. Nothing was changed.") is unavailability, with
+  uncertain-write wording for writes. None of these revokes the session.
+  `401`/`403 policy.forbidden`/`404`/`409` keep their existing handling. PIN
+  sync failures show a classified message instead of raw error text.
+
 ### Added
+
+- `admin-ui parental-seed`: the admin-bearer seed helper for the household
+  smoke (ADR-0033 §4). A subcommand of the admin-ui binary (so the image and
+  host artifact ship it), dispatched before any daemon start-up, resolving
+  only existing identity files (no enrollment, bootstrap token, core,
+  identity-provider or storage access). It gives one account an explicit
+  `unrestricted` policy only when the account is unconfigured, through the same
+  checked client; it never overwrites a restricted policy, re-reads on `409`,
+  reads back an uncertain write instead of re-sending it, takes the bearer from
+  a file or stdin only and redacts it from all output. Exit codes 0 (done),
+  2 (usage/configuration), 3 (restricted, untouched), 4 (provider refusal),
+  5 (unavailable), 6 (module admission refused), 7 (uncertain), 8 (still
+  conflicting). See the README.
 
 - Bulk operator content-rating override (T-M4-01, ADR-0031 Decision 2),
   complementing the per-item content-rating page: admin-only `/content-ratings`
@@ -34,6 +79,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   render as an empty library. A full apply can outlast an unknown edge-proxy
   timeout; the requirement is documented in the README and not verified here.
 - Depends on media-movies and media-tvshows v0.1.23.
+- Depends on userdata-local v0.1.6 (`httpclient`). **Rollout:** the v0.1.6
+  household listener rejects plaintext clients; deploy this admin-ui together
+  with the BFF (S9b) and the deployment switch to `https://userdata-local:9672`
+  (S9d). A plaintext rollback is not secure.
 - Provider-backed parental controls (T-M4-01 slice S6, ADR-0030/0031). The
   Users parental form reads and writes the userdata-local
   `/api/parental-policy` resource with the admin's identity-provider bearer and

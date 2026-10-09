@@ -32,4 +32,6 @@ COPY --from=builder /build/admin-ui .
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD ["wget", "-q", "--tries=1", "--spider", "http://localhost:8080/health"]
+# The same binary carries the admin-bearer seed helper (ADR-0033 §4), run in
+# this service context: /app/admin-ui parental-seed --user ID --bearer-file -
 ENTRYPOINT ["/app/admin-ui"]
