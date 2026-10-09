@@ -33,11 +33,10 @@ type ratingFixture struct {
 	lastID, lastRating         string
 	lastUnrated                bool
 	identities                 []metadata.MD
+	beforeCall                 func(context.Context, bool)
 }
 
 func (f *ratingFixture) intercept(ctx context.Context, req any, _ *grpc.UnaryServerInfo, next grpc.UnaryHandler) (any, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
 	var itemID, rating string
 	var unrated, write bool
 	switch v := req.(type) {
@@ -52,6 +51,11 @@ func (f *ratingFixture) intercept(ctx context.Context, req any, _ *grpc.UnarySer
 	default:
 		return next(ctx, req)
 	}
+	if f.beforeCall != nil {
+		f.beforeCall(ctx, write)
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	md, _ := metadata.FromIncomingContext(ctx)
 	f.identities = append(f.identities, md.Copy())
 	if write {
