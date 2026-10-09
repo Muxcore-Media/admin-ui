@@ -135,7 +135,7 @@ func TestParentalFormProviderFailureNeverRendersAsUnrestricted(t *testing.T) {
 		"503":         func(e *parentalEnv) { e.prov.force["GET u1"] = 503 },
 		"409":         func(e *parentalEnv) { e.prov.force["GET u1"] = 409 },
 		"redirect":    func(e *parentalEnv) { e.prov.force["GET u1"] = 302 },
-		"unreachable": func(e *parentalEnv) { e.h.UserdataURL = "http://127.0.0.1:1" },
+		"unreachable": func(e *parentalEnv) { e.h.UserdataURL = "https://127.0.0.1:1" },
 		"malformed":   func(e *parentalEnv) { e.prov.raw["GET u1"] = `{"user_id":` },
 		"empty body":  func(e *parentalEnv) { e.prov.raw["GET u1"] = `` },
 		"unknown field": func(e *parentalEnv) {
@@ -370,7 +370,7 @@ func TestParentalFormWarnsWhenRolesCannotBeRead(t *testing.T) {
 	h := setupIdentityHandler(t, stub)
 	t.Setenv("ADMIN_UI_DATA_DIR", t.TempDir())
 	prov := newFakePolicyProvider(t, "u1")
-	h.UserdataURL = prov.srv.URL
+	prov.attach(h)
 	e := &parentalEnv{h: h, prov: prov}
 	e.sess = newParentalEnv(t).sess
 	body := e.getForm("u1").Body.String()
@@ -457,7 +457,7 @@ func TestParentalPINClearAndValidation(t *testing.T) {
 
 func TestParentalPINUserdataUnavailable(t *testing.T) {
 	e := newParentalEnv(t, user("u1", "alice"))
-	e.h.UserdataURL = "http://127.0.0.1:1"
+	e.h.UserdataURL = "https://127.0.0.1:1"
 	body := e.postPIN("u1", form("pin", "1234")).Body.String()
 	if !strings.Contains(body, "userdata sync failed") || strings.Contains(body, "PIN updated") {
 		t.Fatalf("sync failure not visible:\n%s", body)

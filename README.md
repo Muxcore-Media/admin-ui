@@ -47,8 +47,8 @@ All configuration is via environment variables:
 | `ADMIN_UI_CORE_ADDR` | `localhost:9090` | Core gRPC address |
 | `MUXCORE_INSECURE_DISABLE_TLS` | `false` | `true`: plaintext mesh gRPC to core and modules (dev profile only; loud startup warning) |
 | `ADMIN_UI_INSECURE` | `false` | Deprecated alias of `MUXCORE_INSECURE_DISABLE_TLS` (also drops the `Secure` cookie flag when no HTTPS cert is set) |
-| `MUXCORE_TLS_CA` | system roots | PEM CA bundle used to verify core/module gRPC servers |
-| `MUXCORE_TLS_CERT` / `MUXCORE_TLS_KEY` | — | Optional client certificate for mesh mTLS (set both) |
+| `MUXCORE_TLS_CA` | system roots | PEM CA bundle used to verify core/module gRPC servers; **required** (no system roots) for the userdata HTTP transport |
+| `MUXCORE_TLS_CERT` / `MUXCORE_TLS_KEY` | — | Client certificate for mesh mTLS (set both); exported by the SDK after enrollment and **required** for the userdata HTTP transport |
 | `ADMIN_UI_AUTH_ADDR` | `http://localhost:9401` | Auth module base URL (login + code exchange) |
 | `ADMIN_UI_TLS_CERT` | — | TLS cert file path (enables HTTPS) |
 | `ADMIN_UI_TLS_KEY` | — | TLS key file path |
@@ -65,7 +65,8 @@ All configuration is via environment variables:
 | `ADMIN_UI_SESSION_KEY` | generated `session.key` (0600) next to the session file | Key protecting session bearer material at rest (32 bytes base64/hex, or any passphrase → SHA-256) |
 | `ADMIN_UI_RESTORE_ROOT` | `BACKUP_RESTORE_DIR`, else `/data/restore` | Allow-listed root for backup restore targets (paths outside → 400) |
 | `ADMIN_UI_*_FILE` | under data dir | Per-artifact overrides: `BRANDING`, `NETWORKING`, `PARENTAL`, `PARENTAL_MIGRATION`, `LIVETV`, `PLAYBACK`, `PASSWORD_RESET`, `SESSION` |
-| `ADMIN_UI_USERDATA_URL` | mesh `userdata.local` | HTTP base for userdata-local (parental policy resource and PIN sync) |
+| `ADMIN_UI_USERDATA_URL` | mesh `userdata.local` | userdata-local **origin** (parental policy resource and PIN sync), e.g. `https://userdata-local:9672`: scheme, host and port only. HTTPS with admin-ui's mesh identity outside explicit insecure dev (see [Userdata transport](#userdata-transport-adr-0033)) |
+| `MUXCORE_PROFILE` | unset (inferred) | `household`/`staging` forbid insecure transport; `dev` allows it. Read by the userdata transport (ADR-0016/0033) |
 | `ADMIN_UI_METRICS_TOKEN` | — | When set, `/metrics` requires `Authorization: Bearer <token>` |
 
 ---
@@ -262,11 +263,107 @@ local revoke and rename controls. Labels apply only to admin-ui sessions. Local
 cookie hashes never stand in for provider management IDs, and provider actions
 do not automatically remove or rename local sessions.
 
+### Userdata transport (ADR-0033)
+
+Every admin-ui request to userdata-local (parental form GET/PUT, every
+migration read and write, PIN blob GET/PUT) uses userdata-local's published
+checked client (`github.com/Muxcore-Media/userdata-local/httpclient`,
+v0.1.6+). Outside explicit insecure dev it is HTTPS with mutual TLS:
+
+- admin-ui presents **its own** enrolled mesh certificate (CN `admin-ui`):
+  `MUXCORE_TLS_CERT`/`KEY`/`CA` as exported by the SDK after enrollment, or the
+  existing `MUXCORE_TLS_DIR` (default `$MUXCORE_DATA_DIR/mesh-id`) identity and
+  CA. The client is built lazily after enrollment and rebuilt when those files
+  change. Missing or invalid material is a configuration error: no system
+  roots, no generated CA, no plaintext fallback. A `MUXCORE_MODULE_ID` other
+  than `admin-ui` is unsupported for this transport.
+- The server must verify as `userdata-local` (service SAN **and** exact
+  certificate CN), whatever address is dialled; other enrolled modules sharing
+  the loopback SANs, wrong CAs, expired or wrong-EKU certificates are refused
+  during the handshake, before the bearer is sent.
+- The origin comes from `ADMIN_UI_USERDATA_URL` exactly as configured (no path,
+  query or credentials; `http://` is refused unless `MUXCORE_INSECURE_DISABLE_TLS`
+  or `MUXCORE_DEV_TLS_SKIP` is `true`/`1` in the dev profile). Without it,
+  discovery's advertised `host:port` gets `https://` (bare ports become the
+  module host, or loopback with `MUXCORE_MESH_DIAL_LOCAL=true`); an advertised
+  `http://` address is not used in secure mode. Failure to resolve an origin is
+  "unavailable", never an HTTP retry. Note `ADMIN_UI_INSECURE` alone does not
+  make this transport plaintext.
+- No redirects (any 3xx, even same-origin), no proxy environment, one 5 s
+  deadline per request, bounded responses.
+- The user authorization is unchanged: the bearer stored in the signed-in
+  admin's session (revalidated on every request) and the target account in
+  `X-MuxCore-User-Id`. No browser header is forwarded.
+
+Error meanings stay distinct:
+
+| Provider result | Form / migration / PIN message | Write certainty |
+|---|---|---|
+| `403 userdata.module_forbidden` (module admission) | "Userdata unavailable: … does not permit this service (admin-ui's mesh identity)"; migration outcome `service-not-permitted` | Nothing was changed |
+| No origin, invalid origin, missing identity | "Userdata unavailable: admin-ui has no verified connection …" | Nothing was changed |
+| TLS failure, timeout, connection loss, redirect, oversized/malformed/unrecognised answer (including a bare `400` from a TLS listener) | "unavailable or returned an unusable answer … not an unrestricted account" | Uncertain for writes |
+| `401`/`403 policy.forbidden`/`404`/`400`/`409` with a `policy.*` code | Existing application handling (sign in again / admin role / not found / invalid / conflict) | As before |
+
+None of these revokes the admin session; session validity is decided only by
+the per-request revalidation against the identity provider.
+
+**Rollout:** the userdata-local v0.1.6 household listener rejects plaintext
+clients. Deploy this admin-ui together with the BFF (S9b) and the deployment
+switch to `https://userdata-local:9672` (S9d). Rolling back to a plaintext
+household transport is not secure.
+
+#### Seeding an explicit `unrestricted` policy (`admin-ui parental-seed`)
+
+The household smoke needs some accounts to hold an explicit `unrestricted`
+policy. The helper is a subcommand of the admin-ui binary, so the image
+(`/app/admin-ui`) and the host artifact (`bin/admin-ui`) ship it at the same
+version. It runs as a separate process in admin-ui's service context (for
+example `docker compose exec -T admin-ui /app/admin-ui parental-seed …`) and is
+dispatched before any daemon start-up.
+
+```
+admin-ui parental-seed --user ID --bearer-file PATH|- [--origin URL] [--tenant ID] [--timeout 5s] [--attempts 3]
+```
+
+| Flag / env | Meaning |
+|---|---|
+| `--user` | Target account ID (required) |
+| `--bearer-file` | File holding the admin's identity-provider bearer (`Bearer ` prefix optional); `-` reads stdin. Required: the bearer is never accepted on the command line, and is never printed (any occurrence in output is replaced by `[REDACTED]`) |
+| `--origin` / `ADMIN_UI_USERDATA_URL` | userdata-local origin, e.g. `https://userdata-local:9672` (required one way or the other; no discovery) |
+| `--tenant` | Expected tenant; when empty the tenant of the first answer is pinned for the rest of the run |
+| `--timeout` | Per-request deadline, at most 30 s |
+| `--attempts` | Read/write rounds on revision conflicts, 1–10 |
+| `MUXCORE_TLS_CERT`/`KEY`/`CA`, `MUXCORE_TLS_DIR`, `MUXCORE_DATA_DIR`, `MUXCORE_CA_EXPORT_DIR`, `MUXCORE_PROFILE`, `MUXCORE_INSECURE_DISABLE_TLS` | Existing identity and mode, resolved exactly like `userdata-health` (`httpclient.FromEnv`) |
+
+It uses only existing identity files: it never enrolls, never reads
+`MUXCORE_BOOTSTRAP_TOKEN`, never contacts core or the identity provider, never
+opens admin-ui's data files and never starts the daemon.
+
+Behaviour: GET the policy; if the account is **unconfigured**, PUT
+`{"expected_revision":0,"policy":{"version":1,"mode":"unrestricted","rules":null}}`
+and verify the acknowledgement; if it is already **unrestricted**, do nothing; if
+it is **restricted**, never overwrite it. A `409` re-reads and retries (up to
+`--attempts`). A write without a definite answer is read back once and never
+blindly re-sent.
+
+| Exit | Meaning |
+|---|---|
+| 0 | The account has a configured `unrestricted` policy (set now, or already) |
+| 2 | Usage or configuration error (flags, bearer input, origin, missing/invalid identity); nothing sent |
+| 3 | The account has a restricted policy; left untouched |
+| 4 | Provider refused the request (`401`, `403 policy.forbidden`, `404`, `400`): the bearer must belong to an admin in the account's tenant |
+| 5 | Userdata unavailable (TLS/identity verification, connection, redirect, unusable or out-of-scope answer) |
+| 6 | Module admission refused admin-ui's identity (`userdata.module_forbidden`): deployment problem; nothing was written |
+| 7 | A write was sent but its outcome is unknown and could not be read back; run again |
+| 8 | The policy kept changing for every attempt; nothing was overwritten |
+
+Success lines go to stdout (`OK parental policy <id>: …`), failures to stderr.
+
 ### Parental policy (provider-backed)
 
 The per-account parental policy is owned by userdata-local's
 `GET`/`PUT /api/parental-policy` resource (ADR-0030, userdata-local v0.1.5 and
-later). The Users page's parental form reads and writes **only** that resource,
+later; v0.1.6 and the transport above since ADR-0033). The Users page's parental form reads and writes **only** that resource,
 using the signed-in admin's identity-provider bearer (never browser headers) and
 the account being edited in `X-MuxCore-User-Id`. Nothing is read from or written
 to `parental.json` or the user's writable userdata blob for restrictions.
@@ -289,7 +386,8 @@ to `parental.json` or the user's writable userdata blob for restrictions.
   is rejected, not silently dropped. Validation errors answer 400 with the
   `X-Admin-Swap-Error` header so `assets/csrf.js` still shows them.
 - **Write errors are honest.** "Nothing was changed" is only said for definite
-  refusals (400/401/403/404/413). After a timeout, 5xx or a mismatched
+  refusals (400/401/403/404/413 carrying a `policy.*` code, a module-admission
+  refusal, or a request that was never sent). After a timeout, 5xx or a mismatched
   acknowledgement the form says the change may not have been saved and asks you
   to reload and check.
 - **PIN lock is unchanged** until FR-AUTH-010: it still lives in `parental.json`

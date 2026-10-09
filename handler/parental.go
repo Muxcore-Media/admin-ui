@@ -468,7 +468,7 @@ func (h *Handler) UsersParentalPIN(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.syncParentalPINToUserdata(r.Context(), userID, newHash); err != nil {
-		msg := "userdata sync failed: " + err.Error()
+		msg := pinSyncMessage(err)
 		h.loadAndRenderParental(w, r, userID, func(d *templates.ParentalData) { d.PINError = msg })
 		return
 	}
