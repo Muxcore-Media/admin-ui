@@ -362,6 +362,93 @@ This source workflow is fixture-tested; it does not establish deployment,
 authenticated parental-policy HTTP transport (S9), or a live restricted-account
 journey. FR-PLAY-007 remains partial.
 
+### Bulk content ratings
+
+`/content-ratings` (Library → Content ratings) lists one library at a time
+(Movies / TV series), 50 titles per page with search, so an **admin** can rate
+many titles at once. It complements the per-item page above, which remains the
+place to check one title: both call the same `SetContentRating` RPC of
+media-movies / media-tvshows (v0.1.23 or later), resolve the module by its ID
+(`media-movies`, `media-tvshows`), and write the same audit entry.
+
+- **Unavailable items are hidden from restricted accounts.** A title with no
+  operator rating is "unavailable"; until an admin rates titles, restricted
+  accounts see an empty library.
+- Each row shows the rating, who set it (`operator`) and its tags. State is one
+  of *Rated* (a ladder token), *Not rated (NR)* (an explicit decision) and
+  *Unavailable*. Per row: choose a ladder token (`G TV-Y TV-Y7 TV-Y7-FV ALL E PG
+  TV-G TV-PG E10+ PG-13 TV-14 T R TV-MA M MA NC-17 AO X`), **Not rated (NR)**, or
+  **Clear (unavailable)** and press Set; or tick titles and use "Apply to
+  selected" (selection is per page). Nothing is free text; the token list is the
+  single `parentalRatingTokens` list, pinned by a test.
+- RPC mapping: a token → `content_rating=<token>`; NR → empty rating with
+  `explicit_unrated=true`; Clear → empty rating, `explicit_unrated=false`.
+- An apply makes one `SetContentRating` call per title and then reads that
+  title back once, exactly as the per-item page does (the module's reply is an
+  empty acknowledgement and proves nothing about the stored value). Every title
+  is listed with one outcome: *changed* (the readback matched the request),
+  *failed* (the module definitely refused; nothing changed), *not confirmed*
+  (the reply was lost or late, or the readback failed or showed another value;
+  the title may or may not have changed, so check it before saving again) or
+  *not attempted*. A partial failure is never silent, an acknowledged write is
+  never reported as changed without its matching readback, and a write is never
+  retried. The page is then refreshed from the module.
+- **An authorization failure ends the batch.** If the module answers a write (or
+  the readback of an acknowledged write) with `Unauthenticated` (revoked or
+  expired bearer) or `PermissionDenied`, admin-ui makes no further module call
+  of any kind (no more writes, readbacks or list refresh): the remaining titles
+  are reported *not attempted*, the earlier results stay on the page, and the
+  response is 401 (or 403) with the swap header. Every attempt made before the
+  stop keeps its audit entry.
+- **Admin only, and bound to the validated session.** The modules do no role
+  check, so admin-ui refuses managers, users and viewers with 403 *before*
+  resolving or calling any module (the per-item page lets a manager view).
+  Module calls carry exactly the session's provider bearer, never inherited
+  identity headers; an admin session without a bound bearer is refused with 401
+  before any module call, deadline extension or write. POST routes are covered by
+  the global CSRF double-submit check.
+- **Audit.** Every dispatched write, whatever its result, writes exactly one
+  `admin.media.content_rating` entry (resource `media_item`) in the per-item
+  page's shape, built by the same code: `module`, `requested_rating` and
+  `requested_source` (always; `NR` for an explicit unrated, both empty for a
+  clear), `outcome` and `reason`. `outcome` is `confirmed` after a matching
+  readback (reason `readback_matched`), `refused` when the gRPC code proves the
+  module stored nothing (`InvalidArgument`, `NotFound`, `Unimplemented`,
+  `Unauthenticated`, `PermissionDenied`; reason is the code), or `uncertain`
+  (any other code, or an acknowledged write whose readback failed or differed:
+  reason `readback_unavailable` / `readback_mismatch`). The stored
+  `content_rating` and `source` appear **only** on a `confirmed` entry. Titles,
+  tags and provider error text are not logged. Titles never attempted (not
+  reached before the deadline, a cancelled request, or the batch stopped by an
+  authorization failure) write no entry. Audit delivery is asynchronous and
+  detached from request cancellation, so an attempt is recorded even when the
+  caller disconnects; it never retries the write.
+- A bulk apply can run up to two minutes, longer than the server's 15 s
+  `WriteTimeout`. After the admin check, the bearer check and form validation
+  pass, this one response gets its own write deadline (apply budget + list
+  refresh + margin); no other route is affected. If that deadline cannot be
+  extended (the writer has no `SetWriteDeadline`, or setting it fails) the apply
+  is refused with 500 before any module is dialled or written, because the time
+  left before the server's own deadline is unknown and the results could not be
+  promised; the apply is never silently shortened. The two-minute apply budget
+  now covers each title's write and its readback; titles not reached are
+  reported *not attempted*.
+- **Reverse-proxy timeout (undeployed requirement).** A full apply response can
+  take up to the response deadline above (about 2 min 15 s) to arrive. Any proxy
+  in front of admin-ui (nginx `proxy_read_timeout`, a CDN or tunnel) must allow
+  at least that long for `POST /content-ratings`, or the browser can see a
+  gateway timeout for an apply whose writes were all made and audited; the
+  list page then shows the current ratings. This source change does not set or
+  verify any proxy timeout: the edge configuration (`nix-production`
+  `ingress.nix`) was not available to this change and nothing about it, nginx's
+  defaults included, is claimed here. Check it before relying on large batches
+  through the public edge.
+- A refused submission (nothing selected, no rating chosen) is validated before
+  any module is contacted, so the list is not reloaded; the page shows the error
+  and a "Reload the list" link, never an empty-library message. A module outage
+  is answered with 503. Error responses carry the swap header, so `csrf.js`
+  shows their bodies.
+
 ### Accessibility validation
 
 For T-M4-05 / NFR-A11Y-001, the ordinary Go template suite checks rendered DOM
