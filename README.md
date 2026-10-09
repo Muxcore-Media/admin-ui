@@ -196,6 +196,31 @@ incomplete. It does not retry either mutation automatically.
 Direct passkey endpoints and live OIDC browser acceptance remain outside this
 checkpoint; FR-AUTH-009 is still partial.
 
+### Media requests and approvals
+
+Request and approval pages retain the global `admin.access` requirement. Their
+create, approve and deny actions navigate back only after a successful request
+service response. Rejections appear on the page, including during HTMX
+navigation, without clearing the local sign-in. If a connection, timeout,
+incomplete response or service failure leaves the outcome unknown, reload and
+check the request before trying again: the provider may already have saved it.
+Mutations never follow redirects or retry automatically.
+Their twelve-second route budget includes the existing identity checks, form
+reads, discovery and the provider operation, leaving time to return an error
+before the HTTP server's write deadline. Canceling the browser request cancels
+provider work; an uncertain outcome still needs checking before another attempt.
+The existing authentication guard keeps its own failure responses; the new
+HTMX error page applies to adapter outcomes after authentication. A socket read
+timeout before dispatch gets a separately bounded, one-second refusal render
+so the incomplete form can be explained without sending a provider request.
+
+The creation adapter sends the provider's `mediaType` field for movies and TV.
+Canonical request-media search currently returns movie results without a type;
+those results stay movies. Choosing TV omits movie or unclassified results and
+explains that TV results are unavailable. A provider that explicitly identifies
+a result as TV can supply it to the TV form. This does not establish canonical
+TV search support or manager access to these pages.
+
 ### Arr migration connections
 
 The `/migrate` page uses the existing admin authorization and connects directly

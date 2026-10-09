@@ -32,7 +32,7 @@ test('adds the CSRF header to htmx requests', t => {
 
 test('swaps an error body only when the response opts in', t => {
   const window = setup(t);
-  for (const status of [400, 401, 403, 404, 502, 503]) {
+  for (const status of [400, 401, 403, 404, 409, 413, 429, 502, 503]) {
     const optedIn = beforeSwap(window, status, '1');
     assert.equal(optedIn.shouldSwap, true);
     assert.equal(optedIn.isError, false);

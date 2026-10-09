@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -211,9 +210,17 @@ func (h *Handler) RequestPage(w http.ResponseWriter, r *http.Request) {
 					data.Error = payload.Error
 				}
 				for _, hit := range payload.Results {
-					typ := hit.Type
+					typ := strings.ToLower(strings.TrimSpace(hit.Type))
 					if typ == "" {
-						typ = data.MediaType
+						// Canonical request-media searches movies and omits type.
+						// The selected query must never relabel those IDs as TV.
+						typ = "movie"
+					}
+					if typ != data.MediaType {
+						if data.MediaType == "tv" && data.Error == "" {
+							data.Error = "TV results are unavailable from this request service. Movie or unclassified results cannot be requested as TV shows."
+						}
+						continue
 					}
 					data.Results = append(data.Results, templates.RequestSearchHit{
 						ID: hit.ID, Title: hit.Title, Year: hit.Year,
@@ -230,15 +237,15 @@ func (h *Handler) RequestPage(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) RequestCreate(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), requestPageTimeout)
 	defer cancel()
+	w.Header().Set("Cache-Control", "no-store")
 
-	if err := r.ParseForm(); err != nil {
-		http.Redirect(w, r, "/request", http.StatusSeeOther)
+	if !h.parseRequestMutationForm(w, r, "/request") {
 		return
 	}
 
 	moduleID, base, _, err := h.requestMediaBase(ctx)
 	if err != nil {
-		http.Redirect(w, r, "/request", http.StatusSeeOther)
+		h.renderRequestMutationError(w, r, http.StatusServiceUnavailable, "The request service is unavailable. No request was sent.", "/request")
 		return
 	}
 	_ = moduleID
@@ -267,11 +274,11 @@ func (h *Handler) RequestCreate(w http.ResponseWriter, r *http.Request) {
 	payload, _ := json.Marshal(map[string]any{
 		"tmdbId": tmdbID, "title": r.FormValue("title"), "year": year,
 		"overview": r.FormValue("overview"), "poster": r.FormValue("poster"),
-		"type": itemType, "requestedBy": requestedBy, "isAdmin": isAdmin,
+		"mediaType": itemType, "requestedBy": requestedBy, "isAdmin": isAdmin,
 	})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+requestHTTPCreate, bytes.NewReader(payload))
 	if err != nil {
-		http.Redirect(w, r, "/request", http.StatusSeeOther)
+		h.renderRequestMutationError(w, r, http.StatusServiceUnavailable, "The request service is unavailable. No request was sent.", "/request")
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -283,14 +290,10 @@ func (h *Handler) RequestCreate(w http.ResponseWriter, r *http.Request) {
 	if isAdmin {
 		req.Header.Set("X-MuxCore-Roles", "admin")
 	}
-	resp, err := requestHTTPDo(ctx, req)
-	if err != nil {
-		slog.Warn("request-media create failed", "error", err)
-		http.Redirect(w, r, "/request", http.StatusSeeOther)
+	code, err := requestMutationHTTPDo(req)
+	if !h.requestMutationSucceeded(w, r, code, err, "/request") {
 		return
 	}
-	defer func() { _ = resp.Body.Close() }()
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
 
 	redir := "/request?type=" + url.QueryEscape(itemType)
 	if title := r.FormValue("title"); title != "" {
@@ -310,14 +313,15 @@ func (h *Handler) RequestDeny(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) requestDecide(w http.ResponseWriter, r *http.Request, action string) {
 	ctx, cancel := context.WithTimeout(r.Context(), requestPageTimeout)
 	defer cancel()
+	w.Header().Set("Cache-Control", "no-store")
 	id := r.PathValue("id")
 	if id == "" {
-		http.Redirect(w, r, "/request", http.StatusSeeOther)
+		h.renderRequestMutationError(w, r, http.StatusBadRequest, "The request ID is missing. No request was sent.", "/request")
 		return
 	}
 	_, base, _, err := h.requestMediaBase(ctx)
 	if err != nil {
-		http.Redirect(w, r, "/request", http.StatusSeeOther)
+		h.renderRequestMutationError(w, r, http.StatusServiceUnavailable, "The request service is unavailable. No request was sent.", "/request")
 		return
 	}
 	by := "admin"
@@ -331,7 +335,7 @@ func (h *Handler) requestDecide(w http.ResponseWriter, r *http.Request, action s
 	payload, _ := json.Marshal(map[string]string{"by": by})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/requests/"+url.PathEscape(id)+"/"+action, bytes.NewReader(payload))
 	if err != nil {
-		http.Redirect(w, r, "/request", http.StatusSeeOther)
+		h.renderRequestMutationError(w, r, http.StatusServiceUnavailable, "The request service is unavailable. No request was sent.", "/request")
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -348,14 +352,10 @@ func (h *Handler) requestDecide(w http.ResponseWriter, r *http.Request, action s
 		req.Header.Set("X-MuxCore-Roles", roles)
 		req.Header.Set("X-MuxCore-User", by)
 	}
-	resp, err := requestHTTPDo(ctx, req)
-	if err != nil {
-		slog.Warn("request-media "+action+" failed", "error", err)
-		http.Redirect(w, r, "/request", http.StatusSeeOther)
+	code, err := requestMutationHTTPDo(req)
+	if !h.requestMutationSucceeded(w, r, code, err, "/request") {
 		return
 	}
-	defer func() { _ = resp.Body.Close() }()
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
 	http.Redirect(w, r, "/request", http.StatusSeeOther)
 }
 
