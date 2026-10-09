@@ -1,0 +1,15 @@
+package templates
+
+templ RequestMutationError(message string, returnPath string) {
+	<div class="space-y-4" data-testid="request-mutation-error">
+		<h1 class="text-2xl font-bold">Check this request</h1>
+		<p role="alert" class="rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">{ message }</p>
+		<a href={ templ.SafeURL(returnPath) } hx-select="#main-content > *" class="text-[var(--accent-color)] underline">
+			if returnPath == "/approvals" {
+				Reload approvals
+			} else {
+				Reload requests
+			}
+		</a>
+	</div>
+}

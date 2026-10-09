@@ -181,13 +181,9 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /jellyfin/refresh", h.requireAuth(h.JellyfinRefresh))
 
 	mux.HandleFunc("GET /request", h.requireAuth(h.RequestPage))
-	mux.HandleFunc("POST /request", h.requireAuth(h.RequestCreate))
-	mux.HandleFunc("POST /request/{id}/approve", h.requireAuth(h.RequestApprove))
-	mux.HandleFunc("POST /request/{id}/deny", h.requireAuth(h.RequestDeny))
 
 	mux.HandleFunc("GET /approvals", h.requireAuth(h.ApprovalsPage))
-	mux.HandleFunc("POST /approvals/{id}/approve", h.requireAuth(h.ApprovalsApprove))
-	mux.HandleFunc("POST /approvals/{id}/deny", h.requireAuth(h.ApprovalsDeny))
+	h.registerRequestMutationRoutes(mux, requestMutationTimeout)
 	mux.HandleFunc("GET /invites", h.requireAuth(h.InvitesPage))
 	mux.HandleFunc("POST /invites", h.requireAuth(h.InvitesCreate))
 	mux.HandleFunc("POST /invites/{id}/revoke", h.requireAuth(h.InvitesRevoke))

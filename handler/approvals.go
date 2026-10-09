@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -42,13 +40,7 @@ func (h *Handler) approvalsHTTPPost(ctx context.Context, base, path string, payl
 		}
 		req.Header.Set("X-MuxCore-Roles", roles)
 	}
-	resp, err := requestHTTPDo(ctx, req)
-	if err != nil {
-		return 0, err
-	}
-	defer func() { _ = resp.Body.Close() }()
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
-	return resp.StatusCode, nil
+	return requestMutationHTTPDo(req)
 }
 
 // ApprovalsPage renders the admin approval queue.
@@ -115,16 +107,17 @@ func (h *Handler) ApprovalsDeny(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) approvalsDecide(w http.ResponseWriter, r *http.Request, action string) {
 	ctx, cancel := context.WithTimeout(r.Context(), approvalsPageTimeout)
 	defer cancel()
+	w.Header().Set("Cache-Control", "no-store")
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Redirect(w, r, "/approvals", http.StatusSeeOther)
+		h.renderRequestMutationError(w, r, http.StatusBadRequest, "The request ID is missing. No request was sent.", "/approvals")
 		return
 	}
 
 	_, base, _, err := h.requestMediaBase(ctx)
 	if err != nil {
-		http.Redirect(w, r, "/approvals", http.StatusSeeOther)
+		h.renderRequestMutationError(w, r, http.StatusServiceUnavailable, "The request service is unavailable. No request was sent.", "/approvals")
 		return
 	}
 
@@ -141,20 +134,19 @@ func (h *Handler) approvalsDecide(w http.ResponseWriter, r *http.Request, action
 
 	body := map[string]string{"by": by}
 	if action == "deny" {
-		if err := r.ParseForm(); err == nil {
-			if reason := strings.TrimSpace(r.FormValue("reason")); reason != "" {
-				body["reason"] = reason
-			}
+		if r.Body != nil && !h.parseRequestMutationForm(w, r, "/approvals") {
+			return
+		}
+		if reason := strings.TrimSpace(r.FormValue("reason")); reason != "" {
+			body["reason"] = reason
 		}
 	}
 	payload, _ := json.Marshal(body)
 
 	path := "/api/requests/" + url.PathEscape(id) + "/" + action
 	code, postErr := h.approvalsHTTPPost(ctx, base, path, payload, sess)
-	if postErr != nil {
-		slog.Warn("approvals: request-media action failed", "action", action, "id", id, "error", postErr)
-	} else if code >= 300 {
-		slog.Warn("approvals: request-media returned non-2xx", "action", action, "id", id, "code", code)
+	if !h.requestMutationSucceeded(w, r, code, postErr, "/approvals") {
+		return
 	}
 
 	http.Redirect(w, r, "/approvals", http.StatusSeeOther)
