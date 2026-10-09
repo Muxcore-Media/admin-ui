@@ -1,25 +1,25 @@
 package handler
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io"
+	"log/slog"
 	"net/http"
-	"reflect"
-	"regexp"
+	"os"
 	"strings"
 
-	"github.com/Muxcore-Media/admin-ui/session"
+	"github.com/Muxcore-Media/userdata-local/httpclient"
 	"github.com/Muxcore-Media/userdata-local/parental"
+
+	"github.com/Muxcore-Media/admin-ui/internal/userdatahttp"
+	"github.com/Muxcore-Media/admin-ui/session"
 )
 
 // The authoritative parental policy lives in userdata-local (ADR-0030). This
-// file is the only place admin-ui talks to that resource: every request carries
-// exactly the signed-in admin's identity-provider bearer plus the target user
-// selector, never a browser header, a query string or a legacy fallback.
+// file is the only place admin-ui talks to that resource: every request goes
+// through the published checked client over mTLS (ADR-0033, internal/
+// userdatahttp) and carries exactly the signed-in admin's identity-provider
+// bearer plus the target user selector, never a browser header, a query string
+// or a legacy fallback.
 
 const parentalPolicyPath = "/api/parental-policy"
 
@@ -47,207 +47,125 @@ func parentalRatingSupported(token string) bool {
 	return err == nil
 }
 
-// policyHTTPError is a non-2xx answer from the provider.
-type policyHTTPError struct {
-	Status int
-	Code   string
-}
-
-func (e *policyHTTPError) Error() string {
-	if e.Code != "" {
-		return fmt.Sprintf("parental policy provider: HTTP %d (%s)", e.Status, e.Code)
-	}
-	return fmt.Sprintf("parental policy provider: HTTP %d", e.Status)
-}
-
-// errPolicyUnavailable marks everything that is not a clean provider answer:
-// no provider, connection failure, timeout, redirect, oversized or malformed
-// bodies and envelope or scope mismatches. It must never read as unrestricted.
-var errPolicyUnavailable = errors.New("parental policy provider unavailable")
-
-func policyUnavailable(format string, args ...any) error {
-	return fmt.Errorf("%w: %s", errPolicyUnavailable, fmt.Sprintf(format, args...))
-}
-
-func policyStatus(err error) int {
-	var he *policyHTTPError
-	if errors.As(err, &he) {
-		return he.Status
-	}
-	return 0
-}
-
-var policyCodePattern = regexp.MustCompile(`^[a-z0-9_.]{1,64}$`)
-
 // policyView is a validated provider document.
-type policyView struct {
-	State     string // "unconfigured" or "configured"
-	Revision  int64
-	Policy    *parental.Policy
-	UpdatedAt string
+type policyView = userdatahttp.Document
+
+func policyStatus(err error) int { return userdatahttp.Status(err) }
+
+// writeNotApplied reports whether a failed write is certain not to have been
+// applied: nothing was sent, the provider's module admission refused it, or the
+// provider refused it with a definite client-side status. Anything else
+// (timeouts, connection loss, redirects, 5xx, an acknowledgement that does not
+// match) leaves it unknown whether the PUT committed.
+func writeNotApplied(err error) bool { return userdatahttp.NotApplied(err) }
+
+// parentalPoliciesEqual compares two policies after provider normalization.
+func parentalPoliciesEqual(a, b parental.Policy) bool { return userdatahttp.PoliciesEqual(a, b) }
+
+// userdataOrigin resolves the provider origin: the configured
+// ADMIN_UI_USERDATA_URL as given, else the discovered address with the scheme
+// of the selected transport mode (https unless explicit insecure dev). A
+// discovered address is never upgraded from or downgraded to plaintext, and a
+// failure to resolve is unavailability, never a retry over HTTP.
+func (h *Handler) userdataOrigin(ctx context.Context) (string, error) {
+	if origin := userdatahttp.NormalizeOrigin(h.UserdataURL); origin != "" {
+		return origin, nil
+	}
+	if origin := userdatahttp.NormalizeOrigin(os.Getenv(userdatahttp.OriginEnv)); origin != "" {
+		return origin, nil
+	}
+	if h.Core == nil {
+		return "", userdatahttp.Unresolved("no userdata origin is configured and core is not connected")
+	}
+	dialCtx, cancel := context.WithTimeout(ctx, userdataDialTimeout)
+	defer cancel()
+	mod, err := h.findFirstModule(dialCtx, capUserdataLocal)
+	if err != nil {
+		return "", userdatahttp.Unresolved("userdata-local is not registered with core")
+	}
+	insecure, err := h.userdata.Insecure()
+	if err != nil {
+		return "", err
+	}
+	addr := strings.TrimSpace(mod.GetHttpAddr())
+	if addr != "" && !strings.Contains(addr, "://") {
+		addr = normalizeDialAddr(mod.GetId(), addr)
+	}
+	return userdatahttp.OriginFromAdvertised(addr, insecure)
 }
 
-type policyEnvelope struct {
-	UserID    string          `json:"user_id"`
-	TenantID  string          `json:"tenant_id"`
-	State     string          `json:"state"`
-	Revision  int64           `json:"revision"`
-	Policy    json.RawMessage `json:"policy"`
-	UpdatedAt string          `json:"updated_at"`
-}
-
-// parseParentalDocument validates the response envelope strictly (ADR-0031 §3):
-// known fields only, a coherent state/revision/policy triple and the exact
-// target and tenant that were requested.
-func parseParentalDocument(raw []byte, userID, tenantID string) (policyView, error) {
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	dec.DisallowUnknownFields()
-	var env policyEnvelope
-	if err := dec.Decode(&env); err != nil {
-		return policyView{}, policyUnavailable("malformed document")
-	}
-	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
-		return policyView{}, policyUnavailable("trailing data after document")
-	}
-	if env.UserID != userID || env.TenantID != tenantID {
-		return policyView{}, policyUnavailable("document scope does not match the request")
-	}
-	switch env.State {
-	case "unconfigured":
-		if env.Revision != 0 || !bytes.Equal(bytes.TrimSpace(env.Policy), []byte("null")) {
-			return policyView{}, policyUnavailable("incoherent unconfigured document")
-		}
-		return policyView{State: "unconfigured"}, nil
-	case "configured":
-		if env.Revision <= 0 {
-			return policyView{}, policyUnavailable("incoherent configured document")
-		}
-		p, err := parental.DecodePolicy(env.Policy)
-		if err != nil {
-			return policyView{}, policyUnavailable("invalid stored policy")
-		}
-		return policyView{State: "configured", Revision: env.Revision, Policy: &p, UpdatedAt: env.UpdatedAt}, nil
-	}
-	return policyView{}, policyUnavailable("unknown policy state")
-}
-
-func (h *Handler) parentalPolicyURL(ctx context.Context) (string, error) {
-	base := h.UserdataURL
-	if base == "" {
-		base = h.userdataBaseURL(ctx)
-	}
-	if base == "" {
-		return "", policyUnavailable("userdata-local is not available")
-	}
-	return base + parentalPolicyPath, nil
-}
-
-// parentalPolicyDo performs one provider request on behalf of sess for target.
-func (h *Handler) parentalPolicyDo(ctx context.Context, sess *session.Session, method, target string, body []byte) ([]byte, error) {
-	if sess == nil || strings.TrimSpace(sess.AuthLocalToken) == "" {
-		return nil, policyUnavailable("this session has no identity-provider bearer")
-	}
-	endpoint, err := h.parentalPolicyURL(ctx)
+// userdataClient returns the checked client for the current origin. It is
+// built lazily, after Main has enrolled admin-ui's mesh identity.
+func (h *Handler) userdataClient(ctx context.Context) (*httpclient.Client, error) {
+	origin, err := h.userdataOrigin(ctx)
 	if err != nil {
 		return nil, err
 	}
-	reqCtx, cancel := context.WithTimeout(ctx, userdataReadTimeout)
-	defer cancel()
-	var reader io.Reader
-	if body != nil {
-		reader = bytes.NewReader(body)
+	return h.userdata.Client(origin)
+}
+
+// sessionBearer is the signed-in operator's identity-provider bearer: the
+// only user authorization admin-ui ever sends to the provider.
+func sessionBearer(sess *session.Session) (string, error) {
+	if sess == nil || strings.TrimSpace(sess.AuthLocalToken) == "" {
+		return "", userdatahttp.Unresolved("this session has no identity-provider bearer")
 	}
-	req, err := http.NewRequestWithContext(reqCtx, method, endpoint, reader)
-	if err != nil {
-		return nil, policyUnavailable("bad request")
+	return strings.TrimSpace(sess.AuthLocalToken), nil
+}
+
+// logUserdataFailure records why the provider gave no application answer.
+// Application answers (401, 403 policy.forbidden, 409, ...) are not logged
+// here; nothing logged includes a bearer.
+func logUserdataFailure(op string, err error) {
+	if err == nil || policyStatus(err) != 0 {
+		return
 	}
-	req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(sess.AuthLocalToken))
-	req.Header.Set(muxcoreUserIDHeader, target)
-	req.Header.Set("Accept", "application/json")
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	client := &http.Client{
-		Timeout: userdataReadTimeout,
-		// A redirect would re-send the bearer to a location the operator never
-		// configured; treat it as a failure.
-		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, policyUnavailable("request failed")
-	}
-	defer func() { _ = resp.Body.Close() }()
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, parental.MaxBodyBytes+1))
-	if err != nil || len(raw) > parental.MaxBodyBytes {
-		return nil, policyUnavailable("unreadable or oversized response")
-	}
-	if resp.StatusCode != http.StatusOK {
-		he := &policyHTTPError{Status: resp.StatusCode}
-		var e struct {
-			Code string `json:"code"`
-		}
-		if json.Unmarshal(raw, &e) == nil && policyCodePattern.MatchString(e.Code) {
-			he.Code = e.Code
-		}
-		return nil, he
-	}
-	return raw, nil
+	slog.Warn("userdata provider unavailable", "op", op, "reason", userdatahttp.Describe(err),
+		"module_forbidden", userdatahttp.ModuleForbidden(err))
 }
 
 // getParentalPolicy reads target's policy with the admin's bearer.
 func (h *Handler) getParentalPolicy(ctx context.Context, sess *session.Session, target string) (policyView, error) {
-	raw, err := h.parentalPolicyDo(ctx, sess, http.MethodGet, target, nil)
+	bearer, err := sessionBearer(sess)
 	if err != nil {
 		return policyView{}, err
 	}
-	return parseParentalDocument(raw, target, sess.TenantID)
+	c, err := h.userdataClient(ctx)
+	if err == nil {
+		var view policyView
+		view, err = userdatahttp.GetPolicy(ctx, c, bearer, userdatahttp.Target{UserID: target, TenantID: sess.TenantID})
+		if err == nil {
+			return view, nil
+		}
+	}
+	logUserdataFailure("policy.get", err)
+	return policyView{}, err
 }
 
 // putParentalPolicy replaces target's policy when the stored revision still
 // equals expected. policy must already be normalized.
 func (h *Handler) putParentalPolicy(ctx context.Context, sess *session.Session, target string, expected int64, policy parental.Policy) (policyView, error) {
-	body, err := json.Marshal(parental.Update{ExpectedRevision: expected, Policy: policy})
-	if err != nil {
-		return policyView{}, policyUnavailable("encode update")
-	}
-	raw, err := h.parentalPolicyDo(ctx, sess, http.MethodPut, target, body)
+	bearer, err := sessionBearer(sess)
 	if err != nil {
 		return policyView{}, err
 	}
-	view, err := parseParentalDocument(raw, target, sess.TenantID)
-	if err != nil {
-		return policyView{}, err
+	c, err := h.userdataClient(ctx)
+	if err == nil {
+		var view policyView
+		view, err = userdatahttp.PutPolicy(ctx, c, bearer, userdatahttp.Target{UserID: target, TenantID: sess.TenantID}, expected, policy)
+		if err == nil {
+			return view, nil
+		}
 	}
-	// The answer must be the write we asked for, not just any valid document.
-	if view.State != "configured" || view.Revision != expected+1 || !parentalPoliciesEqual(*view.Policy, policy) {
-		return policyView{}, policyUnavailable("write acknowledgement does not match the request")
-	}
-	return view, nil
-}
-
-// parentalPoliciesEqual compares two policies after provider normalization.
-func parentalPoliciesEqual(a, b parental.Policy) bool {
-	na, errA := parental.Normalize(a)
-	nb, errB := parental.Normalize(b)
-	return errA == nil && errB == nil && reflect.DeepEqual(na, nb)
-}
-
-// writeNotApplied reports whether a failed write is certain not to have been
-// applied: the provider refused it with a definite client-side status. Anything
-// else (timeouts, connection loss, 5xx, an acknowledgement that does not match)
-// leaves it unknown whether the PUT committed.
-func writeNotApplied(err error) bool {
-	switch policyStatus(err) {
-	case http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusRequestEntityTooLarge:
-		return true
-	}
-	return false
+	logUserdataFailure("policy.put", err)
+	return policyView{}, err
 }
 
 // parentalErrorMessage is the operator-facing explanation of a provider error.
 // None of these states is ever shown as an empty or unrestricted policy. For
-// writes it claims "nothing was changed" only when that is certain.
+// writes it claims "nothing was changed" only when that is certain. Transport
+// and module-admission failures are about this service, never the operator's
+// role, and never sign the operator out.
 func parentalErrorMessage(err error, writing bool) string {
 	tail := " Nothing was changed."
 	if writing && !writeNotApplied(err) {
@@ -256,6 +174,12 @@ func parentalErrorMessage(err error, writing bool) string {
 	action, done := "read", "read"
 	if writing {
 		action, done = "change", "changed"
+	}
+	switch {
+	case userdatahttp.ModuleForbidden(err):
+		return "Userdata unavailable: the parental policy service does not permit this service (admin-ui's mesh identity) to make this request. This is a deployment problem, not your admin role, and this account is not unrestricted." + tail
+	case userdatahttp.NotConfigured(err):
+		return "Userdata unavailable: admin-ui has no verified connection to the parental policy service (check ADMIN_UI_USERDATA_URL and admin-ui's mesh identity), so this account's policy could not be " + done + ". This is not an unrestricted account." + tail
 	}
 	switch policyStatus(err) {
 	case http.StatusUnauthorized:

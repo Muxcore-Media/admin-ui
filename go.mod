@@ -29,7 +29,7 @@ require (
 	github.com/Muxcore-Media/media-music v0.3.2
 	github.com/Muxcore-Media/media-subtitles v0.5.4
 	github.com/Muxcore-Media/media-transcoder v0.3.10
-	github.com/Muxcore-Media/userdata-local v0.1.5
+	github.com/Muxcore-Media/userdata-local v0.1.6
 )
 
 require github.com/Muxcore-Media/core/pkg/contracts v0.6.0 // indirect

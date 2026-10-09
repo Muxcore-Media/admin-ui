@@ -19,6 +19,7 @@ import (
 	authv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/auth/v1"
 	"github.com/Muxcore-Media/userdata-local/parental"
 
+	"github.com/Muxcore-Media/admin-ui/internal/userdatahttp"
 	"github.com/Muxcore-Media/admin-ui/session"
 	templates "github.com/Muxcore-Media/admin-ui/templ"
 )
@@ -56,6 +57,9 @@ const (
 	outError       = "error"          // anything else, including unreachable
 	outOptInOnly   = "would-optin"    // dry run: unrestricted candidate that needs the opt-in
 	outPlanUnknown = "provider-error" // dry run: could not read the current policy
+	// outNotPermitted: userdata-local refused admin-ui's mesh identity (module
+	// admission, ADR-0033). A deployment problem, never the operator's role.
+	outNotPermitted = "service-not-permitted"
 )
 
 var parentalMigrateMu sync.Mutex
@@ -221,6 +225,12 @@ func recordMigrationRun(run migrationRun) error {
 // outcomeFromError maps a provider error to a reportable outcome. For a write
 // only a definite client-side refusal proves nothing was applied.
 func outcomeFromError(err error, writing bool) (string, string) {
+	if userdatahttp.ModuleForbidden(err) {
+		return outNotPermitted, "userdata unavailable: the policy service does not permit this service (admin-ui's mesh identity); nothing was written. This is a deployment problem, not the admin role"
+	}
+	if userdatahttp.NotConfigured(err) {
+		return outError, "userdata unavailable: no verified connection to the policy service is configured (ADMIN_UI_USERDATA_URL / admin-ui mesh identity); nothing was sent"
+	}
 	switch policyStatus(err) {
 	case http.StatusUnauthorized:
 		return outUnauth, "identity provider rejected the session"
@@ -288,19 +298,20 @@ func (h *Handler) migrateAccount(ctx context.Context, sess *session.Session, e p
 }
 
 var migrationOutcomeLabels = map[string]string{
-	outCreated:     "Created",
-	outWouldCreate: "Would create",
-	outOptInOnly:   "Would create unrestricted (opt-in only)",
-	outEqual:       "Already equal, skipped",
-	outConflict:    "Conflict, not overwritten",
-	outStale:       "Stale, not written",
-	outSkipped:     "Skipped",
-	outNotSelected: "Not selected, untouched",
-	outUnauth:      "Not authorized",
-	outForbidden:   "Forbidden",
-	outNotFound:    "Not found",
-	outError:       "Error",
-	outPlanUnknown: "Could not read current policy",
+	outCreated:      "Created",
+	outWouldCreate:  "Would create",
+	outOptInOnly:    "Would create unrestricted (opt-in only)",
+	outEqual:        "Already equal, skipped",
+	outConflict:     "Conflict, not overwritten",
+	outStale:        "Stale, not written",
+	outSkipped:      "Skipped",
+	outNotSelected:  "Not selected, untouched",
+	outUnauth:       "Not authorized",
+	outForbidden:    "Forbidden",
+	outNotFound:     "Not found",
+	outError:        "Error",
+	outPlanUnknown:  "Could not read current policy",
+	outNotPermitted: "Userdata unavailable: not permitted for this service",
 }
 
 func policyMapSummary(e planEntry) string {

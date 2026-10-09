@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Muxcore-Media/admin-ui/internal/userdatahttp/userdatahttptest"
 	"github.com/Muxcore-Media/admin-ui/session"
 	authv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/auth/v1"
 	discoveryv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/discovery/v1"
@@ -200,7 +201,10 @@ func TestSyncParentalPINToUserdata(t *testing.T) {
 	var gotPath string
 	var gotUserHeader string
 	var gotAuth string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	pki := newTestPKI(t)
+	var gotCN string
+	srv := userdatahttptest.StartTLS(t, pki.ca.Provider(), pki.ca, userdatahttptest.Admit(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotCN = userdatahttptest.VerifiedCN(r)
 		gotPath = r.URL.Path
 		gotUserHeader = r.Header.Get(muxcoreUserIDHeader)
 		gotAuth = r.Header.Get("Authorization")
@@ -230,12 +234,11 @@ func TestSyncParentalPINToUserdata(t *testing.T) {
 		default:
 			http.Error(w, "method", http.StatusMethodNotAllowed)
 		}
-	}))
-	t.Cleanup(srv.Close)
+	})))
 
 	ss := session.NewStore(0)
 	h := New(nil, ss, false, "test", nil, false, "", nil, nil)
-	h.UserdataURL = srv.URL
+	pki.attach(h, srv.URL)
 
 	sess := &session.Session{UserID: "admin1", Roles: []string{"admin"}, AuthLocalToken: "test-auth-local-token"}
 	ctx := context.WithValue(context.Background(), ctxSessionKey, sess)
@@ -254,5 +257,8 @@ func TestSyncParentalPINToUserdata(t *testing.T) {
 	}
 	if !gotPut {
 		t.Fatal("expected userdata PUT")
+	}
+	if gotCN != "admin-ui" {
+		t.Fatalf("provider saw client CN %q, want admin-ui", gotCN)
 	}
 }

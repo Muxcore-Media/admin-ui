@@ -10,9 +10,12 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/Muxcore-Media/admin-ui/internal/userdatahttp/userdatahttptest"
 	"github.com/Muxcore-Media/admin-ui/session"
 	authv1 "github.com/Muxcore-Media/core/proto/gen/muxcore/auth/v1"
+	"github.com/Muxcore-Media/userdata-local/httpclient"
 	"github.com/Muxcore-Media/userdata-local/parental"
 )
 
@@ -23,6 +26,7 @@ const (
 
 // capturedRequest is what the fake provider saw.
 type capturedRequest struct {
+	CN       string // verified client certificate CN
 	Method   string
 	Path     string
 	RawQuery string
@@ -32,13 +36,38 @@ type capturedRequest struct {
 	Body     []byte
 }
 
-// fakePolicyProvider is an httptest stand-in for userdata-local v0.1.5. It
-// validates PUT bodies with the provider's own parental.DecodeUpdate, enforces
-// the revision compare-and-set, and also serves /api/userdata so a test can
-// prove nothing is written to the writable blob.
+// testPKI is a mesh CA plus admin-ui's own enrolled client certificate.
+type testPKI struct {
+	ca     *userdatahttptest.CA
+	client userdatahttptest.Leaf
+	// timeout is the checked client's per-request deadline (0 = default 5 s).
+	timeout time.Duration
+}
+
+func newTestPKI(t *testing.T) *testPKI {
+	t.Helper()
+	ca := userdatahttptest.NewCA(t, "muxcore-test-ca")
+	return &testPKI{ca: ca, client: ca.Module("admin-ui")}
+}
+
+// attach points h at origin through the checked client with admin-ui's
+// identity, in the household (secure) profile.
+func (p *testPKI) attach(h *Handler, origin string) {
+	h.UserdataURL = origin
+	h.userdata.Resolve = func(o string) (httpclient.Config, error) {
+		return userdatahttptest.ClientConfig(o, "admin-ui", p.client, p.ca, p.timeout), nil
+	}
+}
+
+// fakePolicyProvider is a real-mTLS stand-in for userdata-local v0.1.6: it
+// requires a client certificate from the mesh CA, applies the provider's
+// verified-CN admission table, validates PUT bodies with the provider's own
+// parental.DecodeUpdate, enforces the revision compare-and-set, and also
+// serves /api/userdata so a test can prove nothing is written to the blob.
 type fakePolicyProvider struct {
 	t   *testing.T
 	srv *httptest.Server
+	pki *testPKI
 
 	mu       sync.Mutex
 	docs     map[string]parental.Document
@@ -50,6 +79,24 @@ type fakePolicyProvider struct {
 	blob     json.RawMessage   // last PUT /api/userdata body
 	blobPuts int
 	onPut    func() // called at the start of every policy PUT
+	// denyModule refuses "METHOD /path" at module admission, as a provider
+	// whose table does not admit admin-ui would (403 userdata.module_forbidden).
+	denyModule map[string]bool
+	refusals   int             // requests refused at admission
+	foreign    map[string]bool // accounts in another tenant: 403 policy.forbidden
+	blobGets   int
+	// delay holds the answer to "METHOD user" back after the request has been
+	// fully applied, so a client deadline makes the write outcome uncertain.
+	delay map[string]time.Duration
+}
+
+const testMemberBearer = "member-bearer"
+
+// providerCodes are userdata-local's own error codes for forced statuses.
+var providerCodes = map[int]string{
+	400: "policy.invalid_body", 401: "policy.unauthenticated", 403: "policy.forbidden",
+	404: "policy.account_not_found", 409: "policy.revision_conflict", 413: "policy.too_large",
+	503: "policy.storage_unavailable",
 }
 
 func newFakePolicyProvider(t *testing.T, users ...string) *fakePolicyProvider {
@@ -61,25 +108,61 @@ func newFakePolicyProvider(t *testing.T, users ...string) *fakePolicyProvider {
 		force:    map[string]int{},
 		raw:      map[string]string{},
 		raceOnce: map[string]bool{},
+		foreign:  map[string]bool{},
+
+		denyModule: map[string]bool{},
+		delay:      map[string]time.Duration{},
 	}
 	for _, u := range users {
 		f.known[u] = true
 	}
-	f.srv = httptest.NewServer(http.HandlerFunc(f.serve))
-	t.Cleanup(f.srv.Close)
+	f.pki = newTestPKI(t)
+	f.srv = userdatahttptest.StartTLS(t, f.pki.ca.Provider(), f.pki.ca, userdatahttptest.Admit(http.HandlerFunc(f.handle)))
 	return f
+}
+
+// attach points h at this provider with admin-ui's valid identity.
+func (f *fakePolicyProvider) attach(h *Handler) { f.pki.attach(h, f.srv.URL) }
+
+// handle serves r, optionally holding the (already applied) answer back.
+func (f *fakePolicyProvider) handle(w http.ResponseWriter, r *http.Request) {
+	f.mu.Lock()
+	d := f.delay[r.Method+" "+r.Header.Get(muxcoreUserIDHeader)]
+	f.mu.Unlock()
+	if d == 0 {
+		f.serve(w, r)
+		return
+	}
+	rec := httptest.NewRecorder()
+	f.serve(rec, r)
+	select {
+	case <-time.After(d):
+	case <-r.Context().Done():
+		return
+	}
+	for k, v := range rec.Header() {
+		w.Header()[k] = v
+	}
+	w.WriteHeader(rec.Code)
+	_, _ = w.Write(rec.Body.Bytes())
 }
 
 func (f *fakePolicyProvider) serve(w http.ResponseWriter, r *http.Request) {
 	body, _ := io.ReadAll(r.Body)
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.denyModule[r.Method+" "+r.URL.Path] || f.denyModule[r.Method+" "+r.URL.Path+" "+r.Header.Get(muxcoreUserIDHeader)] {
+		f.refusals++
+		userdatahttptest.ModuleForbidden(w)
+		return
+	}
 	if r.URL.Path == userdataHTTPPath {
 		f.serveBlob(w, r, body)
 		return
 	}
 	userIDs := r.Header.Values(muxcoreUserIDHeader)
 	f.reqs = append(f.reqs, capturedRequest{
+		CN:     userdatahttptest.VerifiedCN(r),
 		Method: r.Method, Path: r.URL.Path, RawQuery: r.URL.RawQuery,
 		Auth: r.Header.Values("Authorization"), UserIDs: userIDs, Header: r.Header.Clone(), Body: body,
 	})
@@ -97,13 +180,29 @@ func (f *fakePolicyProvider) serve(w http.ResponseWriter, r *http.Request) {
 		f.onPut()
 	}
 	if st := f.force[key]; st != 0 {
+		code := providerCodes[st]
+		if code == "" {
+			code = "policy.forced"
+		}
 		w.WriteHeader(st)
-		_, _ = w.Write([]byte(`{"code":"policy.forced"}`))
+		_, _ = w.Write([]byte(`{"code":"` + code + `"}`))
 		return
 	}
-	if len(r.Header.Values("Authorization")) != 1 || r.Header.Get("Authorization") != "Bearer "+testAdminBearer {
+	if len(r.Header.Values("Authorization")) == 1 && r.Header.Get("Authorization") == "Bearer "+testMemberBearer {
+		// A member may read only their own policy and never write.
+		if r.Method != http.MethodGet || user != "member" {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"code":"policy.forbidden"}`))
+			return
+		}
+	} else if len(r.Header.Values("Authorization")) != 1 || r.Header.Get("Authorization") != "Bearer "+testAdminBearer {
 		w.WriteHeader(http.StatusUnauthorized)
 		_, _ = w.Write([]byte(`{"code":"policy.unauthenticated"}`))
+		return
+	}
+	if f.foreign[user] {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"code":"policy.forbidden"}`))
 		return
 	}
 	if !f.known[user] {
@@ -154,6 +253,7 @@ func (f *fakePolicyProvider) serve(w http.ResponseWriter, r *http.Request) {
 func (f *fakePolicyProvider) serveBlob(w http.ResponseWriter, r *http.Request, body []byte) {
 	switch r.Method {
 	case http.MethodGet:
+		f.blobGets++
 		_ = json.NewEncoder(w).Encode(userdataBlob{Progress: map[string]json.RawMessage{}, Favorites: map[string]json.RawMessage{}})
 	case http.MethodPut:
 		f.blobPuts++
@@ -185,6 +285,12 @@ func (f *fakePolicyProvider) doc(user string) parental.Document {
 	return parental.Unconfigured(parental.Scope{UserID: user, TenantID: testTenant})
 }
 
+func (f *fakePolicyProvider) refusalCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.refusals
+}
+
 func (f *fakePolicyProvider) requests() []capturedRequest {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -213,6 +319,9 @@ func (f *fakePolicyProvider) blobState() (json.RawMessage, int) {
 func (f *fakePolicyProvider) assertCleanRequests(t *testing.T) {
 	t.Helper()
 	for _, r := range f.requests() {
+		if r.CN != "admin-ui" {
+			t.Errorf("%s %s verified client CN = %q, want admin-ui", r.Method, r.Path, r.CN)
+		}
 		if len(r.Auth) != 1 || r.Auth[0] != "Bearer "+testAdminBearer {
 			t.Errorf("%s %s Authorization = %v", r.Method, r.Path, r.Auth)
 		}
@@ -265,6 +374,7 @@ func newParentalEnv(t *testing.T, users ...*authv1.UserInfo) *parentalEnv {
 	t.Setenv("ADMIN_UI_PARENTAL_FILE", "")
 	t.Setenv("ADMIN_UI_PARENTAL_MIGRATION_FILE", "")
 	t.Setenv("ADMIN_UI_USERDATA_URL", "")
+	t.Setenv("MUXCORE_MESH_DIAL_LOCAL", "")
 	ids := make([]string, 0, len(users))
 	for _, u := range users {
 		ids = append(ids, u.GetId())
@@ -275,7 +385,7 @@ func newParentalEnv(t *testing.T, users ...*authv1.UserInfo) *parentalEnv {
 	}
 	h := setupIdentityHandler(t, stub)
 	prov := newFakePolicyProvider(t, ids...)
-	h.UserdataURL = prov.srv.URL
+	prov.attach(h)
 	e := &parentalEnv{
 		h: h, prov: prov, dir: dir,
 		sess: &session.Session{UserID: "admin1", Username: "admin", Roles: []string{"admin"}, AuthLocalToken: testAdminBearer, TenantID: testTenant},
