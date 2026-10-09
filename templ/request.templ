@@ -70,10 +70,10 @@ templ RequestPage(data RequestPageData) {
 									<div class="text-xs text-gray-500">{ rec.ItemType } · by { rec.RequestedBy }</div>
 								</div>
 								<div class="flex gap-2">
-									<form method="post" action={ templ.SafeURL("/request/" + rec.ID + "/approve") }>
+									<form hx-select="#main-content > *" method="post" action={ templ.SafeURL("/request/" + rec.ID + "/approve") }>
 										<button type="submit" class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-600" data-testid="request-approve" aria-label={ fmt.Sprintf("Approve request for %s", rec.Title) }>Approve</button>
 									</form>
-									<form method="post" action={ templ.SafeURL("/request/" + rec.ID + "/deny") }>
+									<form hx-select="#main-content > *" method="post" action={ templ.SafeURL("/request/" + rec.ID + "/deny") }>
 										<button type="submit" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:border-red-500" data-testid="request-deny" aria-label={ fmt.Sprintf("Deny request for %s", rec.Title) }>Deny</button>
 									</form>
 								</div>
@@ -82,7 +82,7 @@ templ RequestPage(data RequestPageData) {
 					</ul>
 				</section>
 			}
-			<form class="flex flex-wrap gap-3 items-end" method="get" action="/request" data-testid="request-search-form" aria-label="Search TMDB">
+			<form class="flex flex-wrap gap-3 items-end" method="get" action="/request" hx-select="#main-content > *" data-testid="request-search-form" aria-label="Search TMDB">
 				<div>
 					<label for="request-media-type" class="block text-xs font-medium text-gray-500 mb-1">Type</label>
 					<select id="request-media-type" name="type" class="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white">
@@ -106,7 +106,7 @@ templ RequestPage(data RequestPageData) {
 									<div class="font-medium">{ hit.Title } <span class="text-gray-500 text-sm">({ fmt.Sprintf("%d", hit.Year) })</span></div>
 									<div class="text-xs text-gray-500">TMDB { fmt.Sprintf("%d", hit.ID) } · { hit.Type }</div>
 								</div>
-								<form method="post" action="/request">
+								<form hx-select="#main-content > *" method="post" action="/request">
 									<input type="hidden" name="tmdb_id" value={ fmt.Sprintf("%d", hit.ID) }/>
 									<input type="hidden" name="title" value={ hit.Title }/>
 									<input type="hidden" name="year" value={ fmt.Sprintf("%d", hit.Year) }/>

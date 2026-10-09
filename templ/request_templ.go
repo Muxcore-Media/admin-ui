@@ -195,14 +195,14 @@ func RequestPage(data RequestPageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</div></div><div class=\"flex gap-2\"><form method=\"post\" action=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</div></div><div class=\"flex gap-2\"><form hx-select=\"#main-content > *\" method=\"post\" action=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var9 templ.SafeURL
 					templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/request/" + rec.ID + "/approve"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/request.templ`, Line: 73, Col: 86}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/request.templ`, Line: 73, Col: 116}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 					if templ_7745c5c3_Err != nil {
@@ -221,14 +221,14 @@ func RequestPage(data RequestPageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\">Approve</button></form><form method=\"post\" action=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\">Approve</button></form><form hx-select=\"#main-content > *\" method=\"post\" action=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var11 templ.SafeURL
 					templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/request/" + rec.ID + "/deny"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/request.templ`, Line: 76, Col: 83}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/request.templ`, Line: 76, Col: 113}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 					if templ_7745c5c3_Err != nil {
@@ -257,7 +257,7 @@ func RequestPage(data RequestPageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, " <form class=\"flex flex-wrap gap-3 items-end\" method=\"get\" action=\"/request\" data-testid=\"request-search-form\" aria-label=\"Search TMDB\"><div><label for=\"request-media-type\" class=\"block text-xs font-medium text-gray-500 mb-1\">Type</label> <select id=\"request-media-type\" name=\"type\" class=\"rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white\"><option value=\"movie\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, " <form class=\"flex flex-wrap gap-3 items-end\" method=\"get\" action=\"/request\" hx-select=\"#main-content > *\" data-testid=\"request-search-form\" aria-label=\"Search TMDB\"><div><label for=\"request-media-type\" class=\"block text-xs font-medium text-gray-500 mb-1\">Type</label> <select id=\"request-media-type\" name=\"type\" class=\"rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white\"><option value=\"movie\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -352,7 +352,7 @@ func RequestPage(data RequestPageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</div></div><form method=\"post\" action=\"/request\"><input type=\"hidden\" name=\"tmdb_id\" value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</div></div><form hx-select=\"#main-content > *\" method=\"post\" action=\"/request\"><input type=\"hidden\" name=\"tmdb_id\" value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

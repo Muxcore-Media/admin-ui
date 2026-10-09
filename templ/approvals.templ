@@ -61,7 +61,7 @@ templ ApprovalsPage(data ApprovalsPageData) {
 										<div class="text-xs text-gray-500 mt-0.5">{ row.ItemType } · requested by { row.RequestedBy }</div>
 									</div>
 									<div class="flex flex-wrap items-center gap-2">
-										<form method="post" action={ templ.SafeURL("/approvals/" + row.ID + "/approve") }>
+										<form hx-select="#main-content > *" method="post" action={ templ.SafeURL("/approvals/" + row.ID + "/approve") }>
 											<button
 												type="submit"
 												class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-600"
@@ -69,7 +69,7 @@ templ ApprovalsPage(data ApprovalsPageData) {
 												aria-label={ fmt.Sprintf("Approve request for %s", row.Title) }
 											>Approve</button>
 										</form>
-										<form method="post" action={ templ.SafeURL("/approvals/" + row.ID + "/deny") } class="flex items-center gap-1.5">
+										<form hx-select="#main-content > *" method="post" action={ templ.SafeURL("/approvals/" + row.ID + "/deny") } class="flex items-center gap-1.5">
 											<input
 												type="text"
 												name="reason"
