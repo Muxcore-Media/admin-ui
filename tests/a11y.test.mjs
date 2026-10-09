@@ -34,7 +34,7 @@ test('axe checks actual Go-rendered core journeys', async t => {
   });
   assert.equal(result.status, 0, `Go template fixtures failed: ${result.error || ''}\n${result.stdout}\n${result.stderr}`);
   const fixtures = readdirSync(dir).filter(name => name.endsWith('.html')).sort();
-  assert.equal(fixtures.length, 43, 'render every core journey, including request mutation errors, per-item and bulk content rating states and repeated module setting keys');
+  assert.equal(fixtures.length, 45, 'render every core journey, including request mutation errors, per-item and bulk content rating states and repeated module setting keys');
   for (const fixture of fixtures) {
     await t.test(fixture, async () => {
       const results = await scan(readFileSync(join(dir, fixture), 'utf8'));
@@ -178,6 +178,28 @@ test('axe checks actual Go-rendered core journeys', async t => {
       assert.equal(doc.querySelectorAll('input[name=ids]').length, total, 'one checkbox per row');
     } finally {
       dom.window.close();
+    }
+  });
+  // The source of the effective rating is text, never colour alone, and a clear
+  // that lands on a TMDB value says so.
+  await t.test('content-rating source is stated in text', () => {
+    const bulk = new JSDOM(readFileSync(join(dir, 'content-ratings-bulk.html'), 'utf8'));
+    const cleared = new JSDOM(readFileSync(join(dir, 'content-rating-cleared-tmdb.html'), 'utf8'));
+    const result = new JSDOM(readFileSync(join(dir, 'content-ratings-bulk-result-clear.html'), 'utf8'));
+    try {
+      const sources = [...bulk.window.document.querySelectorAll('[data-testid="content-rating-source"]')];
+      assert.deepEqual(sources.map(e => e.dataset.source), ['operator', 'operator', '', '', 'tmdb']);
+      assert.deepEqual(sources.map(e => e.textContent.trim().split(/\s+/)[0]), ['Operator', 'Operator', 'None', 'None', 'TMDB']);
+      assert(bulk.window.document.querySelector('[data-testid="content-rating-source-help"]').textContent.includes('clearing returns to TMDB'));
+      const note = cleared.window.document.querySelector('[data-testid="content-rating-cleared"]');
+      assert.equal(note.getAttribute('role'), 'status');
+      assert(note.textContent.includes('Operator classification cleared; the effective rating is now R from TMDB.'));
+      assert(cleared.window.document.querySelector('[data-testid="content-rating-source"]').textContent.includes('TMDB'));
+      assert(cleared.window.document.querySelector('[data-testid="content-rating-source-help"]').textContent.includes('clearing returns to TMDB'));
+      const summary = result.window.document.querySelector('[data-testid="content-rating-summary"]').textContent;
+      assert(summary.includes('a TMDB rating now applies to 1 and no rating to 1'));
+    } finally {
+      bulk.window.close(); cleared.window.close(); result.window.close();
     }
   });
   await t.test('bulk content-ratings result announces partial failure', () => {

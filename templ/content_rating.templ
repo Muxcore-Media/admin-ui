@@ -8,7 +8,40 @@ type ContentRatingData struct {
 	Selected string
 	Options []string
 	CanEdit, Loaded, Saved bool
-	Error string
+	// Cleared is set with Saved after a confirmed clear of the operator
+	// classification; Rating and Source then hold the effective readback.
+	Cleared bool
+	Error   string
+}
+
+// ContentRatingSourceLabel names where an effective rating comes from, in
+// words: an operator classification, a TMDB rating (which applies only where no
+// operator classification exists), or none. Colour never carries this alone.
+func ContentRatingSourceLabel(rating, source string) string {
+	switch source {
+	case "operator":
+		return "Operator classification"
+	case "tmdb":
+		return "TMDB (applies only because no operator classification exists)"
+	case "":
+		if rating == "" {
+			return "None (no classification available)"
+		}
+	}
+	return "Unrecognised source (" + source + ")"
+}
+
+// ContentRatingClearedMessage states the result of a confirmed clear: the
+// operator classification is gone and the effective rating, if any, comes from
+// TMDB.
+func ContentRatingClearedMessage(rating, source string) string {
+	switch {
+	case source == "tmdb" && rating == "NR":
+		return "Operator classification cleared; the effective rating is now Not rated (NR) from TMDB."
+	case source == "tmdb":
+		return "Operator classification cleared; the effective rating is now " + rating + " from TMDB."
+	}
+	return "Operator classification cleared; no classification is available now."
 }
 
 func ContentRatingURL(moduleID, itemID string) string {
@@ -25,7 +58,9 @@ templ ContentRatingPage(d ContentRatingData) {
 		if d.Error != "" {
 			<p role="alert" class="rounded-lg border border-red-900 p-4 text-red-300">{ d.Error }</p>
 		}
-		if d.Saved {
+		if d.Saved && d.Cleared {
+			<p role="status" class="text-green-300" data-testid="content-rating-cleared">{ ContentRatingClearedMessage(d.Rating, d.Source) } It was checked against the module.</p>
+		} else if d.Saved {
 			<p role="status" class="text-green-300">Content rating saved and checked.</p>
 		}
 		if d.Loaded {
@@ -35,12 +70,11 @@ templ ContentRatingPage(d ContentRatingData) {
 				if d.Rating != "" {
 					<p>Recorded value: <strong>{ d.Rating }</strong></p>
 				}
-				if d.Source != "" {
-					<p>Source: { d.Source }</p>
-				}
+				<p data-testid="content-rating-source">Source: <strong>{ ContentRatingSourceLabel(d.Rating, d.Source) }</strong></p>
 			</section>
 		}
-		<p id="content-rating-help" class="text-sm text-gray-400">A recorded rating is compared with each account's parental policy. Explicit unrated (NR) is allowed only when that policy allows unrated items. Clearing the rating makes classification unavailable; restricted accounts are denied even when they allow unrated items.</p>
+		<p id="content-rating-help" class="text-sm text-gray-400">A recorded rating is compared with each account's parental policy. Explicit unrated (NR) is allowed only when that policy allows unrated items. Clearing the operator classification makes classification unavailable unless TMDB supplies a rating; restricted accounts are denied unavailable items even when they allow unrated items.</p>
+		<p id="content-rating-source-help" class="text-sm text-gray-400" data-testid="content-rating-source-help">A TMDB rating applies only where no operator classification exists; setting one here overrides it; clearing returns to TMDB.</p>
 		if d.ModuleID == "media-tvshows" {
 			<p class="text-sm text-gray-400">All seasons and episodes inherit this series rating.</p>
 		}
@@ -50,7 +84,7 @@ templ ContentRatingPage(d ContentRatingData) {
 				<label for="content-rating-choice" class="block text-sm font-medium">Operator classification</label>
 				<select id="content-rating-choice" name="classification" required aria-describedby="content-rating-help" class="rounded-lg border border-gray-700 bg-gray-900 px-3 py-2">
 					<option value="" disabled selected?={ d.Selected == "" }>Choose a classification</option>
-					<option value="clear" selected?={ d.Selected == "clear" }>Clear rating — unavailable</option>
+					<option value="clear" selected?={ d.Selected == "clear" }>Clear operator classification</option>
 					<option value="unrated" selected?={ d.Selected == "unrated" }>Explicit unrated (NR)</option>
 					for _, rating := range d.Options {
 						<option value={ rating } selected?={ d.Selected == rating }>{ rating }</option>

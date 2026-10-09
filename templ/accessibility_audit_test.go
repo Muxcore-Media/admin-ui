@@ -69,6 +69,7 @@ func TestAccessibilityCoreJourneys(t *testing.T) {
 		{"library", MediaListPage("Movies", []*mediaadminv1.MediaItem{{Id: "movie-1", Title: "Dune"}}, 2, 3, 24, "movies", nil, "", "")},
 		{"content-rating-movie", ContentRatingPage(ContentRatingData{ModuleID: "media-movies", ItemID: "fixture", Title: "Fixture", Loaded: true, CanEdit: true, State: "Rated by an operator", Rating: "PG", Source: "operator", Selected: "PG", Options: []string{"G", "PG", "R"}})},
 		{"content-rating-series-unrated", ContentRatingPage(ContentRatingData{ModuleID: "media-tvshows", ItemID: "fixture", Title: "Fixture", Loaded: true, CanEdit: true, State: "Explicit unrated", Rating: "NR", Source: "operator", Selected: "unrated", Saved: true, Options: []string{"TV-Y", "TV-14", "TV-MA"}})},
+		{"content-rating-cleared-tmdb", ContentRatingPage(ContentRatingData{ModuleID: "media-movies", ItemID: "fixture", Title: "Fixture", Loaded: true, CanEdit: true, State: "Rated by TMDB (no operator classification)", Rating: "R", Source: "tmdb", Selected: "clear", Saved: true, Cleared: true, Options: []string{"G", "PG", "R"}})},
 		{"content-rating-unavailable", ContentRatingPage(ContentRatingData{ModuleID: "media-movies", ItemID: "fixture", Loaded: true, CanEdit: true, State: "Unavailable", Selected: "clear", Options: []string{"G", "PG"}})},
 		{"content-rating-read-only", ContentRatingPage(ContentRatingData{ModuleID: "media-tvshows", ItemID: "fixture", Loaded: true, State: "Unavailable"})},
 		{"content-rating-error", ContentRatingPage(ContentRatingData{ModuleID: "media-movies", ItemID: "fixture", CanEdit: true, Error: "The change may have been saved. Reload and check before saving again."})},
@@ -89,6 +90,15 @@ func TestAccessibilityCoreJourneys(t *testing.T) {
 				{ID: "m2", Title: "Arrival", Outcome: ContentRatingBulkOutcomeFailed, Message: "The module rejected this rating. This title was not changed."},
 				{ID: "m4", Title: "Sicario", Outcome: ContentRatingBulkOutcomeUncertain, Message: "The save was acknowledged, but this title's current rating could not be confirmed. Check it before saving again."},
 				{ID: "m3", Outcome: ContentRatingBulkOutcomeNotAttempted, Message: "Not attempted: the request ran out of time before this title. Nothing was changed."},
+			}}
+			return d
+		}())},
+		{"content-ratings-bulk-result-clear", ContentRatingBulkPage(func() ContentRatingBulkData {
+			d := contentRatingBulkFixture()
+			d.Applied = &ContentRatingBulkApplied{Choice: "Operator rating cleared", Mode: "clear", OK: 2, Uncertain: 1, ClearedToTMDB: 1, ClearedToNone: 1, Results: []ContentRatingBulkResult{
+				{ID: "m1", Title: "Dune", Outcome: ContentRatingBulkOutcomeOK, Rating: "R", Source: "tmdb"},
+				{ID: "m3", Title: "Untitled", Outcome: ContentRatingBulkOutcomeOK},
+				{ID: "m4", Title: "Odd", Outcome: ContentRatingBulkOutcomeUncertain, Message: "The save was acknowledged, but this title's current rating could not be confirmed. Check it before saving again."},
 			}}
 			return d
 		}())},
@@ -188,6 +198,7 @@ func contentRatingBulkFixture() ContentRatingBulkData {
 			{ID: "m2", Title: "Arrival", Year: 2016, State: ContentRatingBulkUnrated, Rating: "NR", Source: "operator"},
 			{ID: "m3", Title: "Untitled", State: ContentRatingBulkUnavailable},
 			{ID: "m4", Title: "Odd", State: ContentRatingBulkUnavailable, Unrecognised: "XYZ"},
+			{ID: "m5", Title: "Fallback", State: ContentRatingBulkRated, Rating: "R", Source: "tmdb"},
 		},
 	}
 }

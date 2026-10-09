@@ -30,7 +30,8 @@ type ContentRatingBulkItem struct {
 	State string
 	// Rating is the ladder token, or "NR" for an explicit unrated.
 	Rating string
-	// Source is the module's content_rating_source ("operator" or "").
+	// Source is the module's content_rating_source: "operator", "tmdb" (applies
+	// only where no operator classification exists) or "".
 	Source string
 	Tags   []string
 	// Unrecognised is a value the module returned that is not on the ladder.
@@ -44,6 +45,11 @@ type ContentRatingBulkResult struct {
 	Title   string
 	Outcome string
 	Message string
+	// Rating and Source are the classification the module reported on the
+	// confirming readback (only for a confirmed outcome). After a clear they
+	// show what now applies: a TMDB rating, or nothing.
+	Rating string
+	Source string
 }
 
 // ContentRatingBulkApplied summarises one bulk apply.
@@ -56,6 +62,10 @@ type ContentRatingBulkApplied struct {
 	// not be confirmed (lost reply, or an unconfirmed readback).
 	Uncertain int
 	Skipped   int
+	// ClearedToTMDB and ClearedToNone split the confirmed titles of a clear by
+	// what the module reports afterwards.
+	ClearedToTMDB int
+	ClearedToNone int
 	Results []ContentRatingBulkResult
 }
 
@@ -126,6 +136,11 @@ func contentRatingBulkStateClass(state string) string {
 
 // contentRatingBulkSelected reports whether option is the row select's preselection.
 func contentRatingBulkSelected(it ContentRatingBulkItem, option string) bool {
+	// Only an operator value is preselected: a TMDB rating is not the operator
+	// classification, so the row offers no pre-chosen change for it.
+	if it.Source != "operator" {
+		return false
+	}
 	switch it.State {
 	case ContentRatingBulkRated:
 		return option == it.Rating
@@ -133,6 +148,25 @@ func contentRatingBulkSelected(it ContentRatingBulkItem, option string) bool {
 		return option == "NR"
 	}
 	return false
+}
+
+// contentRatingBulkSourceLabel names the source of a row's effective rating in
+// text, so it never depends on colour.
+func contentRatingBulkSourceLabel(it ContentRatingBulkItem) string {
+	switch {
+	case it.Source == "operator":
+		return "Operator"
+	case it.Source == "tmdb":
+		return "TMDB"
+	case it.Source != "":
+		return "Unrecognised (" + it.Source + ")"
+	}
+	return "None"
+}
+
+// contentRatingBulkClearedText states what a confirmed clear left in effect.
+func contentRatingBulkClearedText(r ContentRatingBulkResult) string {
+	return ContentRatingClearedMessage(r.Rating, r.Source)
 }
 
 func contentRatingBulkTitle(it ContentRatingBulkItem) string {
@@ -158,7 +192,7 @@ templ contentRatingBulkOptions(options []string, selected func(string) bool) {
 	</optgroup>
 	<optgroup label="Other">
 		<option value="NR" selected?={ selected("NR") }>Not rated (NR)</option>
-		<option value="CLEAR">Clear (unavailable)</option>
+		<option value="CLEAR">Clear operator rating (TMDB applies if present)</option>
 	</optgroup>
 }
 
@@ -167,8 +201,11 @@ templ ContentRatingBulkPage(data ContentRatingBulkData) {
 		<div>
 			<h1 class="text-2xl font-bold">Content ratings</h1>
 			<p class="text-gray-400 text-sm mt-1 max-w-3xl">
-				Set the parental classification of each movie and series. The rating you set here is the authority:
-				it is stored by the media module and is not taken from TMDB or from the web app.
+				Set the parental classification of each movie and series. The rating you set here is the operator classification:
+				it is stored by the media module and takes precedence over every other source.
+			</p>
+			<p class="text-gray-400 text-sm mt-1 max-w-3xl" data-testid="content-rating-source-help">
+				A TMDB rating applies only where no operator classification exists; setting one here overrides it; clearing returns to TMDB.
 			</p>
 		</div>
 		<div class="rounded-xl border border-amber-900/50 bg-amber-950/20 p-4 text-sm text-amber-200 max-w-3xl" data-testid="content-rating-explainer">
@@ -179,7 +216,7 @@ templ ContentRatingBulkPage(data ContentRatingBulkData) {
 			<ul class="list-disc pl-5 mt-2 space-y-1 text-amber-100/90">
 				<li><strong>Rated</strong>: a rating from the list, shown to accounts whose limit allows it.</li>
 				<li><strong>Not rated (NR)</strong>: you decided the title has no rating. Whether restricted accounts may see it depends on each account's policy.</li>
-				<li><strong>Clear (unavailable)</strong>: removes your rating. The title is hidden from restricted accounts again.</li>
+				<li><strong>Clear operator rating</strong>: removes your rating. The title then shows its TMDB rating if it has one; otherwise it is unavailable and hidden from restricted accounts again.</li>
 			</ul>
 		</div>
 		<nav aria-label="Library type" class="flex gap-2">
@@ -250,7 +287,7 @@ templ ContentRatingBulkPage(data ContentRatingBulkData) {
 								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Select</th>
 								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Title</th>
 								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Current rating</th>
-								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Set by</th>
+								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Rating source</th>
 								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Tags</th>
 								<th scope="col" class="px-3 py-2 text-left text-xs text-gray-500">Change</th>
 							</tr>
@@ -268,13 +305,10 @@ templ ContentRatingBulkPage(data ContentRatingBulkData) {
 											<span class="block text-xs text-gray-400">The module reports “{ it.Unrecognised }”, which is not a known rating.</span>
 										}
 									</td>
-									<td class="px-3 py-2 text-gray-400">
-										if it.Source == "operator" {
-											Operator
-										} else if it.Source != "" {
-											{ it.Source }
-										} else {
-											<span aria-label="not set">—</span>
+									<td class="px-3 py-2 text-gray-300" data-testid="content-rating-source" data-source={ it.Source }>
+										{ contentRatingBulkSourceLabel(it) }
+										if it.Source == "tmdb" {
+											<span class="block text-xs text-gray-400">No operator classification</span>
 										}
 									</td>
 									<td class="px-3 py-2 text-xs text-gray-400">
@@ -333,6 +367,9 @@ templ contentRatingBulkApplied(a *ContentRatingBulkApplied) {
 				, { strconv.Itoa(a.Skipped) } not attempted
 			}
 			.
+			if a.Mode == "clear" && a.OK > 0 {
+				Of the cleared titles, a TMDB rating now applies to { strconv.Itoa(a.ClearedToTMDB) } and no rating to { strconv.Itoa(a.ClearedToNone) }.
+			}
 			if a.Failed > 0 || a.Uncertain > 0 || a.Skipped > 0 {
 				<strong class="text-amber-300"> Not every title was confirmed as changed; see the list below.</strong>
 			}
@@ -343,7 +380,11 @@ templ contentRatingBulkApplied(a *ContentRatingBulkApplied) {
 					<strong>{ contentRatingBulkResultName(r) }</strong>:
 					switch r.Outcome {
 						case ContentRatingBulkOutcomeOK:
-							<span class="text-emerald-300">changed</span>
+							if a.Mode == "clear" {
+								<span class="text-emerald-300">{ contentRatingBulkClearedText(r) }</span>
+							} else {
+								<span class="text-emerald-300">changed</span>
+							}
 						case ContentRatingBulkOutcomeNotAttempted:
 							<span class="text-amber-300">{ r.Message }</span>
 						case ContentRatingBulkOutcomeUncertain:

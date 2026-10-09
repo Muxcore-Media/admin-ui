@@ -97,7 +97,8 @@ func TestContentRatingReadStatesKeepFormHonest(t *testing.T) {
 			{"rated", "Rated by an operator", &ratingFixture{rating: "PG", source: "operator"}, true},
 			{"unrated", "Explicit unrated", &ratingFixture{rating: "NR", source: "operator"}, true},
 			{"unknown", "Unavailable", &ratingFixture{rating: "15", source: "operator"}, true},
-			{"foreign-source", "Unavailable", &ratingFixture{rating: "PG", source: "tmdb"}, true},
+			{"tmdb-source", "Rated by TMDB", &ratingFixture{rating: "PG", source: "tmdb"}, true},
+			{"foreign-source", "Unavailable", &ratingFixture{rating: "PG", source: "other"}, true},
 			{"read-error", "unavailable", &ratingFixture{readErr: codes.Unavailable}, false},
 			{"wrong-item", "unavailable", &ratingFixture{responseID: "other"}, false},
 		} {
