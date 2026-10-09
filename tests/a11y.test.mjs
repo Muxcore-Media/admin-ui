@@ -34,7 +34,7 @@ test('axe checks actual Go-rendered core journeys', async t => {
   });
   assert.equal(result.status, 0, `Go template fixtures failed: ${result.error || ''}\n${result.stdout}\n${result.stderr}`);
   const fixtures = readdirSync(dir).filter(name => name.endsWith('.html')).sort();
-  assert.equal(fixtures.length, 37, 'render every core journey, including request mutation errors, content rating states and repeated module setting keys');
+  assert.equal(fixtures.length, 43, 'render every core journey, including request mutation errors, per-item and bulk content rating states and repeated module setting keys');
   for (const fixture of fixtures) {
     await t.test(fixture, async () => {
       const results = await scan(readFileSync(join(dir, fixture), 'utf8'));
@@ -144,6 +144,52 @@ test('axe checks actual Go-rendered core journeys', async t => {
       }
     }
     assert.equal(formsChecked, 5);
+  });
+
+  // Keyboard behaviour of the bulk content-rating page (ADR-0025): operable with
+  // native controls only, in a sensible order, every control named.
+  await t.test('bulk content-ratings is keyboard operable in document order', () => {
+    const dom = new JSDOM(readFileSync(join(dir, 'content-ratings-bulk.html'), 'utf8'));
+    try {
+      const doc = dom.window.document;
+      const form = doc.querySelector('[data-testid="content-rating-form"]');
+      assert(form, 'rating form present');
+      const focusable = [...form.querySelectorAll('input:not([type=hidden]), select, button, a[href]')];
+      assert(focusable.length > 0);
+      for (const el of focusable) {
+        assert.notEqual(el.getAttribute('tabindex'), '-1', `${el.outerHTML} must not be removed from tab order`);
+        const name = el.getAttribute('aria-label')
+          || (el.id && doc.querySelector(`label[for="${el.id}"]`)?.textContent.trim())
+          || el.closest('label')?.textContent.trim()
+          || (el.tagName === 'BUTTON' ? el.textContent.trim() : '');
+        assert(name, `control has no accessible name: ${el.outerHTML}`);
+      }
+      // The first submit button in order is the bulk bar's, so implicit form
+      // submission can never apply a single row's rating by accident.
+      const submits = [...form.querySelectorAll('button[type=submit]')];
+      assert.equal(submits[0].textContent.trim(), 'Apply to selected');
+      assert(!submits[0].hasAttribute('name'), 'bulk button must not carry a row id');
+      for (const row of submits.slice(1)) assert.equal(row.getAttribute('name'), 'only');
+      // Bulk bar comes before the table; each row is checkbox, select, Set.
+      const order = focusable.map(el => el.tagName.toLowerCase() + (el.type ? ':' + el.type : ''));
+      assert.deepEqual(order.slice(0, 2), ['select:select-one', 'button:submit']);
+      assert.deepEqual(order.slice(2, 5), ['input:checkbox', 'select:select-one', 'button:submit']);
+      const total = doc.querySelectorAll('[data-testid="content-rating-row"]').length;
+      assert.equal(doc.querySelectorAll('input[name=ids]').length, total, 'one checkbox per row');
+    } finally {
+      dom.window.close();
+    }
+  });
+  await t.test('bulk content-ratings result announces partial failure', () => {
+    const dom = new JSDOM(readFileSync(join(dir, 'content-ratings-bulk-result-partial.html'), 'utf8'));
+    try {
+      const doc = dom.window.document;
+      assert.equal(doc.querySelector('[data-testid="content-rating-summary"]').getAttribute('role'), 'status');
+      assert.deepEqual([...doc.querySelectorAll('[data-testid="content-rating-outcome"]')].map(e => e.dataset.outcome), ['ok', 'failed', 'uncertain', 'not-attempted']);
+      assert(doc.querySelector('[data-testid="content-rating-summary"]').textContent.includes('Not every title was confirmed as changed'));
+    } finally {
+      dom.window.close();
+    }
   });
 });
 

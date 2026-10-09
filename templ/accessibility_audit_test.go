@@ -81,6 +81,34 @@ func TestAccessibilityCoreJourneys(t *testing.T) {
 		{"settings", SettingsPage(settings)},
 		{"invites", InvitesPage(InvitesPageData{Invites: []InviteRow{{ID: "invite-1", Prefix: "abc", Role: "user"}}})},
 		{"parental-migrate", ParentalMigratePage()},
+		{"content-ratings-bulk", ContentRatingBulkPage(contentRatingBulkFixture())},
+		{"content-ratings-bulk-result-partial", ContentRatingBulkPage(func() ContentRatingBulkData {
+			d := contentRatingBulkFixture()
+			d.Applied = &ContentRatingBulkApplied{Choice: "PG-13", Mode: "set", OK: 1, Failed: 1, Uncertain: 1, Skipped: 1, Results: []ContentRatingBulkResult{
+				{ID: "m1", Title: "Dune", Outcome: ContentRatingBulkOutcomeOK},
+				{ID: "m2", Title: "Arrival", Outcome: ContentRatingBulkOutcomeFailed, Message: "The module rejected this rating. This title was not changed."},
+				{ID: "m4", Title: "Sicario", Outcome: ContentRatingBulkOutcomeUncertain, Message: "The save was acknowledged, but this title's current rating could not be confirmed. Check it before saving again."},
+				{ID: "m3", Outcome: ContentRatingBulkOutcomeNotAttempted, Message: "Not attempted: the request ran out of time before this title. Nothing was changed."},
+			}}
+			return d
+		}())},
+		{"content-ratings-bulk-form-error", ContentRatingBulkPage(func() ContentRatingBulkData {
+			d := contentRatingBulkFixture()
+			d.FormError = "Select at least one title."
+			return d
+		}())},
+		{"content-ratings-bulk-list-error", ContentRatingBulkPage(ContentRatingBulkData{
+			Kind: "tv", KindNoun: "TV series", Page: 1, PageSize: 50, RatingOptions: []string{"G"},
+			ListError: "The TV series module is unavailable, so ratings cannot be shown.",
+		})},
+		{"content-ratings-bulk-empty", ContentRatingBulkPage(ContentRatingBulkData{
+			Kind: "movies", KindNoun: "movies", Query: "zzz", Page: 1, PageSize: 50, RatingOptions: []string{"G"},
+			ListLoaded: true,
+		})},
+		{"content-ratings-bulk-not-loaded", ContentRatingBulkPage(ContentRatingBulkData{
+			Kind: "movies", KindNoun: "movies", Page: 1, PageSize: 50, RatingOptions: []string{"G"},
+			FormError: "Select at least one title.",
+		})},
 		{"parental-migrate-dry-run", withA11yHeading("Parental policy migration", ParentalMigrateResult(parentalMigrateFixture("dry-run")))},
 		{"parental-migrate-source-missing", withA11yHeading("Parental policy migration", ParentalMigrateResult(func() ParentalMigrateData {
 			d := parentalMigrateFixture("dry-run")
@@ -148,6 +176,20 @@ func withUserDetailHeadings(c templ.Component) templ.Component {
 		}
 		return c.Render(ctx, w)
 	})
+}
+
+func contentRatingBulkFixture() ContentRatingBulkData {
+	return ContentRatingBulkData{
+		Kind: "movies", KindNoun: "movies", Query: "d", Page: 2, PageSize: 50, Total: 120,
+		RatingOptions: []string{"G", "PG", "PG-13", "R", "TV-MA"},
+		ListLoaded:    true,
+		Items: []ContentRatingBulkItem{
+			{ID: "m1", Title: "Dune", Year: 2021, State: ContentRatingBulkRated, Rating: "PG-13", Source: "operator", Tags: []string{"scifi"}},
+			{ID: "m2", Title: "Arrival", Year: 2016, State: ContentRatingBulkUnrated, Rating: "NR", Source: "operator"},
+			{ID: "m3", Title: "Untitled", State: ContentRatingBulkUnavailable},
+			{ID: "m4", Title: "Odd", State: ContentRatingBulkUnavailable, Unrecognised: "XYZ"},
+		},
+	}
 }
 
 func parentalMigrateFixture(phase string) ParentalMigrateData {
