@@ -29,6 +29,9 @@ type slowMovies struct {
 	delay time.Duration
 	mu    sync.Mutex
 	sets  []string
+	// stored is the rating a successful SetContentRating left per id, so the
+	// readback that follows every acknowledged write can confirm it.
+	stored map[string]string
 }
 
 func (m *slowMovies) ListMovies(context.Context, *mgmntv1.ListMoviesRequest) (*mgmntv1.ListMoviesResponse, error) {
@@ -41,8 +44,23 @@ func (m *slowMovies) SetContentRating(_ context.Context, req *mgmntv1.SetContent
 	time.Sleep(m.delay)
 	m.mu.Lock()
 	m.sets = append(m.sets, req.GetMovieId())
+	if m.stored == nil {
+		m.stored = map[string]string{}
+	}
+	m.stored[req.GetMovieId()] = req.GetContentRating()
 	m.mu.Unlock()
 	return &mgmntv1.SetContentRatingResponse{}, nil
+}
+
+func (m *slowMovies) GetMovie(_ context.Context, req *mgmntv1.GetMovieRequest) (*mgmntv1.GetMovieResponse, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	rating := m.stored[req.GetMovieId()]
+	source := ""
+	if rating != "" {
+		source = "operator"
+	}
+	return &mgmntv1.GetMovieResponse{Movie: &mgmntv1.MovieItem{Id: req.GetMovieId(), Title: "Title", ContentRating: rating, ContentRatingSource: source}}, nil
 }
 
 func (m *slowMovies) setCount() int {

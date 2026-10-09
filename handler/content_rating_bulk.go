@@ -547,7 +547,7 @@ func (h *Handler) ContentRatingsBulkApply(w http.ResponseWriter, r *http.Request
 		// One audit entry per dispatched write, in the per-item page's shape.
 		// Requested values are recorded always; stored values only when a
 		// readback confirms them. The audit detaches from request cancellation.
-		outcome, reason := contentRatingOutcomeUncertain, "write_interrupted"
+		var outcome, reason string
 		callCtx, callCancel := context.WithTimeout(applyCtx, contentRatingReadTimeout)
 		err := backend.set(callCtx, id, change)
 		callCancel()
@@ -567,7 +567,7 @@ func (h *Handler) ContentRatingsBulkApply(w http.ResponseWriter, r *http.Request
 			if readErr == nil && rating == wantRating && source == wantSource {
 				outcome, reason = contentRatingOutcomeConfirmed, contentRatingReasonMatched
 			} else {
-				reason = contentRatingReadbackReason(readErr)
+				outcome, reason = contentRatingOutcomeUncertain, contentRatingReadbackReason(readErr)
 				res.Message = "The save was acknowledged, but this title's current rating could not be confirmed. Check it before saving again."
 			}
 		}
