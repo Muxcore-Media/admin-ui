@@ -81,9 +81,10 @@ func TestAccessibilityCoreJourneys(t *testing.T) {
 		{"content-ratings-bulk", ContentRatingBulkPage(contentRatingBulkFixture())},
 		{"content-ratings-bulk-result-partial", ContentRatingBulkPage(func() ContentRatingBulkData {
 			d := contentRatingBulkFixture()
-			d.Applied = &ContentRatingBulkApplied{Choice: "PG-13", Mode: "set", OK: 1, Failed: 1, Skipped: 1, Results: []ContentRatingBulkResult{
+			d.Applied = &ContentRatingBulkApplied{Choice: "PG-13", Mode: "set", OK: 1, Failed: 1, Uncertain: 1, Skipped: 1, Results: []ContentRatingBulkResult{
 				{ID: "m1", Title: "Dune", Outcome: ContentRatingBulkOutcomeOK},
 				{ID: "m2", Title: "Arrival", Outcome: ContentRatingBulkOutcomeFailed, Message: "The module rejected this rating. This title was not changed."},
+				{ID: "m4", Title: "Sicario", Outcome: ContentRatingBulkOutcomeUncertain, Message: "The save was acknowledged, but this title's current rating could not be confirmed. Check it before saving again."},
 				{ID: "m3", Outcome: ContentRatingBulkOutcomeNotAttempted, Message: "Not attempted: the request ran out of time before this title. Nothing was changed."},
 			}}
 			return d

@@ -30,11 +30,6 @@ import (
 // only the bearer that requireAuth validated for this request.
 
 const (
-	// contentRatingAuditAction is the audit action written once per changed
-	// item. It is the per-item page's action: one convention for operator
-	// content-rating changes, whichever page made them.
-	contentRatingAuditAction = "admin.media.content_rating"
-
 	contentRatingKindMovies = "movies"
 	contentRatingKindTV     = "tv"
 
@@ -84,6 +79,19 @@ type contentRatingChange struct {
 	Mode string
 }
 
+// expected is the classification a module must report after this change: the
+// rating and source a confirming readback has to match exactly. NR reads back as
+// "NR" set by the operator; a clear reads back as nothing at all.
+func (ch contentRatingChange) expected() (rating, source string) {
+	switch ch.Mode {
+	case "unrated":
+		return contentRatingChoiceNR, "operator"
+	case "clear":
+		return "", ""
+	}
+	return ch.Rating, "operator"
+}
+
 // parseContentRatingChoice maps a submitted choice to the RPC fields. It
 // accepts nothing but the ladder tokens, NR and CLEAR, spelled exactly; free
 // text and different case are rejected before any module call.
@@ -131,6 +139,9 @@ func classifyContentRating(rating string) (state string, recognised bool) {
 type ratingBackend interface {
 	list(ctx context.Context, page int, search string) (items []templates.ContentRatingBulkItem, total int, err error)
 	set(ctx context.Context, id string, ch contentRatingChange) error
+	// get reads one title's current classification, for the readback that
+	// follows an acknowledged set; it is the per-item page's read.
+	get(ctx context.Context, id string) (title, rating, source string, err error)
 	close()
 }
 
@@ -162,6 +173,10 @@ func (b movieRatingBackend) set(ctx context.Context, id string, ch contentRating
 	return err
 }
 
+func (b movieRatingBackend) get(ctx context.Context, id string) (string, string, string, error) {
+	return fetchContentRating(ctx, b.conn, contentRatingModuleMovies, id)
+}
+
 type tvRatingBackend struct {
 	conn   *grpc.ClientConn
 	client tvmgmtv1.TvManagementServiceClient
@@ -188,6 +203,10 @@ func (b tvRatingBackend) set(ctx context.Context, id string, ch contentRatingCha
 		SeriesId: id, ContentRating: ch.Rating, ExplicitUnrated: ch.ExplicitUnrated,
 	})
 	return err
+}
+
+func (b tvRatingBackend) get(ctx context.Context, id string) (string, string, string, error) {
+	return fetchContentRating(ctx, b.conn, contentRatingModuleTV, id)
 }
 
 func ratingItem(id, title string, year int, rating, source string, tags []string) templates.ContentRatingBulkItem {
@@ -389,30 +408,21 @@ func contentRatingErrorSummary(err error) string {
 	return "the module reported an error (" + st.Code().String() + ")"
 }
 
-// contentRatingAuditDetails are the audit details of one title, in the per-item
-// page's shape: the module, and the classification the change intends
-// (content_rating "NR" for an explicit unrated, empty for a clear) with its
-// source ("operator", empty for a clear).
-func contentRatingAuditDetails(kind string, ch contentRatingChange) map[string]string {
-	d := map[string]string{"module": contentRatingModuleID(kind), "content_rating": ch.Rating, "source": "operator"}
-	switch ch.Mode {
-	case "unrated":
-		d["content_rating"] = contentRatingChoiceNR
-	case "clear":
-		d["source"] = ""
-	}
-	return d
-}
-
 // contentRatingFailureMessage explains a failed SetContentRating call. An
 // InvalidArgument carries the module's own message because it says what the
 // module refused; other failures get a fixed explanation, not module internals.
+// Whether the title may have changed follows contentRatingRefused, which is also
+// what the audit outcome uses.
 func contentRatingFailureMessage(err error) string {
 	st, ok := status.FromError(err)
 	if !ok {
 		return "The module could not be reached. This title may not have been changed; check its current rating."
 	}
 	switch st.Code() {
+	case codes.Unauthenticated:
+		return "Your session is no longer authorized to change content ratings. This title was not changed."
+	case codes.PermissionDenied:
+		return "The module refused this operation. This title was not changed."
 	case codes.InvalidArgument:
 		msg := strings.TrimSpace(st.Message())
 		if len(msg) > 200 {
@@ -431,22 +441,6 @@ func contentRatingFailureMessage(err error) string {
 		return "The module does not support content ratings. Update media-movies and media-tvshows to v0.1.23 or later."
 	}
 	return "The module reported an error (" + st.Code().String() + "). This title may not have been changed; check its current rating."
-}
-
-// contentRatingWriteRefused reports whether err proves the module refused the
-// write before storing anything. Any other failure (a deadline, a dropped
-// connection, an internal error) can arrive after the module committed, because
-// the modules write before they reply, so the outcome is uncertain.
-func contentRatingWriteRefused(err error) bool {
-	st, ok := status.FromError(err)
-	if !ok {
-		return false
-	}
-	switch st.Code() {
-	case codes.InvalidArgument, codes.NotFound, codes.Unimplemented:
-		return true
-	}
-	return false
 }
 
 // extendContentRatingResponseDeadline gives this one response the write
@@ -532,37 +526,85 @@ func (h *Handler) ContentRatingsBulkApply(w http.ResponseWriter, r *http.Request
 	defer backend.close()
 
 	applied := &templates.ContentRatingBulkApplied{Choice: contentRatingChoiceLabel(change), Mode: change.Mode}
+	module := contentRatingModuleID(kind)
+	wantRating, wantSource := change.expected()
+	// authStop is the HTTP status of the first auth failure. A revoked bearer
+	// or a refusing provider will refuse every remaining title the same way, so
+	// the batch stops: the rest are reported as not attempted and cost no RPC.
+	authStop := 0
 	for _, id := range ids {
 		res := templates.ContentRatingBulkResult{ID: id}
-		if applyCtx.Err() != nil {
+		if authStop != 0 || applyCtx.Err() != nil {
 			res.Outcome = templates.ContentRatingBulkOutcomeNotAttempted
 			res.Message = "Not attempted: the request ran out of time before this title. Nothing was changed."
+			if authStop != 0 {
+				res.Message = "Not attempted: your session was no longer authorized before this title. Nothing was changed."
+			}
 			applied.Skipped++
 			applied.Results = append(applied.Results, res)
 			continue
 		}
+		// One audit entry per dispatched write, in the per-item page's shape.
+		// Requested values are recorded always; stored values only when a
+		// readback confirms them. The audit detaches from request cancellation.
+		outcome, reason := contentRatingOutcomeUncertain, "write_interrupted"
 		callCtx, callCancel := context.WithTimeout(applyCtx, contentRatingReadTimeout)
 		err := backend.set(callCtx, id, change)
 		callCancel()
+		var readErr error
 		if err != nil {
 			slog.Warn("content-rating: SetContentRating failed", "kind", kind, "id", id, "code", status.Code(err).String())
-			res.Outcome = templates.ContentRatingBulkOutcomeFailed
+			outcome, reason = contentRatingWriteFailure(err)
 			res.Message = contentRatingFailureMessage(err)
-			applied.Failed++
-			if !contentRatingWriteRefused(err) {
-				// The module may have committed before the error reached us.
-				// Record the attempt without claiming it succeeded.
-				details := contentRatingAuditDetails(kind, change)
-				details["outcome"] = "uncertain"
-				details["code"] = status.Code(err).String()
-				h.auditLog(r.Context(), sess.UserID, contentRatingAuditAction, "media_item", id, details)
-			}
 		} else {
+			// The acknowledgement is empty and proves nothing about the stored
+			// value: read the title back once, never retrying the write.
+			readCtx, readCancel := context.WithTimeout(applyCtx, contentRatingReadTimeout)
+			var title, rating, source string
+			title, rating, source, readErr = backend.get(readCtx, id)
+			readCancel()
+			res.Title = title
+			if readErr == nil && rating == wantRating && source == wantSource {
+				outcome, reason = contentRatingOutcomeConfirmed, contentRatingReasonMatched
+			} else {
+				reason = contentRatingReadbackReason(readErr)
+				res.Message = "The save was acknowledged, but this title's current rating could not be confirmed. Check it before saving again."
+			}
+		}
+		switch outcome {
+		case contentRatingOutcomeConfirmed:
 			res.Outcome = templates.ContentRatingBulkOutcomeOK
 			applied.OK++
-			h.auditLog(r.Context(), sess.UserID, contentRatingAuditAction, "media_item", id, contentRatingAuditDetails(kind, change))
+		case contentRatingOutcomeRefused:
+			res.Outcome = templates.ContentRatingBulkOutcomeFailed
+			applied.Failed++
+		default:
+			res.Outcome = templates.ContentRatingBulkOutcomeUncertain
+			applied.Uncertain++
 		}
+		h.auditLog(r.Context(), sess.UserID, contentRatingAuditAction, "media_item", id, contentRatingAuditDetails(module, wantRating, wantSource, outcome, reason))
 		applied.Results = append(applied.Results, res)
+		// An auth failure on the write, or on the readback of an acknowledged
+		// write, ends the batch.
+		if authStop == 0 {
+			authStop = contentRatingAuthStatus(err)
+			if authStop == 0 {
+				authStop = contentRatingAuthStatus(readErr)
+			}
+		}
+	}
+
+	if authStop != 0 {
+		// No further RPCs, including the list refresh: the credential is no
+		// longer good. The per-title results already recorded are the answer.
+		data.Applied = applied
+		data.FormError = "Your session is no longer authorized to change content ratings. Titles after the first refusal were not attempted. Sign in again and check the results below."
+		if authStop == http.StatusForbidden {
+			data.FormError = "The media service refused this operation for your account. Titles after the first refusal were not attempted. Check the results below."
+		}
+		data.ListError = "The " + data.KindNoun + " list was not refreshed; reload it to see current ratings."
+		h.renderContentRatingsError(w, r, data, authStop)
+		return
 	}
 
 	// Refresh the visible page after the writes so it shows what the module now
@@ -575,10 +617,25 @@ func (h *Handler) ContentRatingsBulkApply(w http.ResponseWriter, r *http.Request
 		titles[it.ID] = it.Title
 	}
 	for i := range applied.Results {
-		applied.Results[i].Title = titles[applied.Results[i].ID]
+		if applied.Results[i].Title == "" {
+			applied.Results[i].Title = titles[applied.Results[i].ID]
+		}
 	}
 	data.Applied = applied
 	h.renderContentRatings(w, r, data)
+}
+
+// contentRatingAuthStatus is the HTTP status for an error that ends a batch
+// (the per-item page's mapping): 401 for a revoked or missing credential, 403
+// for a provider refusing this operator, 0 for anything else.
+func contentRatingAuthStatus(err error) int {
+	switch status.Code(err) {
+	case codes.Unauthenticated:
+		return http.StatusUnauthorized
+	case codes.PermissionDenied:
+		return http.StatusForbidden
+	}
+	return 0
 }
 
 // renderContentRatingsError renders the page with a form error. The swap

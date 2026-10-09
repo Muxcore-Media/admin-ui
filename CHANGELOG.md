@@ -17,16 +17,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   media-movies and media-tvshows. Ratings come only from the pinned 20-token
   ladder plus NR and Clear; per-title results report partial failure. Module
   calls carry only the session's validated provider bearer, and a session
-  without one is refused before any module call. Each change is audited as
-  `admin.media.content_rating` with the per-item page's details. The page
+  without one is refused before any module call. Every dispatched write is
+  audited once as `admin.media.content_rating` in the per-item page's shape
+  (requested values always; stored values only after a matching readback;
+  outcome `confirmed`, `refused` or `uncertain` with a fixed reason code), and
+  each acknowledged write is read back like the per-item page, so an
+  acknowledgement alone is never shown as changed. An `Unauthenticated` or
+  `PermissionDenied` answer ends the batch with 401/403, the remaining titles
+  reported not attempted and no further module call. The page
   explains that unavailable titles are hidden from restricted accounts and that
   the rating is the authority. Managers, users and viewers get 403 before any
   module call.
   A bulk apply gets a route-specific response write deadline so its result page
   is not cut off by the 15 s server `WriteTimeout` (refused with 500 before any
   write if it cannot be extended); form and module-outage (503) errors no longer
-  render as an empty library; writes that may have committed before an error are
-  audited with `outcome=uncertain`.
+  render as an empty library. A full apply can outlast an unknown edge-proxy
+  timeout; the requirement is documented in the README and not verified here.
 - Depends on media-movies and media-tvshows v0.1.23.
 - Provider-backed parental controls (T-M4-01 slice S6, ADR-0030/0031). The
   Users parental form reads and writes the userdata-local

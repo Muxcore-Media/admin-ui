@@ -18,6 +18,7 @@ const (
 const (
 	ContentRatingBulkOutcomeOK           = "ok"
 	ContentRatingBulkOutcomeFailed       = "failed"
+	ContentRatingBulkOutcomeUncertain    = "uncertain"
 	ContentRatingBulkOutcomeNotAttempted = "not-attempted"
 )
 
@@ -51,7 +52,10 @@ type ContentRatingBulkApplied struct {
 	Mode    string
 	OK      int
 	Failed  int
-	Skipped int
+	// Uncertain counts titles whose write was dispatched but whose result could
+	// not be confirmed (lost reply, or an unconfirmed readback).
+	Uncertain int
+	Skipped   int
 	Results []ContentRatingBulkResult
 }
 
@@ -322,12 +326,15 @@ templ contentRatingBulkApplied(a *ContentRatingBulkApplied) {
 			if a.Failed > 0 {
 				, { strconv.Itoa(a.Failed) } failed
 			}
+			if a.Uncertain > 0 {
+				, { strconv.Itoa(a.Uncertain) } not confirmed
+			}
 			if a.Skipped > 0 {
 				, { strconv.Itoa(a.Skipped) } not attempted
 			}
 			.
-			if a.Failed > 0 || a.Skipped > 0 {
-				<strong class="text-amber-300"> Some titles were not changed; see the list below.</strong>
+			if a.Failed > 0 || a.Uncertain > 0 || a.Skipped > 0 {
+				<strong class="text-amber-300"> Not every title was confirmed as changed; see the list below.</strong>
 			}
 		</p>
 		<ul class="text-sm space-y-1">
@@ -339,6 +346,8 @@ templ contentRatingBulkApplied(a *ContentRatingBulkApplied) {
 							<span class="text-emerald-300">changed</span>
 						case ContentRatingBulkOutcomeNotAttempted:
 							<span class="text-amber-300">{ r.Message }</span>
+						case ContentRatingBulkOutcomeUncertain:
+							<span class="text-amber-300">not confirmed. { r.Message }</span>
 						default:
 							<span class="text-red-300">failed. { r.Message }</span>
 					}

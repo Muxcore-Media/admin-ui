@@ -128,8 +128,8 @@ test('axe checks actual Go-rendered core journeys', async t => {
     try {
       const doc = dom.window.document;
       assert.equal(doc.querySelector('[data-testid="content-rating-summary"]').getAttribute('role'), 'status');
-      assert.deepEqual([...doc.querySelectorAll('[data-testid="content-rating-outcome"]')].map(e => e.dataset.outcome), ['ok', 'failed', 'not-attempted']);
-      assert(doc.querySelector('[data-testid="content-rating-summary"]').textContent.includes('Some titles were not changed'));
+      assert.deepEqual([...doc.querySelectorAll('[data-testid="content-rating-outcome"]')].map(e => e.dataset.outcome), ['ok', 'failed', 'uncertain', 'not-attempted']);
+      assert(doc.querySelector('[data-testid="content-rating-summary"]').textContent.includes('Not every title was confirmed as changed'));
     } finally {
       dom.window.close();
     }

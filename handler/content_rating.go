@@ -120,28 +120,40 @@ func (h *Handler) contentRatingClient(ctx context.Context, moduleID string) (*gr
 	return meshdial.NewClient(addr)
 }
 
-func readContentRating(ctx context.Context, conn *grpc.ClientConn, d *templates.ContentRatingData) error {
+// fetchContentRating reads one item's authoritative classification from its
+// owning module. It is the single read used by the per-item page, its
+// post-save readback and the bulk apply's readback. A response for a different
+// or missing id yields an error and no data.
+func fetchContentRating(ctx context.Context, conn *grpc.ClientConn, moduleID, itemID string) (title, rating, source string, err error) {
 	var id string
-	switch d.ModuleID {
+	switch moduleID {
 	case "media-movies":
-		resp, err := mgmntv1.NewMovieManagementServiceClient(conn).GetMovie(ctx, &mgmntv1.GetMovieRequest{MovieId: d.ItemID})
+		resp, err := mgmntv1.NewMovieManagementServiceClient(conn).GetMovie(ctx, &mgmntv1.GetMovieRequest{MovieId: itemID})
 		if err != nil {
-			return err
+			return "", "", "", err
 		}
 		item := resp.GetMovie()
-		id, d.Title, d.Rating, d.Source = item.GetId(), item.GetTitle(), item.GetContentRating(), item.GetContentRatingSource()
+		id, title, rating, source = item.GetId(), item.GetTitle(), item.GetContentRating(), item.GetContentRatingSource()
 	case "media-tvshows":
-		resp, err := tvmgmtv1.NewTvManagementServiceClient(conn).GetTVShow(ctx, &tvmgmtv1.GetTVShowRequest{SeriesId: d.ItemID})
+		resp, err := tvmgmtv1.NewTvManagementServiceClient(conn).GetTVShow(ctx, &tvmgmtv1.GetTVShowRequest{SeriesId: itemID})
 		if err != nil {
-			return err
+			return "", "", "", err
 		}
 		item := resp.GetSeries()
-		id, d.Title, d.Rating, d.Source = item.GetId(), item.GetName(), item.GetContentRating(), item.GetContentRatingSource()
+		id, title, rating, source = item.GetId(), item.GetName(), item.GetContentRating(), item.GetContentRatingSource()
 	}
-	if id == "" || id != d.ItemID {
+	if id == "" || id != itemID {
 		// Suppress data from a malformed or misrouted response.
-		d.Title, d.Rating, d.Source = "", "", ""
-		return errors.New("classification response item mismatch")
+		return "", "", "", errors.New("classification response item mismatch")
+	}
+	return title, rating, source, nil
+}
+
+func readContentRating(ctx context.Context, conn *grpc.ClientConn, d *templates.ContentRatingData) error {
+	title, rating, source, err := fetchContentRating(ctx, conn, d.ModuleID, d.ItemID)
+	d.Title, d.Rating, d.Source = title, rating, source
+	if err != nil {
+		return err
 	}
 	d.Loaded = true
 	d.State = "Unavailable — restricted accounts are denied."
@@ -241,22 +253,20 @@ func (h *Handler) ContentRatingSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() { _ = conn.Close() }()
-	wantRating, wantSource := rating, "operator"
-	if unrated {
-		wantRating = "NR"
+	mode := "set"
+	switch choice {
+	case "clear":
+		mode = "clear"
+	case "unrated":
+		mode = "unrated"
 	}
-	if choice == "clear" {
-		wantSource = ""
-	}
+	wantRating, wantSource := contentRatingChange{Rating: rating, ExplicitUnrated: unrated, Mode: mode}.expected()
 	// Record each dispatched mutation once, including lost acknowledgements and
 	// failed readback. Requested values are not evidence of a committed value.
-	outcome, reason := "uncertain", "write_interrupted"
+	outcome, reason := contentRatingOutcomeUncertain, "write_interrupted"
 	defer func() {
-		details := map[string]string{"module": d.ModuleID, "requested_rating": wantRating, "requested_source": wantSource, "outcome": outcome, "reason": reason}
-		if outcome == "confirmed" {
-			details["content_rating"], details["source"] = wantRating, wantSource
-		}
-		h.auditLog(r.Context(), SessionFromContext(r.Context()).UserID, "admin.media.content_rating", "media_item", d.ItemID, details)
+		h.auditLog(r.Context(), SessionFromContext(r.Context()).UserID, contentRatingAuditAction, "media_item", d.ItemID,
+			contentRatingAuditDetails(d.ModuleID, wantRating, wantSource, outcome, reason))
 	}()
 	writeCtx, writeCancel := context.WithTimeout(ctx, mediaReadTimeout)
 	switch d.ModuleID {
@@ -267,10 +277,7 @@ func (h *Handler) ContentRatingSave(w http.ResponseWriter, r *http.Request) {
 	}
 	writeCancel()
 	if err != nil {
-		reason = status.Code(err).String()
-		if contentRatingRefused(err) {
-			outcome = "refused"
-		}
+		outcome, reason = contentRatingWriteFailure(err)
 		code, msg := contentRatingError(err, true)
 		d.Error = msg
 		h.renderContentRating(w, r, d, code)
@@ -280,18 +287,60 @@ func (h *Handler) ContentRatingSave(w http.ResponseWriter, r *http.Request) {
 	// once; do not claim success for a stale/mismatched value or retry a write.
 	err = readContentRating(ctx, conn, &d)
 	if err != nil || d.Rating != wantRating || d.Source != wantSource {
-		reason = "readback_mismatch"
-		if err != nil {
-			reason = "readback_unavailable"
-		}
+		reason = contentRatingReadbackReason(err)
 		d.Error = "The save was acknowledged, but its current classification could not be confirmed. Reload and check before saving again."
 		d.Loaded = false
 		h.renderContentRating(w, r, d, http.StatusBadGateway)
 		return
 	}
 	d.Saved = true
-	outcome, reason = "confirmed", "readback_matched"
+	outcome, reason = contentRatingOutcomeConfirmed, contentRatingReasonMatched
 	h.renderContentRating(w, r, d, http.StatusOK)
+}
+
+// Audit outcomes of one dispatched SetContentRating, shared by the per-item
+// page and the bulk apply: an audit entry always records what was requested;
+// only a matching readback proves what is stored.
+const (
+	contentRatingAuditAction = "admin.media.content_rating"
+
+	contentRatingOutcomeConfirmed = "confirmed"
+	contentRatingOutcomeRefused   = "refused"
+	contentRatingOutcomeUncertain = "uncertain"
+
+	contentRatingReasonMatched = "readback_matched"
+)
+
+// contentRatingAuditDetails is the one audit shape for an attempted write.
+// requested_* always carry the intended classification; content_rating and
+// source (the stored values) appear only for a confirmed outcome. reason is a
+// fixed code, never provider error text.
+func contentRatingAuditDetails(module, wantRating, wantSource, outcome, reason string) map[string]string {
+	details := map[string]string{"module": module, "requested_rating": wantRating, "requested_source": wantSource, "outcome": outcome, "reason": reason}
+	if outcome == contentRatingOutcomeConfirmed {
+		details["content_rating"], details["source"] = wantRating, wantSource
+	}
+	return details
+}
+
+// contentRatingWriteFailure classifies a failed SetContentRating call: refused
+// when the gRPC code proves the module did not store anything, otherwise
+// uncertain, because the modules write before they reply. reason is the code.
+func contentRatingWriteFailure(err error) (outcome, reason string) {
+	outcome = contentRatingOutcomeUncertain
+	if contentRatingRefused(err) {
+		outcome = contentRatingOutcomeRefused
+	}
+	return outcome, status.Code(err).String()
+}
+
+// contentRatingReadbackReason names why an acknowledged write was not
+// confirmed: the read failed, or it returned something other than requested.
+func contentRatingReadbackReason(readErr error) string {
+	if readErr != nil {
+		return "readback_unavailable"
+	}
+	return "readback_mismatch"
 }
 
 func contentRatingRefused(err error) bool {

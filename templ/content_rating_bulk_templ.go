@@ -26,6 +26,7 @@ const (
 const (
 	ContentRatingBulkOutcomeOK           = "ok"
 	ContentRatingBulkOutcomeFailed       = "failed"
+	ContentRatingBulkOutcomeUncertain    = "uncertain"
 	ContentRatingBulkOutcomeNotAttempted = "not-attempted"
 )
 
@@ -55,12 +56,15 @@ type ContentRatingBulkResult struct {
 
 // ContentRatingBulkApplied summarises one bulk apply.
 type ContentRatingBulkApplied struct {
-	Choice  string
-	Mode    string
-	OK      int
-	Failed  int
-	Skipped int
-	Results []ContentRatingBulkResult
+	Choice string
+	Mode   string
+	OK     int
+	Failed int
+	// Uncertain counts titles whose write was dispatched but whose result could
+	// not be confirmed (lost reply, or an unconfirmed readback).
+	Uncertain int
+	Skipped   int
+	Results   []ContentRatingBulkResult
 }
 
 // ContentRatingBulkData drives the whole page.
@@ -196,7 +200,7 @@ func contentRatingBulkOptions(options []string, selected func(string) bool) temp
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(o)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 152, Col: 20}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 156, Col: 20}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 			if templ_7745c5c3_Err != nil {
@@ -219,7 +223,7 @@ func contentRatingBulkOptions(options []string, selected func(string) bool) temp
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(o)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 152, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 156, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -282,7 +286,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var5 templ.SafeURL
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(ContentRatingBulkPageURL(k.Kind, "", 1)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 184, Col: 69}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 188, Col: 69}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -295,7 +299,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(k.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 184, Col: 204}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 188, Col: 204}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -313,7 +317,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var7 templ.SafeURL
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(ContentRatingBulkPageURL(k.Kind, "", 1)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 186, Col: 69}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 190, Col: 69}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -326,7 +330,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(k.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 186, Col: 191}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 190, Col: 191}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -345,7 +349,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue("Search " + data.KindNoun)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 190, Col: 99}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 194, Col: 99}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
@@ -358,7 +362,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.Kind)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 191, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 195, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 		if templ_7745c5c3_Err != nil {
@@ -371,7 +375,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(data.KindNoun)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 193, Col: 114}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 197, Col: 114}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
@@ -384,7 +388,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.Query)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 194, Col: 79}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 198, Col: 79}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 		if templ_7745c5c3_Err != nil {
@@ -402,7 +406,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(data.FormError)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 199, Col: 155}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 203, Col: 155}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
@@ -427,7 +431,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(data.ListError)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 205, Col: 155}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 209, Col: 155}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 			if templ_7745c5c3_Err != nil {
@@ -445,7 +449,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(data.KindNoun)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 208, Col: 23}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 212, Col: 23}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
@@ -458,7 +462,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 			var templ_7745c5c3_Var16 templ.SafeURL
 			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(ContentRatingBulkPageURL(data.Kind, data.Query, data.Page)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 209, Col: 87}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 213, Col: 87}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 			if templ_7745c5c3_Err != nil {
@@ -481,7 +485,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var17 templ.SafeURL
 				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(ContentRatingBulkPageURL(data.Kind, data.Query, 1)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 216, Col: 80}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 220, Col: 80}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 				if templ_7745c5c3_Err != nil {
@@ -499,7 +503,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var18 string
 				templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(data.KindNoun)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 218, Col: 23}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 222, Col: 23}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 				if templ_7745c5c3_Err != nil {
@@ -512,7 +516,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var19 string
 				templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(data.Query)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 218, Col: 47}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 222, Col: 47}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 				if templ_7745c5c3_Err != nil {
@@ -530,7 +534,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var20 string
 				templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(data.KindNoun)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 220, Col: 23}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 224, Col: 23}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 				if templ_7745c5c3_Err != nil {
@@ -553,7 +557,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 			var templ_7745c5c3_Var21 string
 			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.Kind)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 225, Col: 54}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 229, Col: 54}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 			if templ_7745c5c3_Err != nil {
@@ -566,7 +570,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.Query)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 226, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 230, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 			if templ_7745c5c3_Err != nil {
@@ -579,7 +583,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 			var templ_7745c5c3_Var23 string
 			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(data.Page))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 227, Col: 68}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 231, Col: 68}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 			if templ_7745c5c3_Err != nil {
@@ -600,7 +604,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 			var templ_7745c5c3_Var24 string
 			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(data.KindNoun)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 243, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 247, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 			if templ_7745c5c3_Err != nil {
@@ -618,7 +622,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var25 string
 				templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue(it.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 256, Col: 99}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 260, Col: 99}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 				if templ_7745c5c3_Err != nil {
@@ -631,7 +635,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var26 string
 				templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue(it.State)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 256, Col: 123}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 260, Col: 123}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
 				if templ_7745c5c3_Err != nil {
@@ -644,7 +648,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.ResolveAttributeValue(it.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 258, Col: 57}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 262, Col: 57}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
 				if templ_7745c5c3_Err != nil {
@@ -657,7 +661,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var28 string
 				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue("Select " + contentRatingBulkTitle(it))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 258, Col: 111}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 262, Col: 111}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 				if templ_7745c5c3_Err != nil {
@@ -670,7 +674,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var29 string
 				templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(contentRatingBulkTitle(it))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 260, Col: 107}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 264, Col: 107}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 				if templ_7745c5c3_Err != nil {
@@ -705,7 +709,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var32 string
 				templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(contentRatingBulkStateLabel(it))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 262, Col: 149}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 266, Col: 149}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 				if templ_7745c5c3_Err != nil {
@@ -723,7 +727,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 					var templ_7745c5c3_Var33 string
 					templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(it.Unrecognised)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 264, Col: 92}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 268, Col: 92}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 					if templ_7745c5c3_Err != nil {
@@ -747,7 +751,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 					var templ_7745c5c3_Var34 string
 					templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(it.Source)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 271, Col: 22}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 275, Col: 22}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 					if templ_7745c5c3_Err != nil {
@@ -777,7 +781,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 					var templ_7745c5c3_Var35 string
 					templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(tag)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 281, Col: 16}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 285, Col: 16}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 					if templ_7745c5c3_Err != nil {
@@ -791,7 +795,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var36 string
 				templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.ResolveAttributeValue("rating-" + it.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 286, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 290, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
 				if templ_7745c5c3_Err != nil {
@@ -804,7 +808,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var37 string
 				templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(contentRatingBulkTitle(it))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 286, Col: 99}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 290, Col: 99}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 				if templ_7745c5c3_Err != nil {
@@ -817,7 +821,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var38 string
 				templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.ResolveAttributeValue("rating-" + it.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 287, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 291, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
 				if templ_7745c5c3_Err != nil {
@@ -830,7 +834,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var39 string
 				templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.ResolveAttributeValue("rating_" + it.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 287, Col: 68}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 291, Col: 68}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var39)
 				if templ_7745c5c3_Err != nil {
@@ -853,7 +857,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var40 string
 				templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.ResolveAttributeValue(it.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 290, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 294, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var40)
 				if templ_7745c5c3_Err != nil {
@@ -866,7 +870,7 @@ func ContentRatingBulkPage(data ContentRatingBulkData) templ.Component {
 				var templ_7745c5c3_Var41 string
 				templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.ResolveAttributeValue("Set rating for " + contentRatingBulkTitle(it))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 290, Col: 120}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 294, Col: 120}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var41)
 				if templ_7745c5c3_Err != nil {
@@ -928,7 +932,7 @@ func contentRatingBulkPagination(data ContentRatingBulkData) templ.Component {
 			var templ_7745c5c3_Var43 templ.SafeURL
 			templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(ContentRatingBulkPageURL(data.Kind, data.Query, data.Page-1)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 308, Col: 88}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 312, Col: 88}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 			if templ_7745c5c3_Err != nil {
@@ -946,7 +950,7 @@ func contentRatingBulkPagination(data ContentRatingBulkData) templ.Component {
 		var templ_7745c5c3_Var44 string
 		templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(data.Page))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 310, Col: 79}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 314, Col: 79}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 		if templ_7745c5c3_Err != nil {
@@ -959,7 +963,7 @@ func contentRatingBulkPagination(data ContentRatingBulkData) templ.Component {
 		var templ_7745c5c3_Var45 string
 		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(pages))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 310, Col: 106}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 314, Col: 106}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 		if templ_7745c5c3_Err != nil {
@@ -972,7 +976,7 @@ func contentRatingBulkPagination(data ContentRatingBulkData) templ.Component {
 		var templ_7745c5c3_Var46 string
 		templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(data.Total))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 310, Col: 138}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 314, Col: 138}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 		if templ_7745c5c3_Err != nil {
@@ -985,7 +989,7 @@ func contentRatingBulkPagination(data ContentRatingBulkData) templ.Component {
 		var templ_7745c5c3_Var47 string
 		templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(data.KindNoun)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 310, Col: 156}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 314, Col: 156}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 		if templ_7745c5c3_Err != nil {
@@ -1003,7 +1007,7 @@ func contentRatingBulkPagination(data ContentRatingBulkData) templ.Component {
 			var templ_7745c5c3_Var48 templ.SafeURL
 			templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(ContentRatingBulkPageURL(data.Kind, data.Query, data.Page+1)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 312, Col: 88}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 316, Col: 88}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 			if templ_7745c5c3_Err != nil {
@@ -1050,7 +1054,7 @@ func contentRatingBulkApplied(a *ContentRatingBulkApplied) templ.Component {
 		var templ_7745c5c3_Var50 string
 		templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(a.Choice)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 319, Col: 89}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 323, Col: 89}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 		if templ_7745c5c3_Err != nil {
@@ -1063,7 +1067,7 @@ func contentRatingBulkApplied(a *ContentRatingBulkApplied) templ.Component {
 		var templ_7745c5c3_Var51 string
 		templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(a.OK))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 321, Col: 23}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 325, Col: 23}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 		if templ_7745c5c3_Err != nil {
@@ -1081,7 +1085,7 @@ func contentRatingBulkApplied(a *ContentRatingBulkApplied) templ.Component {
 			var templ_7745c5c3_Var52 string
 			templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(a.Failed))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 323, Col: 30}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 327, Col: 30}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 			if templ_7745c5c3_Err != nil {
@@ -1092,116 +1096,117 @@ func contentRatingBulkApplied(a *ContentRatingBulkApplied) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		if a.Skipped > 0 {
+		if a.Uncertain > 0 {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, ", ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var53 string
-			templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(a.Skipped))
+			templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(a.Uncertain))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 326, Col: 31}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 330, Col: 33}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 90, " not attempted ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 90, " not confirmed ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, ". ")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if a.Failed > 0 || a.Skipped > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "<strong class=\"text-amber-300\">Some titles were not changed; see the list below.</strong>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "</p><ul class=\"text-sm space-y-1\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		for _, r := range a.Results {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "<li data-testid=\"content-rating-outcome\" data-id=\"")
+		if a.Skipped > 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, ", ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var54 string
-			templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.ResolveAttributeValue(r.ID)
+			templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(a.Skipped))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 335, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 333, Col: 31}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var54)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "\" data-outcome=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, " not attempted ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, ". ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if a.Failed > 0 || a.Uncertain > 0 || a.Skipped > 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "<strong class=\"text-amber-300\">Not every title was confirmed as changed; see the list below.</strong>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "</p><ul class=\"text-sm space-y-1\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		for _, r := range a.Results {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "<li data-testid=\"content-rating-outcome\" data-id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var55 string
-			templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.ResolveAttributeValue(r.Outcome)
+			templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.ResolveAttributeValue(r.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 335, Col: 86}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 342, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var55)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "\"><strong>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "\" data-outcome=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var56 string
-			templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(contentRatingBulkResultName(r))
+			templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.ResolveAttributeValue(r.Outcome)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 336, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 342, Col: 86}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var56)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "</strong>: ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "\"><strong>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var57 string
+			templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(contentRatingBulkResultName(r))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 343, Col: 45}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "</strong>: ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			switch r.Outcome {
 			case ContentRatingBulkOutcomeOK:
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "<span class=\"text-emerald-300\">changed</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "<span class=\"text-emerald-300\">changed</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			case ContentRatingBulkOutcomeNotAttempted:
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "<span class=\"text-amber-300\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var57 string
-				templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(r.Message)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 341, Col: 47}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "</span>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			default:
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, "<span class=\"text-red-300\">failed. ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, "<span class=\"text-amber-300\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var58 string
 				templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.JoinStringErrs(r.Message)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 343, Col: 53}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 348, Col: 47}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var58))
 				if templ_7745c5c3_Err != nil {
@@ -1211,13 +1216,49 @@ func contentRatingBulkApplied(a *ContentRatingBulkApplied) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
+			case ContentRatingBulkOutcomeUncertain:
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "<span class=\"text-amber-300\">not confirmed. ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var59 string
+				templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs(r.Message)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 350, Col: 62}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "</span>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			default:
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "<span class=\"text-red-300\">failed. ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var60 string
+				templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(r.Message)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `templ/content_rating_bulk.templ`, Line: 352, Col: 53}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "</span>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "</li>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "</li>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "</ul></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 108, "</ul></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -51,6 +52,17 @@ type ratingModuleState struct {
 	listErrAfterSet error
 	// identities is the incoming metadata of every call the module received.
 	identities []metadata.MD
+	// getErr fails the readback (Get) of an id. readAs makes the readback of an
+	// id report these {rating, source} instead of what is stored, as a module
+	// serving a stale or different value would. gets records readback ids.
+	getErr map[string]error
+	readAs map[string][2]string
+	gets   []string
+	// order is every set/get/list the module saw, in order: "set:<id>",
+	// "get:<id>", "list".
+	order []string
+	// afterSet runs after a set was recorded, before it replies.
+	afterSet func(id string)
 }
 
 func (s *ratingModuleState) record(ctx context.Context) {
@@ -70,6 +82,7 @@ func (s *ratingModuleState) list(page, size int32, search string) ([]ratingTitle
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.lists = append(s.lists, search)
+	s.order = append(s.order, "list")
 	if s.listErr != nil {
 		return nil, 0, s.listErr
 	}
@@ -94,6 +107,7 @@ func (s *ratingModuleState) set(id, rating string, explicit bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.calls = append(s.calls, ratingCall{id, rating, explicit})
+	s.order = append(s.order, "set:"+id)
 	if err := s.failures[id]; err != nil {
 		return err
 	}
@@ -115,6 +129,28 @@ func (s *ratingModuleState) set(id, rating string, explicit bool) error {
 		}
 	}
 	return commitErr
+}
+
+// get is the readback of one title: what is stored unless the test says
+// otherwise.
+func (s *ratingModuleState) get(id string) (ratingTitle, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.gets = append(s.gets, id)
+	s.order = append(s.order, "get:"+id)
+	if err := s.getErr[id]; err != nil {
+		return ratingTitle{}, err
+	}
+	for _, t := range s.titles {
+		if t.ID != id {
+			continue
+		}
+		if v, ok := s.readAs[id]; ok {
+			t.Rating, t.Source = v[0], v[1]
+		}
+		return t, nil
+	}
+	return ratingTitle{}, status.Error(codes.NotFound, "no such title")
 }
 
 func (s *ratingModuleState) callCount() int {
@@ -144,9 +180,22 @@ func (f fakeMovieRatings) ListMovies(ctx context.Context, req *mgmntv1.ListMovie
 	return out, nil
 }
 
+func (f fakeMovieRatings) GetMovie(ctx context.Context, req *mgmntv1.GetMovieRequest) (*mgmntv1.GetMovieResponse, error) {
+	f.st.record(ctx)
+	t, err := f.st.get(req.GetMovieId())
+	if err != nil {
+		return nil, err
+	}
+	return &mgmntv1.GetMovieResponse{Movie: &mgmntv1.MovieItem{Id: t.ID, Title: t.Title, ContentRating: t.Rating, ContentRatingSource: t.Source}}, nil
+}
+
 func (f fakeMovieRatings) SetContentRating(ctx context.Context, req *mgmntv1.SetContentRatingRequest) (*mgmntv1.SetContentRatingResponse, error) {
 	f.st.record(ctx)
-	if err := f.st.set(req.GetMovieId(), req.GetContentRating(), req.GetExplicitUnrated()); err != nil {
+	err := f.st.set(req.GetMovieId(), req.GetContentRating(), req.GetExplicitUnrated())
+	if f.st.afterSet != nil {
+		f.st.afterSet(req.GetMovieId())
+	}
+	if err != nil {
 		return nil, err
 	}
 	return &mgmntv1.SetContentRatingResponse{}, nil
@@ -171,6 +220,15 @@ func (f fakeTVRatings) ListTVShows(ctx context.Context, req *tvmgmtv1.ListTVShow
 		})
 	}
 	return out, nil
+}
+
+func (f fakeTVRatings) GetTVShow(ctx context.Context, req *tvmgmtv1.GetTVShowRequest) (*tvmgmtv1.GetTVShowResponse, error) {
+	f.st.record(ctx)
+	t, err := f.st.get(req.GetSeriesId())
+	if err != nil {
+		return nil, err
+	}
+	return &tvmgmtv1.GetTVShowResponse{Series: &tvmgmtv1.TVSeries{Id: t.ID, Name: t.Title, ContentRating: t.Rating, ContentRatingSource: t.Source}}, nil
 }
 
 func (f fakeTVRatings) SetContentRating(ctx context.Context, req *tvmgmtv1.SetContentRatingRequest) (*tvmgmtv1.SetContentRatingResponse, error) {
@@ -336,6 +394,18 @@ func (e *ratingEnv) postTo(w http.ResponseWriter, sess *session.Session, form ur
 		r = r.WithContext(staleIdentity(context.WithValue(r.Context(), ctxSessionKey, sess)))
 	}
 	e.h.ContentRatingsBulkApply(w, r)
+}
+
+// ratingSummary is the apply summary the page announces, as text.
+func ratingSummary(t *testing.T, body string) string {
+	t.Helper()
+	m := regexp.MustCompile(`(?s)data-testid="content-rating-summary"[^>]*>(.*?)</p>`).FindStringSubmatch(body)
+	if m == nil {
+		t.Fatalf("no apply summary in %.400s", body)
+	}
+	text := regexp.MustCompile(`<[^>]*>`).ReplaceAllString(m[1], "")
+	text = strings.NewReplacer(" ,", ",", " .", ".").Replace(strings.Join(strings.Fields(text), " "))
+	return text
 }
 
 func movieTitles(n int) []ratingTitle {
@@ -521,8 +591,8 @@ func TestContentRatingBulkSetReplaceNRClearMapToRPCFields(t *testing.T) {
 			if len(recs) != len(steps) {
 				t.Fatalf("audit entries = %d, want %d", len(recs), len(steps))
 			}
-			// The per-item page's audit shape: the intended classification and
-			// its source, nothing else.
+			// The per-item page's audit shape: requested values always, stored
+			// values because each save was read back and matched.
 			module := map[string]string{"movies": "media-movies", "tv": "media-tvshows"}[kind]
 			wantRating := []string{"TV-14", "PG", "NR", "", "E10+"}
 			wantSource := []string{"operator", "operator", "operator", "", "operator"}
@@ -530,7 +600,11 @@ func TestContentRatingBulkSetReplaceNRClearMapToRPCFields(t *testing.T) {
 				if rec.Action != "admin.media.content_rating" || rec.Resource != "media_item" || rec.ResourceID != "x1" || rec.Actor != admin.UserID {
 					t.Errorf("audit %d = %+v", i, rec)
 				}
-				want := map[string]string{"module": module, "content_rating": wantRating[i], "source": wantSource[i]}
+				want := map[string]string{
+					"module": module, "outcome": "confirmed", "reason": "readback_matched",
+					"requested_rating": wantRating[i], "requested_source": wantSource[i],
+					"content_rating": wantRating[i], "source": wantSource[i],
+				}
 				if !reflect.DeepEqual(rec.Details, want) {
 					t.Errorf("audit %d details = %v, want %v", i, rec.Details, want)
 				}
@@ -574,7 +648,7 @@ func TestContentRatingBulkPartialFailureIsReported(t *testing.T) {
 			t.Errorf("%s should be reported as %s", id, outcome)
 		}
 	}
-	for _, want := range []string{"2 changed", "2 failed", "Some titles were not changed", "invalid argument", "unknown rating token"} {
+	for _, want := range []string{"2 changed", "2 failed", "Not every title was confirmed as changed", "invalid argument", "unknown rating token"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("result missing %q", want)
 		}
@@ -582,13 +656,15 @@ func TestContentRatingBulkPartialFailureIsReported(t *testing.T) {
 	if strings.Contains(body, "internal-detail-xyz") {
 		t.Error("a NotFound message from the module leaked into the page")
 	}
-	// Only the changes that happened are audited.
-	var audited []string
+	// Every attempt is audited once: confirmed for the two that changed, refused
+	// for the two the module rejected.
+	got := map[string]string{}
 	for _, rec := range e.auditRecords() {
-		audited = append(audited, rec.ResourceID)
+		got[rec.ResourceID] = rec.Details["outcome"]
 	}
-	if !reflect.DeepEqual(audited, []string{"m001", "m004"}) {
-		t.Errorf("audited ids = %v", audited)
+	want := map[string]string{"m001": "confirmed", "m002": "refused", "m003": "refused", "m004": "confirmed"}
+	if !reflect.DeepEqual(got, want) || len(e.auditRecords()) != 4 {
+		t.Errorf("audit outcomes = %v (%d records), want %v", got, len(e.auditRecords()), want)
 	}
 }
 
@@ -649,12 +725,16 @@ func TestContentRatingBulkModuleErrorsAreRendered(t *testing.T) {
 		// uncertain: the module may have committed before the error, so the
 		// attempt is audited as outcome=uncertain (never as a success).
 		uncertain bool
+		code      string
+		stop      int // batch-ending status, 0 for a per-title failure
 	}{
-		{"invalid argument", status.Error(codes.InvalidArgument, "unsupported token"), "The module rejected this rating (invalid argument: unsupported token)", false},
-		{"not found", status.Error(codes.NotFound, "gone"), "no longer has this title", false},
-		{"unavailable", status.Error(codes.Unavailable, "down"), "did not answer in time", true},
-		{"unimplemented", status.Error(codes.Unimplemented, "old"), "does not support content ratings", false},
-		{"internal", status.Error(codes.Internal, "secret stack trace"), "reported an error (Internal)", true},
+		{"invalid argument", status.Error(codes.InvalidArgument, "unsupported token"), "The module rejected this rating (invalid argument: unsupported token)", false, "InvalidArgument", 0},
+		{"not found", status.Error(codes.NotFound, "gone"), "no longer has this title", false, "NotFound", 0},
+		{"unavailable", status.Error(codes.Unavailable, "down"), "did not answer in time", true, "Unavailable", 0},
+		{"unimplemented", status.Error(codes.Unimplemented, "old"), "does not support content ratings", false, "Unimplemented", 0},
+		{"internal", status.Error(codes.Internal, "secret stack trace"), "reported an error (Internal)", true, "Internal", 0},
+		{"unauthenticated", status.Error(codes.Unauthenticated, "token revoked"), "no longer authorized", false, "Unauthenticated", http.StatusUnauthorized},
+		{"permission denied", status.Error(codes.PermissionDenied, "role revoked"), "refused this operation", false, "PermissionDenied", http.StatusForbidden},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -669,15 +749,29 @@ func TestContentRatingBulkModuleErrorsAreRendered(t *testing.T) {
 			if strings.Contains(body, "secret stack trace") {
 				t.Error("module internals leaked")
 			}
-			if !strings.Contains(body, `data-outcome="failed"`) {
-				t.Error("failure not reported")
+			wantOutcome, wantAudit := "failed", "refused"
+			if c.uncertain {
+				wantOutcome, wantAudit = "uncertain", "uncertain"
+			}
+			if !strings.Contains(body, `data-outcome="`+wantOutcome+`"`) {
+				t.Errorf("want outcome %s: %.600s", wantOutcome, body)
+			}
+			wantStatus := http.StatusOK
+			if c.stop != 0 {
+				wantStatus = c.stop
+			}
+			if w.Code != wantStatus {
+				t.Errorf("status = %d, want %d", w.Code, wantStatus)
 			}
 			recs := e.auditRecords()
-			switch {
-			case !c.uncertain && len(recs) != 0:
-				t.Errorf("a definite refusal was audited: %+v", recs)
-			case c.uncertain && (len(recs) != 1 || recs[0].Details["outcome"] != "uncertain"):
-				t.Errorf("a possible write was not audited as uncertain: %+v", recs)
+			// The attempt is audited either way (never silently dropped), with
+			// the requested value and the gRPC code as the reason.
+			want := map[string]string{
+				"module": "media-movies", "outcome": wantAudit, "reason": c.code,
+				"requested_rating": "R", "requested_source": "operator",
+			}
+			if len(recs) != 1 || !reflect.DeepEqual(recs[0].Details, want) {
+				t.Errorf("audit = %+v, want details %v", recs, want)
 			}
 		})
 	}
@@ -947,31 +1041,240 @@ func TestContentRatingBulkUncertainWritesAreAudited(t *testing.T) {
 	if !strings.Contains(body, "may not have been changed") || strings.Contains(body, `data-id="m001" data-outcome="ok"`) {
 		t.Errorf("uncertain outcome misreported: %.600s", body)
 	}
+	// A failed set is never read back: only the acknowledged m005 is.
+	if !reflect.DeepEqual(e.movies.gets, []string{"m005"}) {
+		t.Errorf("readbacks = %v, want only the acknowledged write", e.movies.gets)
+	}
 	got := map[string]auditRecord{}
 	for _, rec := range e.auditRecords() {
 		got[rec.ResourceID] = rec
 	}
-	for _, id := range []string{"m001", "m002", "m003"} {
-		rec, ok := got[id]
-		if !ok {
-			t.Errorf("%s: no audit record for a possibly committed write", id)
-			continue
+	if len(got) != 5 {
+		t.Errorf("audit records = %d, want one per attempt (5)", len(got))
+	}
+	for id, want := range map[string]struct{ outcome, reason string }{
+		"m001": {"uncertain", "DeadlineExceeded"}, "m002": {"uncertain", "Unavailable"}, "m003": {"uncertain", "Unknown"},
+		"m004": {"refused", "InvalidArgument"}, "m005": {"confirmed", "readback_matched"},
+	} {
+		rec := got[id]
+		details := map[string]string{
+			"module": "media-movies", "outcome": want.outcome, "reason": want.reason,
+			"requested_rating": "R", "requested_source": "operator",
 		}
-		wantCode := map[string]string{"m001": "DeadlineExceeded", "m002": "Unavailable", "m003": "Unknown"}[id]
-		if rec.Actor != "u-admin" || rec.Action != contentRatingAuditAction || rec.Resource != "media_item" ||
-			rec.Details["outcome"] != "uncertain" || rec.Details["content_rating"] != "R" || rec.Details["source"] != "operator" ||
-			rec.Details["module"] != "media-movies" || rec.Details["code"] != wantCode || len(rec.Details) != 5 {
-			t.Errorf("%s: audit = %+v", id, rec)
+		if want.outcome == "confirmed" {
+			details["content_rating"], details["source"] = "R", "operator"
+		}
+		if rec.Actor != "u-admin" || rec.Action != contentRatingAuditAction || rec.Resource != "media_item" || !reflect.DeepEqual(rec.Details, details) {
+			t.Errorf("%s: audit = %+v, want details %v", id, rec, details)
+		}
+		// Stored values may appear only for a confirmed outcome.
+		if _, ok := rec.Details["content_rating"]; ok != (want.outcome == "confirmed") {
+			t.Errorf("%s: content_rating present=%v for outcome %s", id, ok, want.outcome)
 		}
 	}
-	if _, ok := got["m004"]; ok {
-		t.Error("a definite refusal was audited as an attempt")
+}
+
+// An acknowledgement is empty and proves nothing: the title is read back, and
+// anything but the requested classification is "not confirmed", with requested
+// (never stored) values in the audit entry.
+func TestContentRatingBulkAcknowledgedWriteNeedsMatchingReadback(t *testing.T) {
+	cases := []struct {
+		name   string
+		setup  func(st *ratingModuleState)
+		reason string
+		msg    string
+	}{
+		{"readback error", func(st *ratingModuleState) { st.getErr["m001"] = status.Error(codes.Unavailable, "down") }, "readback_unavailable", ""},
+		{"stale value", func(st *ratingModuleState) { st.readAs["m001"] = [2]string{"G", "operator"} }, "readback_mismatch", ""},
+		{"wrong source", func(st *ratingModuleState) { st.readAs["m001"] = [2]string{"R", "tmdb"} }, "readback_mismatch", ""},
+		{"nothing stored", func(st *ratingModuleState) { st.readAs["m001"] = [2]string{"", ""} }, "readback_mismatch", ""},
 	}
-	if rec, ok := got["m005"]; !ok || rec.Details["outcome"] != "" {
-		t.Errorf("m005 success audit = %+v", rec)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			e := newRatingEnv(t, true, false)
+			e.movies.titles = movieTitles(2)
+			e.movies.getErr, e.movies.readAs = map[string]error{}, map[string][2]string{}
+			c.setup(e.movies)
+			w := e.post(ratingSession("admin"), ratingForm("movies", "R", "m001", "m002"))
+			body := w.Body.String()
+			if w.Code != http.StatusOK {
+				t.Fatalf("status %d", w.Code)
+			}
+			if !strings.Contains(body, `data-id="m001" data-outcome="uncertain"`) || strings.Contains(body, `data-id="m001" data-outcome="ok"`) {
+				t.Errorf("an unconfirmed save was reported as changed: %.800s", body)
+			}
+			// The unconfirmed title does not stop the batch; its neighbour is confirmed.
+			if !strings.Contains(body, `data-id="m002" data-outcome="ok"`) || !strings.HasPrefix(ratingSummary(t, body), "1 changed, 1 not confirmed.") {
+				t.Errorf("summary/neighbour wrong: %.800s", body)
+			}
+			if !strings.Contains(body, "acknowledged, but this title&#39;s current rating could not be confirmed") {
+				t.Error("unconfirmed message missing")
+			}
+			// Exactly one set and one readback per title: never a retried write.
+			if !reflect.DeepEqual(e.movies.order[:4], []string{"set:m001", "get:m001", "set:m002", "get:m002"}) {
+				t.Errorf("rpc order = %v", e.movies.order)
+			}
+			recs := e.auditRecords()
+			if len(recs) != 2 {
+				t.Fatalf("audit records = %d, want 2", len(recs))
+			}
+			want := map[string]string{
+				"module": "media-movies", "outcome": "uncertain", "reason": c.reason,
+				"requested_rating": "R", "requested_source": "operator",
+			}
+			if recs[0].ResourceID != "m001" || !reflect.DeepEqual(recs[0].Details, want) {
+				t.Errorf("m001 audit = %+v, want details %v", recs[0], want)
+			}
+			// No stored classification may be claimed by an unconfirmed audit.
+			for _, k := range []string{"content_rating", "source"} {
+				if _, ok := recs[0].Details[k]; ok {
+					t.Errorf("unconfirmed audit carries %s", k)
+				}
+			}
+			if recs[1].ResourceID != "m002" || recs[1].Details["outcome"] != "confirmed" {
+				t.Errorf("m002 audit = %+v", recs[1])
+			}
+		})
 	}
-	if len(got) != 4 {
-		t.Errorf("audit records = %d, want 4", len(got))
+}
+
+// NR and Clear are confirmed against what the module reports for them, not
+// against the literal request: NR stores "NR"/operator, Clear stores nothing.
+func TestContentRatingBulkReadbackExpectationPerChoice(t *testing.T) {
+	for _, tc := range []struct {
+		choice, readRating, readSource string
+		wantOutcome                    string
+	}{
+		{"NR", "NR", "operator", "ok"},
+		{"NR", "", "operator", "uncertain"},
+		{"CLEAR", "", "", "ok"},
+		{"CLEAR", "", "operator", "uncertain"},
+		{"CLEAR", "R", "operator", "uncertain"},
+		{"PG-13", "PG-13", "operator", "ok"},
+		{"PG-13", "pg-13", "operator", "uncertain"}, // exact, as on the per-item page
+	} {
+		t.Run(tc.choice+"/"+tc.readRating+"/"+tc.readSource, func(t *testing.T) {
+			e := newRatingEnv(t, false, true)
+			e.tv.titles = []ratingTitle{{ID: "s1", Title: "Show"}}
+			e.tv.getErr, e.tv.readAs = map[string]error{}, map[string][2]string{"s1": {tc.readRating, tc.readSource}}
+			w := e.post(ratingSession("admin"), ratingForm("tv", tc.choice, "s1"))
+			if !strings.Contains(w.Body.String(), `data-id="s1" data-outcome="`+tc.wantOutcome+`"`) {
+				t.Errorf("outcome != %s: %.600s", tc.wantOutcome, w.Body.String())
+			}
+		})
+	}
+}
+
+// A revoked bearer or a refusing provider ends the batch: the offending title is
+// audited as refused, every earlier attempt keeps its audit entry, the rest are
+// reported not attempted, no further RPC of any kind is made (no readback, no
+// list refresh) and the response is the matching auth status with the partial
+// results still rendered.
+func TestContentRatingBulkAuthFailureStopsTheBatch(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		code codes.Code
+		want int
+	}{
+		{"unauthenticated", codes.Unauthenticated, http.StatusUnauthorized},
+		{"permission denied", codes.PermissionDenied, http.StatusForbidden},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newRatingEnv(t, true, false)
+			e.movies.titles = movieTitles(4)
+			e.movies.failures["m002"] = status.Error(tc.code, "secret provider text")
+			w := e.post(ratingSession("admin"), ratingForm("movies", "R", "m001", "m002", "m003", "m004"))
+			body := w.Body.String()
+			if w.Code != tc.want || w.Header().Get(swapErrorHeader) != "1" {
+				t.Fatalf("status %d swap %q, want %d with swap header", w.Code, w.Header().Get(swapErrorHeader), tc.want)
+			}
+			if strings.Contains(body, "secret provider text") {
+				t.Error("provider text leaked")
+			}
+			for id, outcome := range map[string]string{"m001": "ok", "m002": "failed", "m003": "not-attempted", "m004": "not-attempted"} {
+				if !strings.Contains(body, `data-id="`+id+`" data-outcome="`+outcome+`"`) {
+					t.Errorf("%s should be %s: %.900s", id, outcome, body)
+				}
+			}
+			if got := ratingSummary(t, body); !strings.HasPrefix(got, "1 changed, 1 failed, 2 not attempted.") {
+				t.Errorf("partial summary = %q", got)
+			}
+			if strings.Contains(body, "in this library yet") {
+				t.Error("stopped batch rendered as an empty library")
+			}
+			// The only RPCs: set+readback of m001, then the refused set of m002.
+			if want := []string{"set:m001", "get:m001", "set:m002"}; !reflect.DeepEqual(e.movies.order, want) {
+				t.Errorf("rpc order = %v, want %v", e.movies.order, want)
+			}
+			recs := e.auditRecords()
+			if len(recs) != 2 || recs[0].ResourceID != "m001" || recs[0].Details["outcome"] != "confirmed" ||
+				recs[1].ResourceID != "m002" || recs[1].Details["outcome"] != "refused" || recs[1].Details["reason"] != tc.code.String() {
+				t.Errorf("audits = %+v", recs)
+			}
+		})
+	}
+}
+
+// The credential can also be revoked between an acknowledged write and its
+// readback. The write may have landed, so it is uncertain and audited, and the
+// batch ends there.
+func TestContentRatingBulkAuthFailureOnReadbackStopsTheBatch(t *testing.T) {
+	e := newRatingEnv(t, true, false)
+	e.movies.titles = movieTitles(3)
+	e.movies.getErr, e.movies.readAs = map[string]error{"m001": status.Error(codes.Unauthenticated, "revoked")}, nil
+	w := e.post(ratingSession("admin"), ratingForm("movies", "R", "m001", "m002", "m003"))
+	body := w.Body.String()
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("status %d", w.Code)
+	}
+	for id, outcome := range map[string]string{"m001": "uncertain", "m002": "not-attempted", "m003": "not-attempted"} {
+		if !strings.Contains(body, `data-id="`+id+`" data-outcome="`+outcome+`"`) {
+			t.Errorf("%s should be %s", id, outcome)
+		}
+	}
+	if want := []string{"set:m001", "get:m001"}; !reflect.DeepEqual(e.movies.order, want) {
+		t.Errorf("rpc order = %v, want %v", e.movies.order, want)
+	}
+	recs := e.auditRecords()
+	if len(recs) != 1 || recs[0].Details["outcome"] != "uncertain" || recs[0].Details["reason"] != "readback_unavailable" {
+		t.Errorf("audits = %+v", recs)
+	}
+}
+
+// A cancelled request stops the batch, audits what was attempted and does not
+// lose the entry for the write that was in flight.
+func TestContentRatingBulkCancelledRequestKeepsAttemptedAudits(t *testing.T) {
+	e := newRatingEnv(t, true, false)
+	e.movies.titles = movieTitles(4)
+	ctx, cancel := context.WithCancel(context.Background())
+	e.movies.afterSet = func(id string) {
+		if id == "m002" {
+			cancel()
+			// Let the client observe the cancellation before this reply.
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+	form := ratingForm("movies", "R", "m001", "m002", "m003", "m004")
+	r := httptest.NewRequest(http.MethodPost, "/content-ratings", strings.NewReader(form.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	r = r.WithContext(staleIdentity(context.WithValue(ctx, ctxSessionKey, ratingSession("admin"))))
+	w := newDeadlineRecorder()
+	e.h.ContentRatingsBulkApply(w, r)
+	_ = w // the caller is gone, so the page itself cannot be delivered
+	for _, op := range e.movies.order {
+		if op == "set:m003" || op == "set:m004" {
+			t.Errorf("RPC %s after cancellation", op)
+		}
+	}
+	if want := []string{"set:m001", "get:m001", "set:m002"}; !reflect.DeepEqual(e.movies.order[:3], want) {
+		t.Errorf("rpc order = %v, want prefix %v", e.movies.order, want)
+	}
+	got := map[string]string{}
+	for _, rec := range e.auditRecords() {
+		got[rec.ResourceID] = rec.Details["outcome"]
+	}
+	if want := (map[string]string{"m001": "confirmed", "m002": "uncertain"}); !reflect.DeepEqual(got, want) {
+		t.Errorf("audits = %v, want %v (one per attempt, none for unattempted)", got, want)
 	}
 }
 
@@ -1087,8 +1390,8 @@ func TestContentRatingBulkForwardsOnlyTheValidatedBearer(t *testing.T) {
 	}
 	e.movies.mu.Lock()
 	defer e.movies.mu.Unlock()
-	if len(e.movies.identities) != 3 { // GET list, POST set, POST refresh list
-		t.Fatalf("module calls = %d, want 3 (GET list, set, refresh list)", len(e.movies.identities))
+	if len(e.movies.identities) != 4 { // GET list, POST set, POST readback, POST refresh list
+		t.Fatalf("module calls = %d, want 4 (GET list, set, readback, refresh list)", len(e.movies.identities))
 	}
 	for i, md := range e.movies.identities {
 		if got := md.Get("authorization"); !reflect.DeepEqual(got, []string{"Bearer " + ratingBearer}) {
