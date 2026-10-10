@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.21] - 2026-10-10
+
 ### Added
 
 - User erasure (ADR-0035 slice E7, roadmap T-M4-07). Deleting an account now
@@ -212,6 +214,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   documents, and six responsive-navigation keyboard tests (T-M4-05). A dedicated
   GitHub Accessibility workflow runs the Node checks. Contrast and browser-level
   WCAG validation remain outstanding; see README for the exact limits.
+
+### Changed
+
+- Operator content rating workflow added: per-item content-rating page for movies and series.
+- Classification requests are bounded and their outcomes audited.
+- Request adapter preserves the media type and surfaces mutation outcomes; mutation form bodies that were not read are refused.
+- Bump `golangci/golangci-lint-action` from 8 to 9 (#59).
+- Update the transitive `source-map-js` build dependency from 1.2.1 to 1.2.2 (GHSA-68fv-2mgg-jv7q); development dependency only, not a runtime change.
 
 ## [0.1.20] - 2026-10-05
 
