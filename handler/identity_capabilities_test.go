@@ -32,7 +32,9 @@ type identityRPCStub struct {
 	sessionRows     []*authv1.SessionInfo
 	nextSessionPage string
 	validateResp    *authv1.ValidateResponse
-	users           []*authv1.UserInfo // ListUsers answer when set
+	users           []*authv1.UserInfo      // ListUsers answer when set
+	erasureStatus   []*authv1.ErasureStatus // GetUserErasureStatus answer when set
+	deleteErasureID string                  // DeleteUser erasure_id
 	validateHold    chan struct{}
 	validateStarted chan struct{}
 	validateOnce    sync.Once
@@ -71,7 +73,9 @@ func (s *identityRPCStub) intercept(ctx context.Context, req any, info *grpc.Una
 	case "CreateUser":
 		return &authv1.CreateUserResponse{UserId: "u2"}, nil
 	case "DeleteUser":
-		return &authv1.DeleteUserResponse{}, nil
+		return &authv1.DeleteUserResponse{ErasureId: s.deleteErasureID}, nil
+	case "GetUserErasureStatus":
+		return &authv1.GetUserErasureStatusResponse{Erasures: s.erasureStatus}, nil
 	case "SetPassword":
 		return &authv1.SetPasswordResponse{}, nil
 	case "SetRoles":
@@ -207,6 +211,11 @@ func identityRequest(tc identityHandlerCase) *http.Request {
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	r.SetPathValue("id", "u1")
 	r.SetPathValue("tokenId", "old")
+	if tc.rpc == "DeleteUser" {
+		// DeleteUser needs the signed-in administrator's bearer (ADR-0035 §1);
+		// without one the handler never reaches the provider.
+		r = r.WithContext(context.WithValue(r.Context(), ctxSessionKey, &session.Session{UserID: "admin-1", AuthLocalToken: "admin-bearer"}))
+	}
 	return r
 }
 

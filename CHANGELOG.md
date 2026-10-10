@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- User erasure (ADR-0035 slice E7, roadmap T-M4-07). Deleting an account now
+  sends the signed-in administrator's own bearer (`x-auth-token`) to the
+  identity provider's `DeleteUser`; a mesh certificate alone is no longer
+  used, and a session without a bound bearer is refused before any call
+  (conflict C-37). `/users` shows the provider's erasure status per deleted
+  account (`AuthService.GetUserErasureStatus`): pending, failed or unsupported
+  modules with their last acknowledgement, and "Complete" once every required
+  module acknowledged. admin-ui runs the SDK erasure reconciler as a personal
+  data owner: for each ledger tombstone it deletes that user's sessions, the
+  password-reset requests stored with their id (and legacy username-keyed
+  requests whose username no longer resolves) and their legacy
+  `parental.json` entry, records the erasure id in `erasure-applied.json`
+  (`ADMIN_UI_ERASURE_APPLIED_FILE`) only after the deletions persisted, and
+  acknowledges. The household and staging profiles refuse to start without a
+  core connection. NFR-DATA-003 remains Plan; this module's slice is not
+  pinned or deployed by this change.
+
 ### Security
 
 - userdata-local HTTP transport (ADR-0033 slice S9c). Every userdata request

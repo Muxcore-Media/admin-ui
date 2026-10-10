@@ -27,10 +27,7 @@ type ensureFunc func(context.Context, meshid.Config) (meshid.Paths, error)
 // deprecated aliases meshdial honours) skips it; the insecure flag in the
 // household profile is an error (ADR-0016).
 func ensureMeshIdentity(ctx context.Context, ensure ensureFunc, getenv func(string) string, coreAddr string) (meshid.Paths, error) {
-	moduleID := strings.TrimSpace(getenv(meshid.EnvModuleID))
-	if moduleID == "" {
-		moduleID = defaultMeshModuleID
-	}
+	moduleID := meshModuleID(getenv)
 	paths, err := ensure(ctx, meshid.Config{
 		Getenv:   getenv,
 		ModuleID: moduleID,
@@ -41,6 +38,15 @@ func ensureMeshIdentity(ctx context.Context, ensure ensureFunc, getenv func(stri
 		return meshid.Paths{}, fmt.Errorf("mesh identity for %q: %w", moduleID, err)
 	}
 	return paths, nil
+}
+
+// meshModuleID is admin-ui's module id: the CN of its mesh certificate, and
+// the identity the ADR-0035 reconciler acknowledges erasures as.
+func meshModuleID(getenv func(string) string) string {
+	if id := strings.TrimSpace(getenv(meshid.EnvModuleID)); id != "" {
+		return id
+	}
+	return defaultMeshModuleID
 }
 
 // insecureFrom mirrors meshdial.ConfigFromEnv's insecure flags over getenv.

@@ -56,7 +56,8 @@ func TestAccessibilityCoreJourneys(t *testing.T) {
 		{"rotation-incomplete", APIKeyRotationIncomplete("alice", "laptop", "fixture-token", "Revocation of the old token was not confirmed.")},
 		{"dashboard", DashboardPage(DashboardData{WantedQueueCount: 2, QueueFailureCount: 1})},
 		{"dashboard-disconnected", DashboardPage(DashboardData{Disconnected: true})},
-		{"users", UsersPage([]*authv1.UserInfo{{Id: "alice", Username: "Alice"}}, "User service unavailable", 1)},
+		{"users", UsersPage([]*authv1.UserInfo{{Id: "alice", Username: "Alice"}}, "User service unavailable", 1, UserErasureStatus{})},
+		{"users-erasure", UsersPage([]*authv1.UserInfo{{Id: "alice", Username: "Alice"}}, "", 0, UserErasureStatus{Available: true, Rows: []UserErasureRow{{ErasureID: "er-1", DeletedAt: "2026-10-09T10:00:00Z", Modules: []UserErasureModule{{ModuleID: "request-media", State: "pending", Required: true}}}}})},
 		{"request", RequestPage(RequestPageData{
 			Pending:  []RequestRow{{ID: "req-1", Title: "Dune", RequestedBy: "Alice"}},
 			Results:  []RequestSearchHit{{ID: 2, Title: "Arrival", Type: "movie"}},
