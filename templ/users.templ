@@ -21,7 +21,7 @@ func totpBadge(enabled bool) string {
 	return "Off"
 }
 
-templ UsersPage(users []*authv1.UserInfo, errorMsg string, pendingResetCount int) {
+templ UsersPage(users []*authv1.UserInfo, errorMsg string, pendingResetCount int, erasures UserErasureStatus) {
 	<div class="space-y-6" data-testid="users-page">
 		<div class="flex items-center justify-between">
 			<div>
@@ -100,7 +100,7 @@ templ UsersPage(users []*authv1.UserInfo, errorMsg string, pendingResetCount int
 									<button
 										type="button"
 										hx-delete={ templ.SafeURL(fmt.Sprintf("/users/%s", u.GetId())) }
-										hx-confirm={ fmt.Sprintf("Delete user %q?", u.GetUsername()) }
+										hx-confirm={ fmt.Sprintf("Delete user %q? Their data is erased from this household's services. Copies in existing backups remain until those backups are removed.", u.GetUsername()) }
 										hx-target="body"
 										hx-swap="innerHTML"
 										aria-label={ fmt.Sprintf("Delete user %s", u.GetUsername()) }
@@ -114,7 +114,66 @@ templ UsersPage(users []*authv1.UserInfo, errorMsg string, pendingResetCount int
 			</table>
 		</section>
 		<div id="user-detail"></div>
+		@UserErasurePanel(erasures)
 	</div>
+}
+
+// UserErasurePanel shows the erasure status of deleted accounts (ADR-0035 §5):
+// which required modules are pending or failed and when they last
+// acknowledged, and "Complete" once every required module is done.
+templ UserErasurePanel(status UserErasureStatus) {
+	<section class="rounded-xl border border-gray-800 p-4 space-y-3" aria-labelledby="user-erasures-heading" data-testid="user-erasures">
+		<h2 id="user-erasures-heading" class="text-sm font-semibold text-gray-200">Deleted account erasure</h2>
+		if !status.Available {
+			<p class="text-xs text-gray-400" role="status" data-testid="erasure-unavailable">{ status.Message }</p>
+		} else if len(status.Rows) == 0 {
+			<p class="text-xs text-gray-500" data-testid="erasure-none">No deleted accounts are being erased.</p>
+		} else {
+			for _, row := range status.Rows {
+				<div class="rounded-lg border border-gray-800 p-3" data-testid="erasure-row" data-erasure-id={ row.ErasureID } data-complete={ fmt.Sprintf("%t", row.Complete) }>
+					<p class="text-sm text-gray-200">
+						<span class="font-medium" data-testid="erasure-state">{ erasureRowLabel(row) }</span>
+						<span class="text-gray-500 ml-2">erasure { row.ErasureID }, deleted { row.DeletedAt }</span>
+					</p>
+					if len(row.Modules) > 0 {
+						<table class="w-full text-xs mt-2">
+							<caption class="sr-only">{ fmt.Sprintf("Module acknowledgements for erasure %s", row.ErasureID) }</caption>
+							<thead>
+								<tr class="text-left text-gray-500">
+									<th scope="col" class="py-1 pr-3 font-medium">Module</th>
+									<th scope="col" class="py-1 pr-3 font-medium">Status</th>
+									<th scope="col" class="py-1 font-medium">Last acknowledgement</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-gray-800">
+								for _, m := range row.Modules {
+									<tr data-testid="erasure-module" data-module={ m.ModuleID } data-state={ m.State }>
+										<td class="py-1 pr-3 text-gray-300">{ m.ModuleID }</td>
+										<td class={ "py-1 pr-3 " + erasureStateClass(m.State) }>
+											{ ErasureStateLabel(m.State) }
+											if m.Detail != "" {
+												<span class="text-gray-500">({ m.Detail })</span>
+											}
+										</td>
+										<td class="py-1 text-gray-400">
+											if m.AckedAt != "" {
+												{ m.AckedAt }
+											} else {
+												Not yet acknowledged
+											}
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					}
+				</div>
+			}
+			if status.Truncated {
+				<p class="text-xs text-gray-500" data-testid="erasure-truncated">Older erasures are not shown.</p>
+			}
+		}
+	</section>
 }
 
 templ UserCreateForm() {

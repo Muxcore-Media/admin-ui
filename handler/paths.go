@@ -65,6 +65,13 @@ func passwordResetFilePath() string {
 	return adminDataFile("ADMIN_UI_PASSWORD_RESET_FILE", "password-resets.json")
 }
 
+// erasureAppliedFilePath is the durable ADR-0035 erasure_applied record. It
+// sits beside sessions.json in the admin data dir and holds only opaque
+// erasure ids and times, never a user id or username.
+func erasureAppliedFilePath() string {
+	return adminDataFile("ADMIN_UI_ERASURE_APPLIED_FILE", "erasure-applied.json")
+}
+
 func spoolTrustDir() string {
 	return envOr("ADMIN_UI_SPOOL_TRUST_DIR", filepath.Join(AdminDataDir(), "spool-trust"))
 }

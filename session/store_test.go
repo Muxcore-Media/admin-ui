@@ -424,3 +424,86 @@ func TestRevokeIfBoundPreservesReplacement(t *testing.T) {
 		t.Fatal("already-revoked binding was reported as removed again")
 	}
 }
+
+func TestRevokeUserRemovesOnlyThatUsersSessionsAndPersists(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sessions.json")
+	key := make([]byte, 32)
+	s, err := NewFileStoreWithKey(path, time.Hour, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mk := func(user, tenant string) {
+		if _, err := s.CreateWithTenant(user, user+"-name", tenant, nil, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mk("victim", "")
+	mk("victim", "t1")
+	mk("victim", "t2") // another tenant: not this tombstone's
+	mk("bystander", "t1")
+
+	n, err := s.RevokeUser("victim", "t1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 2 {
+		t.Fatalf("removed %d sessions, want 2 (blank and matching tenant)", n)
+	}
+	if got := s.CountUser("victim", "t1"); got != 0 {
+		t.Errorf("victim sessions for t1 remain: %d", got)
+	}
+	if got := s.CountUser("victim", "t2"); got != 1 {
+		t.Errorf("other-tenant session = %d, want 1", got)
+	}
+	if got := s.CountUser("bystander", "t1"); got != 1 {
+		t.Errorf("bystander sessions = %d, want 1", got)
+	}
+
+	reloaded, err := NewFileStoreWithKey(path, time.Hour, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reloaded.CountUser("victim", "t1") != 0 || reloaded.CountUser("victim", "t2") != 1 || reloaded.CountUser("bystander", "t1") != 1 {
+		t.Error("persisted file does not match the in-memory result")
+	}
+
+	if n, err := s.RevokeUser("", "t1"); n != 0 || err != nil {
+		t.Errorf("empty user id removed %d (err %v)", n, err)
+	}
+}
+
+func TestRevokeUserReportsPersistFailure(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sessions.json")
+	s, err := NewFileStoreWithKey(path, time.Hour, make([]byte, 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Create("victim", "v", nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	// A non-empty directory at the temp path makes the atomic rewrite fail.
+	if err := os.MkdirAll(filepath.Join(path+".tmp", "keep"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	n, err := s.RevokeUser("victim", "")
+	if err == nil {
+		t.Fatal("persist failure was swallowed")
+	}
+	if n != 1 || s.CountUser("victim", "") != 0 {
+		t.Errorf("in-memory sessions must stay revoked on persist failure: removed=%d remaining=%d", n, s.CountUser("victim", ""))
+	}
+	// A retry rewrites the file even though nothing is left to remove.
+	if err := os.RemoveAll(path + ".tmp"); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := s.RevokeUser("victim", ""); err != nil || n != 0 {
+		t.Fatalf("retry: removed=%d err=%v", n, err)
+	}
+	reloaded, err := NewFileStoreWithKey(path, time.Hour, make([]byte, 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reloaded.CountUser("victim", "") != 0 {
+		t.Error("retry did not persist the revocation")
+	}
+}

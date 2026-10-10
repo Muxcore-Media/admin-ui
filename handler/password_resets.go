@@ -17,8 +17,14 @@ type passwordResetFile struct {
 }
 
 type passwordResetEntry struct {
-	ID        string    `json:"id"`
-	Username  string    `json:"username"`
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	// UserID is the account id the username resolved to when the request was
+	// made (ADR-0035 §3). Erasure removes entries by this id, never by
+	// username. Entries written before this field existed, or by a writer that
+	// could not resolve the username, leave it empty ("legacy"): erasure purges
+	// a legacy entry only once its username no longer resolves.
+	UserID    string    `json:"user_id,omitempty"`
 	Note      string    `json:"note"`
 	CreatedAt time.Time `json:"created_at"`
 	Status    string    `json:"status"`
@@ -54,6 +60,12 @@ func readPasswordResetFile() (passwordResetFile, error) {
 func writePasswordResetFile(f passwordResetFile) error {
 	passwordResetMu.Lock()
 	defer passwordResetMu.Unlock()
+	return writePasswordResetFileLocked(f)
+}
+
+// writePasswordResetFileLocked atomically replaces the file (temp + rename).
+// The caller holds passwordResetMu.
+func writePasswordResetFileLocked(f passwordResetFile) error {
 	path := passwordResetPath()
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err

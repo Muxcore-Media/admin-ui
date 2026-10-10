@@ -61,6 +61,9 @@ type Handler struct {
 	APIRestURL string
 	// Spool is the marketplace DeployTag client (gRPC, HTTP proxy, or test stub).
 	Spool SpoolAPI
+	// ErasureTrigger, when set, asks the ADR-0035 erasure reconciler for an
+	// immediate sweep after an account is deleted. Nil when it is disabled.
+	ErasureTrigger func()
 	// AuditHook, when set, receives audit events (tests).
 	AuditHook func(actor, action, resource, resourceID string, details map[string]string)
 

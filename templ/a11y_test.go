@@ -136,7 +136,7 @@ func TestUsersPage_HasHeadingTableCaptionAndAlerts(t *testing.T) {
 	html := renderComponent(t, UsersPage([]*authv1.UserInfo{{
 		Username: "alice",
 		Id:       "user-1",
-	}}, "Could not load users", 2))
+	}}, "Could not load users", 2, UserErasureStatus{}))
 
 	for _, want := range []string{
 		`<h1 class="text-2xl font-bold">Users</h1>`,
@@ -148,12 +148,57 @@ func TestUsersPage_HasHeadingTableCaptionAndAlerts(t *testing.T) {
 		`Could not load users`,
 		`aria-label="Manage user alice"`,
 		`aria-label="Delete user alice"`,
+		`Copies in existing backups remain until those backups are removed.`,
 		`type="button"`,
 		`hx-get="/users/create-form"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("users page HTML missing %q", want)
 		}
+	}
+}
+
+func TestUsersPage_ErasurePanelShowsPendingFailedAndComplete(t *testing.T) {
+	html := renderComponent(t, UsersPage(nil, "", 0, UserErasureStatus{
+		Available: true,
+		Rows: []UserErasureRow{
+			{ErasureID: "er-pending", DeletedAt: "2026-10-09T10:00:00Z", Modules: []UserErasureModule{
+				{ModuleID: "userdata-local", State: "ok", AckedAt: "2026-10-09T10:01:00Z", Required: true},
+				{ModuleID: "request-media", State: "pending", Required: true},
+				{ModuleID: "admin-ui", State: "failed", Detail: "sessions_persist_failed", AckedAt: "2026-10-09T10:02:00Z", Required: true},
+			}},
+			{ErasureID: "er-done", DeletedAt: "2026-10-08T10:00:00Z", Complete: true, Modules: []UserErasureModule{
+				{ModuleID: "userdata-local", State: "ok", AckedAt: "2026-10-08T10:01:00Z", Required: true},
+			}},
+		},
+	}))
+	for _, want := range []string{
+		`aria-labelledby="user-erasures-heading"`,
+		`data-testid="erasure-row" data-erasure-id="er-pending" data-complete="false"`,
+		`data-testid="erasure-row" data-erasure-id="er-done" data-complete="true"`,
+		`Incomplete`,
+		`Complete`,
+		`data-module="request-media" data-state="pending"`,
+		`Not yet acknowledged`,
+		`data-module="admin-ui" data-state="failed"`,
+		`(sessions_persist_failed)`,
+		`<caption class="sr-only">Module acknowledgements for erasure er-pending</caption>`,
+		`scope="col"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("users erasure panel HTML missing %q\n%s", want, html)
+		}
+	}
+}
+
+func TestUsersPage_ErasurePanelUnavailableAndEmpty(t *testing.T) {
+	unavailable := renderComponent(t, UsersPage(nil, "", 0, UserErasureStatus{Message: "Erasure status is unavailable."}))
+	if !strings.Contains(unavailable, `data-testid="erasure-unavailable"`) || !strings.Contains(unavailable, `role="status"`) {
+		t.Fatalf("unavailable erasure panel not announced:\n%s", unavailable)
+	}
+	empty := renderComponent(t, UsersPage(nil, "", 0, UserErasureStatus{Available: true}))
+	if !strings.Contains(empty, `data-testid="erasure-none"`) {
+		t.Fatalf("empty erasure panel missing:\n%s", empty)
 	}
 }
 

@@ -21,6 +21,7 @@ import (
 
 	"github.com/Muxcore-Media/core/sdk/go/client"
 	modulesdk "github.com/Muxcore-Media/core/sdk/go/module"
+	"github.com/Muxcore-Media/core/sdk/go/module/erasure"
 	"github.com/Muxcore-Media/core/sdk/go/module/meshid"
 
 	"github.com/Muxcore-Media/admin-ui/handler"
@@ -192,6 +193,28 @@ func Main(v string) {
 	h.HydrateNetworkingFromFile()
 	trustedProxies = h.TrustedProxies
 
+	// ADR-0035: apply the identity provider's user-erasure ledger to this
+	// module's stores. Household and staging refuse to run without it.
+	var finder erasure.CapabilityFinder
+	if coreClient != nil {
+		finder = coreClient.Discovery.Raw()
+	}
+	erasureRec, err := newErasureReconciler(erasureSetup{
+		Getenv:   os.Getenv,
+		ModuleID: meshModuleID(os.Getenv),
+		Sessions: ss,
+		Finder:   finder,
+	})
+	if err != nil {
+		slog.Error("admin-ui cannot start without its erasure reconciler", "error", err)
+		os.Exit(1)
+	}
+	stopErasure := func() {}
+	if erasureRec != nil {
+		h.ErasureTrigger = erasureRec.Trigger
+		stopErasure = runErasure(erasureRec)
+	}
+
 	mux := http.NewServeMux()
 
 	assetsFS, err := fs.Sub(staticAssets, "assets")
@@ -269,6 +292,7 @@ func Main(v string) {
 	if err := srv.Shutdown(ctx); err != nil {
 		slog.Error("http shutdown error", "error", err)
 	}
+	stopErasure()
 
 	if coreClient != nil {
 		_ = coreClient.Close()

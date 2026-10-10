@@ -275,6 +275,57 @@ func (s *Store) RevokeByID(id string) {
 	_ = s.persist()
 }
 
+// RevokeUser removes every session of userID and rewrites the persisted file
+// (ADR-0035 erasure disposition for admin-ui's sessions.json). tenantID is the
+// tombstone's tenant: a session is kept only when it records a different,
+// non-empty tenant, because a session whose stored tenant is blank may have
+// had it cleared by claim revalidation (see CommitValidatedClaims) and still
+// belongs to the erased user (ids are globally unique and never reused).
+//
+// It returns the number of sessions removed. A failure to persist is
+// returned, never swallowed: the in-memory sessions stay removed so the
+// erased user cannot act in this process, and because the file is always
+// rewritten, a retry completes the persistence even when nothing is left to
+// remove. Callers must not record the erasure as applied on error.
+func (s *Store) RevokeUser(userID, tenantID string) (int, error) {
+	if s == nil || userID == "" {
+		return 0, nil
+	}
+	n := 0
+	s.mu.Lock()
+	for id, sess := range s.sessions {
+		if sess.UserID == userID && sameTenant(sess.TenantID, tenantID) {
+			delete(s.sessions, id)
+			n++
+		}
+	}
+	s.mu.Unlock()
+	return n, s.persist()
+}
+
+// CountUser reports how many live sessions still carry userID under the same
+// tenant rule as RevokeUser.
+func (s *Store) CountUser(userID, tenantID string) int {
+	if s == nil || userID == "" {
+		return 0
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	n := 0
+	for _, sess := range s.sessions {
+		if sess.UserID == userID && sameTenant(sess.TenantID, tenantID) {
+			n++
+		}
+	}
+	return n
+}
+
+// sameTenant reports whether a stored session tenant may belong to the
+// tombstone's tenant: equal, or the stored value is blank.
+func sameTenant(stored, tombstone string) bool {
+	return stored == "" || stored == tombstone
+}
+
 // RenameSession sets a human-readable label on the session for a raw token.
 func (s *Store) RenameSession(token, label string) bool {
 	return s.RenameByID(ID(token), label)
